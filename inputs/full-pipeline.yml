@@ -1,0 +1,18 @@
+# Example: a pipeline that runs the full security suite.
+# Usage: inspec exec pipeline-artifact-validation --input-file inputs/full-pipeline.yml
+artifact_dir: reports
+
+expect_sast: true
+expect_trufflehog: true
+expect_lint: true
+expect_quality: true
+expect_code_review: true
+expect_sbom: true
+expect_trivy: true
+expect_grype: true
+expect_snyk: true
+expect_container_sig: true
+expect_inspec_deployed: true
+expect_license: true
+
+license_source: sonatype

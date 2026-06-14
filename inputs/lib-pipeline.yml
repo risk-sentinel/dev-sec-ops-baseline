@@ -1,0 +1,11 @@
+# Example: a lightweight library pipeline — only SAST, SBOM, deps, license.
+# Everything else SKIPS (only_if false).
+# Usage: inspec exec pipeline-artifact-validation --input-file inputs/lib-pipeline.yml
+artifact_dir: reports
+
+expect_sast: true
+expect_sbom: true
+expect_grype: true
+expect_license: true
+
+license_source: trivy

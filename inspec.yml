@@ -1,0 +1,113 @@
+name: pipeline-artifact-validation
+title: CI/CD Pipeline Artifact Presence & Validity Validation
+maintainer: Clem
+copyright: SPDX-License-Identifier MIT OR Apache-2.0
+license: MIT OR Apache-2.0
+summary: >-
+  Validates that expected security/quality scan artifacts were produced by a
+  pipeline and are structurally valid. Pass/Skip/Fail is driven entirely by
+  per-pipeline input toggles. This profile asserts that scans RAN and emitted
+  well-formed reports; it does NOT evaluate the findings inside them.
+version: 1.0.0
+supports: []
+inspec_version: '>= 5.0'
+
+inputs:
+  - name: artifact_dir
+    type: string
+    value: 'reports'
+    description: 'Directory containing pipeline report artifacts.'
+
+  # ---- EXPECTATION TOGGLES (true => REQUIRE artifact; false/unset => SKIP) ----
+  - name: expect_sast
+    type: boolean
+    value: false
+  - name: expect_secrets
+    type: boolean
+    value: false
+  - name: expect_trufflehog
+    type: boolean
+    value: false
+  - name: expect_lint
+    type: boolean
+    value: false
+  - name: expect_quality
+    type: boolean
+    value: false
+  - name: expect_code_review
+    type: boolean
+    value: false
+  - name: expect_sbom
+    type: boolean
+    value: false
+  - name: expect_dependency
+    type: boolean
+    value: false
+  - name: expect_trivy
+    type: boolean
+    value: false
+  - name: expect_grype
+    type: boolean
+    value: false
+  - name: expect_snyk
+    type: boolean
+    value: false
+  - name: expect_container_sig
+    type: boolean
+    value: false
+  - name: expect_inspec_deployed
+    type: boolean
+    value: false
+  - name: expect_license
+    type: boolean
+    value: false
+
+  # ---- License review provenance ----
+  - name: license_source
+    type: string
+    value: 'sonatype'
+    description: 'Which tool/process performed OSS license review: sonatype | trivy | snyk | manual.'
+
+  # ---- ARTIFACT FILE NAMES (override per pipeline as needed) ----
+  - name: sast_report
+    type: string
+    value: 'sast.sarif'
+  - name: secrets_report
+    type: string
+    value: 'secrets.json'
+  - name: trufflehog_report
+    type: string
+    value: 'trufflehog.json'
+  - name: lint_report
+    type: string
+    value: 'lint.json'
+  - name: quality_report
+    type: string
+    value: 'quality.json'
+  - name: code_review_report
+    type: string
+    value: 'code-review.json'
+  - name: sbom_report
+    type: string
+    value: 'sbom.cdx.json'
+  - name: dependency_report
+    type: string
+    value: 'dependency.json'
+  - name: trivy_report
+    type: string
+    value: 'trivy.json'
+  - name: grype_report
+    type: string
+    value: 'grype.json'
+  - name: snyk_report
+    type: string
+    value: 'snyk.json'
+  - name: container_sig_report
+    type: string
+    value: 'cosign-verify.json'
+  - name: inspec_deployed_report
+    type: string
+    value: 'inspec-deployed.json'
+  - name: license_report
+    type: string
+    value: 'sonatype-policy.json'

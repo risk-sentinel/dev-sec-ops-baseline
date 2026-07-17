@@ -1,4 +1,4 @@
-name: pipeline-artifact-validation
+name: dev-sec-ops-v1r1
 title: CI/CD Pipeline Artifact Presence & Validity Validation
 maintainer: Clem
 copyright: SPDX-License-Identifier MIT OR Apache-2.0

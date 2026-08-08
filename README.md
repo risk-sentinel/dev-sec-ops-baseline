@@ -79,3 +79,7 @@ in an MR (fits an authoritative-layer posture better than ephemeral CI variables
 ## License
 
 MIT OR Apache-2.0. No ownership claims asserted.
+
+---
+
+[![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=risk-sentinel_dev-sec-ops-profile)](https://sonarcloud.io/summary/new_code?id=risk-sentinel_dev-sec-ops-profile)

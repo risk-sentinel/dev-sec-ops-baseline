@@ -1,0 +1,89 @@
+name: Profile lint
+
+# This repository had NO CI. Every validation was run by hand, locally, and a
+# defect that broke the consumer's exec leg still shipped (v0.1.4). This is the
+# minimum net: it runs exactly the checks that were being run manually, plus a
+# guard for the one class of defect that the standard checks provably cannot
+# see.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AUDITOR_IMAGE: risksentinel/sparc-auditor:v0.5.0
+
+jobs:
+  lint:
+    name: InSpec validate + Ruby syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Docker Hub login (auditor image pull)
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+      - name: Ruby syntax (every control + library)
+        run: |
+          set -uo pipefail
+          fail=0
+          for f in $(find controls libraries -name '*.rb' | sort); do
+            docker run --rm -v "$PWD:/work" -w /work --entrypoint sh "${AUDITOR_IMAGE}" \
+              -c "/opt/cinc-workstation/embedded/bin/ruby -c '$f' >/dev/null" \
+              || { echo "::error file=$f::ruby syntax error"; fail=1; }
+          done
+          [ "$fail" = 0 ] || exit 1
+          echo "All control and library files parse."
+
+      # `vendor/` is gitignored, so a fresh checkout has no dependencies and
+      # `check` fails before evaluating anything. Locally this is invisible —
+      # a stale vendor/ from earlier work makes it pass.
+      - name: Vendor dependencies
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work "${AUDITOR_IMAGE}" vendor . --overwrite
+
+      - name: cinc-auditor check
+        run: |
+          set -uo pipefail
+          # Capture the exit code rather than letting `bash -e` abort here: the
+          # first version of this step died on the docker call BEFORE echoing
+          # $out, so a failing check produced no diagnostic at all — the guard
+          # hid its own evidence.
+          out=$(docker run --rm -v "$PWD:/work" -w /work "${AUDITOR_IMAGE}" check . 2>&1) && rc=0 || rc=$?
+          echo "$out"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::cinc-auditor check exited ${rc} — see output above."
+            exit 1
+          fi
+          echo "$out" | grep -q "Valid : *true" || { echo "::error::profile did not validate"; exit 1; }
+          # A profile that loads ZERO controls validates happily. Assert the
+          # count is non-zero so an empty or wrongly-scoped profile is caught.
+          n=$(echo "$out" | sed -n 's/^Controls *: *\([0-9]*\).*/\1/p')
+          [ "${n:-0}" -gt 0 ] || { echo "::error::check reported ${n:-0} controls"; exit 1; }
+          echo "Controls: $n"
+
+      - name: cinc-auditor json (catches load-time errors check misses)
+        run: |
+          set -uo pipefail
+          out=$(docker run --rm -v "$PWD:/work" -w /work "${AUDITOR_IMAGE}" json . 2>/tmp/json.err) && rc=0 || rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::cinc-auditor json exited ${rc}"; cat /tmp/json.err; exit 1
+          fi
+          echo "$out" > /tmp/profile.json
+          jq -e '.controls | length > 0' /tmp/profile.json > /dev/null \
+            || { echo "::error::json produced no controls"; exit 1; }
+          echo "json loaded $(jq '.controls | length' /tmp/profile.json) controls"
+
+      - name: Resource-scope guard
+        # `check` and `json` do NOT evaluate control bodies, so neither can see
+        # a resource called in a describe body — it only raises on a real exec
+        # against a live target, which this repo cannot run. Hence a linter.
+        run: python3 tools/lint_resource_scope.py controls libraries

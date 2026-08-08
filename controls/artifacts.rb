@@ -218,7 +218,13 @@ control 'artifact-license' do
         "#{input('license_source')}."
   tag nist: ['SR-3', 'SA-4']
   tag layer: 'license-governance'
-  tag license_source: input('license_source')
+  # NOT `tag license_source: input('license_source')`. Tags are STATIC
+  # metadata: InSpec's AST TagCollector reads the literal at parse time and
+  # crashes on a method call —
+  #   undefined method 'value' for an instance of RuboCop::AST::SendNode
+  # — which aborted `cinc-auditor check` for the entire profile. The value is
+  # runtime data and is already recorded twice: interpolated into desc above,
+  # and asserted in the describe below.
   only_if('License governance not expected') { input('expect_license') }
 
   p = ArtifactHelper.path(adir, input('license_report'))

@@ -128,6 +128,16 @@ inputs:
       How recent HDF evidence must be to count for an assessment, and how far
       back to walk the dated slots when the `latest` pointer is missing.
 
+  - name: evidence_key_template
+    type: string
+    value: '{boundary}/{slot}/{repo}/{source}/{source}-hdf.json'
+    description: >-
+      Object key layout in the evidence store. Placeholders: {boundary} {slot}
+      {repo} {source}. Defaults to our canonical layout; override it to point at
+      an existing aggregation rather than asking a team to re-file evidence they
+      already collect. {slot} is required — it is what separates the `latest`
+      pointer from a dated object.
+
   - name: protected_branch
     type: string
     value: 'main'

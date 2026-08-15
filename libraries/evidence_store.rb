@@ -56,7 +56,12 @@ class EvidenceStore < Inspec.resource(1)
     end
   EXAMPLE
 
-  attr_reader :repo, :source, :bucket, :boundary, :lookback_days
+  # Our canonical layout. Overridable because a team that already aggregates
+  # evidence has their own, and telling them to re-file it is not "meeting them
+  # where they are" — it is asking them to move.
+  DEFAULT_TEMPLATE = '{boundary}/{slot}/{repo}/{source}/{source}-hdf.json'.freeze
+
+  attr_reader :repo, :source, :bucket, :boundary, :lookback_days, :template
 
   def initialize(repo = nil, opts = {})
     if repo.is_a?(Hash)
@@ -70,6 +75,7 @@ class EvidenceStore < Inspec.resource(1)
     @bucket        = (opts[:bucket] || opts['bucket']).to_s
     @boundary      = (opts[:boundary] || opts['boundary'] || 'sparc').to_s
     @lookback_days = (opts[:lookback_days] || opts['lookback_days'] || 7).to_i
+    @template      = (opts[:key_template] || opts['key_template'] || DEFAULT_TEMPLATE).to_s
     @cache         = {}
   end
 
@@ -78,8 +84,18 @@ class EvidenceStore < Inspec.resource(1)
   end
 
   # ---- Location -------------------------------------------------------------
+  # Placeholders: {boundary} {slot} {repo} {source}
+  #
+  # {slot} is required. It is what distinguishes the `latest` pointer from a
+  # dated object, and without it the lookback walk has nothing to vary — every
+  # candidate would resolve to the same key and a stale object would read as
+  # current. A template missing it is rejected rather than quietly degraded.
   def key_for(slot)
-    "#{@boundary}/#{slot}/#{@repo}/#{@source}/#{@source}-hdf.json"
+    @template
+      .gsub('{boundary}', @boundary)
+      .gsub('{slot}', slot.to_s)
+      .gsub('{repo}', @repo)
+      .gsub('{source}', @source)
   end
 
   # latest first, then walk the dated slots backwards through the window.
@@ -181,6 +197,11 @@ class EvidenceStore < Inspec.resource(1)
     missing << 'repo'   if @repo.empty?
     missing << 'source' if @source.empty?
     missing << 'bucket' if @bucket.empty?
+    unless @template.include?('{slot}')
+      raise Inspec::Exceptions::ResourceFailed,
+            "evidence_key_template must contain {slot} (got #{@template.inspect}) — " \
+            'without it the freshness window cannot distinguish latest from a dated object'
+    end
     return if missing.empty?
     # Raise, not capture: an unconfigured resource has assessed nothing, and a
     # result that says so is more useful than a false negative.

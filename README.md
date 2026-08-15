@@ -178,6 +178,49 @@ What is expected at each stage, and which controls verify it:
 
 ---
 
+## Meeting a team where they are
+
+Evidence reaches this profile three ways. A team adopts whichever matches how
+they already work — none of them requires changing their pipeline first.
+
+| Their situation | Mode | What they set |
+|---|---|---|
+| Scans run in CI; reports land on the runner | `pipeline` | `artifact_dir` — the directory their scanners write to |
+| They already aggregate evidence to a store | `control-plane` | `evidence_bucket` + `evidence_key_template` |
+| They rely on platform features (code scanning, SonarCloud) | `control-plane` | tokens |
+| All of the above | `both` | all of the above |
+
+### In-pipeline: point at the directory
+
+Add the profile as a dependency and `include_controls` it, then pass the
+directory the scanners already write to. Filenames are matched by **glob**, so
+timestamped and target-tagged names work as-is:
+
+```bash
+cinc-auditor exec . -t local:// \
+  --input-file inputs/<your-declaration>.yml \
+  --input run_mode=pipeline artifact_dir=./reports
+```
+
+`trivy-2026-08-15.json`, `grype-20260815T1000.json` and `sast-codeql.sarif` all
+match without anyone renaming anything.
+
+### Already aggregating: point at the storage
+
+A team with an existing evidence store should not have to re-file it. Override
+the key layout instead:
+
+```yaml
+evidence_bucket: their-security-evidence
+evidence_key_template: 'security-evidence/{repo}/{source}/{slot}.hdf.json'
+evidence_lookback_days: 7
+```
+
+Placeholders are `{boundary}` `{slot}` `{repo}` `{source}`. `{slot}` is required
+— it is what separates the current pointer from a dated object, and without it
+every lookback candidate would resolve to the same key and stale evidence would
+read as current.
+
 ## Usage
 
 ```bash

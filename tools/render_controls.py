@@ -112,6 +112,7 @@ org_name = input('organization').to_h['name']
 evidence_bucket   = input('evidence_bucket')
 evidence_boundary = input('evidence_boundary')
 evidence_lookback = input('evidence_lookback_days')
+evidence_template = input('evidence_key_template')
 
 # ---- Live verification ------------------------------------------------------
 # coverage() resolves declaration x registry: it says a tool SHOULD be visible
@@ -172,7 +173,8 @@ verify = lambda do |repo, tool, surface|
     # unreadable bucket so the control ERRORS rather than reporting a
     # repository as unevidenced because we could not look.
     es = evidence_store(repo, source: src, bucket: evidence_bucket,
-                        boundary: evidence_boundary, lookback_days: evidence_lookback)
+                        boundary: evidence_boundary, lookback_days: evidence_lookback,
+                        key_template: evidence_template)
     next "no HDF evidence under #{evidence_boundary}/*/#{repo}/#{src}/ within #{evidence_lookback} days" unless es.exists?
     # Stale and absent are different findings and must not collapse.
     next "evidence is #{es.age_days} days old (window #{evidence_lookback} days)" unless es.within_window?

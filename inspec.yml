@@ -138,6 +138,26 @@ inputs:
       already collect. {slot} is required — it is what separates the `latest`
       pointer from a dated object.
 
+  - name: evidence_format
+    type: string
+    value: 'auto'
+    description: >-
+      Shape of the evidence in the store: hdf | native | auto. Mature teams
+      aggregate converted HDF; less mature ones aggregate whatever their
+      scanners emit. `auto` accepts either. Native files are identified by the
+      same structural marker the registry uses for the artifact surface, so the
+      two cannot disagree about what a valid Trivy or Grype file looks like.
+
+  - name: evidence_require_labels
+    type: boolean
+    value: false
+    description: >-
+      Whether attribution must be corroborated by labels inside the evidence.
+      Default false: a foreign store has no labels because we did not write it,
+      and attribution then rests on the key path, which the result records
+      explicitly. A label that CONTRADICTS the path always fails regardless —
+      absent and contradicted are different findings.
+
   - name: protected_branch
     type: string
     value: 'main'

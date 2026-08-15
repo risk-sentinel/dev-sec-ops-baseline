@@ -76,6 +76,15 @@ class EvidenceStore < Inspec.resource(1)
     @boundary      = (opts[:boundary] || opts['boundary'] || 'sparc').to_s
     @lookback_days = (opts[:lookback_days] || opts['lookback_days'] || 7).to_i
     @template      = (opts[:key_template] || opts['key_template'] || DEFAULT_TEMPLATE).to_s
+    # 'hdf' | 'native' | 'auto'. Mature teams aggregate HDF; less mature ones
+    # aggregate whatever their scanners emit. Refusing the second group would
+    # make this surface useful only to teams who least need help.
+    @format        = (opts[:format] || opts['format'] || 'auto').to_s
+    # Structural marker for the native form, taken from the registry so the
+    # artifact surface and this one cannot disagree about what a valid Trivy or
+    # Grype file looks like.
+    @marker        = (opts[:marker] || opts['marker']).to_s
+    @require_labels = opts.key?(:require_labels) ? opts[:require_labels] : opts['require_labels']
     @cache         = {}
   end
 
@@ -171,23 +180,92 @@ class EvidenceStore < Inspec.resource(1)
     end
   end
 
-  def attributed?
+  # Three states, not two. Collapsing them was a defect: a team pointing at
+  # their own aggregation has no labels (we did not write the file), and that is
+  # NOT the same event as evidence labelled for a different repository.
+  #
+  #   :corroborated  labels present and agree with the key path
+  #   :path_only     no labels — attribution rests on the path convention alone
+  #   :contradicted  labels name a different repository
+  def attribution_state
     l = labels
-    return false if l.empty?
-    declared = l['repo'].to_s.split('/').last
-    declared == @repo
+    return :path_only if l.empty? || l['repo'].to_s.empty?
+    l['repo'].to_s.split('/').last == @repo ? :corroborated : :contradicted
+  end
+
+  # A CONTRADICTION always fails, whatever the policy: evidence filed under the
+  # wrong repository is worse than absent, because it credits the wrong thing.
+  # Only the treatment of ABSENT labels is configurable, and it defaults to
+  # accepting path-only attribution so a foreign store works out of the box.
+  def attributed?
+    case attribution_state
+    when :contradicted then false
+    when :path_only    then !require_labels?
+    else                    true
+    end
+  end
+
+  def require_labels?
+    @require_labels.nil? ? false : @require_labels
   end
 
   def attribution_detail
     l = labels
-    return 'no labels present in the HDF — cannot corroborate the key path' if l.empty?
-    declared = l['repo'].to_s.split('/').last
-    if declared == @repo
+    case attribution_state
+    when :corroborated
       "path and labels agree (repo=#{l['repo']}, commit=#{l['commit'].to_s[0, 8]})"
-    else
+    when :contradicted
       "MISMATCH: filed under #{@repo} but labelled repo=#{l['repo']} — " \
         'evidence attributed to the wrong repository'
+    else
+      'path-only: the evidence carries no repo label, so attribution rests on ' \
+        'the key path convention rather than the file itself'
     end
+  end
+
+  # ---- Shape ----------------------------------------------------------------
+  # HDF has baselines[] (native) or profiles[] (legacy). A native scanner file
+  # is identified by the registry's own marker for that tool. TruffleHog is
+  # JSONL rather than a JSON document, so it is detected by parsing the first
+  # line rather than the whole file.
+  def document
+    @cache[:document] ||= begin
+      r = resolve
+      return nil if r.nil?
+      raw = get_body(r[:key])
+      parse_permissive(raw)
+    end
+  end
+
+  def hdf?
+    d = document
+    d.is_a?(Hash) && (d.key?('baselines') || d.key?('profiles'))
+  end
+
+  def native?
+    d = document
+    return false unless d.is_a?(Hash)
+    return true if @marker.empty? && !hdf?
+    dig_marker(d, @marker) ? true : false
+  end
+
+  def valid_shape?
+    case @format
+    when 'hdf'    then hdf?
+    when 'native' then native?
+    else               hdf? || native?
+    end
+  end
+
+  def shape_detail
+    return 'unreadable' if document.nil?
+    return "HDF (#{document.key?('baselines') ? 'native schema' : 'legacy profiles[]'})" if hdf?
+    if native?
+      return "native #{@source} output" if @marker.empty?
+      return "native #{@source} output (marker #{@marker.inspect} present)"
+    end
+    "unrecognised shape — expected #{@format == 'native' ? "native #{@source}" : 'HDF'}" \
+      "#{@marker.empty? ? '' : " or marker #{@marker.inspect}"}"
   end
 
   private
@@ -255,22 +333,42 @@ class EvidenceStore < Inspec.resource(1)
     nil
   end
 
+  # Parses a JSON document, or the first record of a JSONL stream. TruffleHog
+  # emits JSONL, so a whole-file parse fails on exactly the evidence this
+  # surface most needs to read.
+  def parse_permissive(raw)
+    require 'json'
+    JSON.parse(raw)
+  rescue JSON::ParserError
+    first = raw.to_s.each_line.find { |l| !l.strip.empty? }
+    return nil if first.nil?
+    begin
+      JSON.parse(first)
+    rescue JSON::ParserError
+      nil
+    end
+  end
+
+  def dig_marker(doc, marker)
+    return nil if marker.to_s.empty?
+    marker.split('.').reduce(doc) { |acc, k| acc.is_a?(Hash) ? acc[k] : nil }
+  end
+
   # Labels live in the HDF passthrough. Read defensively: an unlabelled or
   # differently-shaped file is a weaker attribution story, not a crash.
+  # A native scanner file has no labels by construction — we did not write it —
+  # so an empty hash here is the expected answer for that case, not a failure.
+  # parse_permissive already absorbed any parse error, so there is nothing left
+  # to rescue.
   def extract_labels(body)
-    require 'json'
-    doc = JSON.parse(body)
-    candidates = [
+    doc = parse_permissive(body)
+    return {} unless doc.is_a?(Hash)
+    [
       doc.dig('passthrough', 'labels'),
       doc.dig('passthrough', 'raw', 'labels'),
       doc['labels'],
       doc.dig('profiles', 0, 'passthrough', 'labels')
-    ].compact
-    found = candidates.find { |c| c.is_a?(Hash) }
-    found || {}
-  rescue JSON::ParserError => e
-    raise Inspec::Exceptions::ResourceFailed,
-          "evidence at #{resolve[:key]} is not parseable JSON: #{e.message}"
+    ].compact.find { |c| c.is_a?(Hash) } || {}
   end
 end
 

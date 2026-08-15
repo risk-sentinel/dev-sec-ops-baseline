@@ -221,6 +221,38 @@ Placeholders are `{boundary}` `{slot}` `{repo}` `{source}`. `{slot}` is required
 every lookback candidate would resolve to the same key and stale evidence would
 read as current.
 
+### What shape is the evidence in?
+
+Both are supported, because insisting on converted HDF would make this surface
+useful only to the teams who least need it.
+
+| `evidence_format` | Expects | Who |
+|---|---|---|
+| `hdf` | Converted HDF — `baselines[]` or `profiles[]` | Teams already running the conversion |
+| `native` | Raw scanner output, identified by the same structural marker the artifact surface uses | Teams aggregating what their scanners emit |
+| `auto` *(default)* | Either | Mixed estates |
+
+Native TruffleHog output is JSONL rather than a JSON document; it is detected by
+parsing the first record, so a whole-file parse failing is not treated as
+corrupt evidence.
+
+### Attribution, and what happens without our labels
+
+Evidence we emit carries `repo`, `commit`, `ref` and `run_id` labels, so the
+file corroborates the key path it was filed under. Evidence from **your** store
+will not — we did not write it. That is expected, not a failure:
+
+| State | Meaning | Result |
+|---|---|---|
+| Corroborated | Labels present and agree with the path | Pass |
+| Path-only | No labels; attribution rests on the key path convention | **Pass**, and the result says so |
+| Contradicted | Labels name a *different* repository | **Fail, always** |
+
+A contradiction fails regardless of policy. Evidence filed under the wrong
+repository is worse than absent, because it credits the wrong thing. Only the
+treatment of *absent* labels is configurable, via `evidence_require_labels`
+(default `false`).
+
 ## Usage
 
 ```bash

@@ -113,6 +113,8 @@ evidence_bucket   = input('evidence_bucket')
 evidence_boundary = input('evidence_boundary')
 evidence_lookback = input('evidence_lookback_days')
 evidence_template = input('evidence_key_template')
+evidence_format   = input('evidence_format')
+evidence_labels   = input('evidence_require_labels')
 
 # ---- Live verification ------------------------------------------------------
 # coverage() resolves declaration x registry: it says a tool SHOULD be visible
@@ -172,12 +174,18 @@ verify = lambda do |repo, tool, surface|
     # Constructed per cell; the resource raises on missing config or an
     # unreadable bucket so the control ERRORS rather than reporting a
     # repository as unevidenced because we could not look.
+    # The structural marker comes from the registry's artifact surface, so a
+    # native file is judged by the same rule in both places.
+    marker = registry.surfaces_for(tool).dig('artifact', 'marker')
     es = evidence_store(repo, source: src, bucket: evidence_bucket,
                         boundary: evidence_boundary, lookback_days: evidence_lookback,
-                        key_template: evidence_template)
-    next "no HDF evidence under #{evidence_boundary}/*/#{repo}/#{src}/ within #{evidence_lookback} days" unless es.exists?
+                        key_template: evidence_template, format: evidence_format,
+                        marker: marker, require_labels: evidence_labels)
+    next "no evidence under #{evidence_boundary}/*/#{repo}/#{src}/ within #{evidence_lookback} days" unless es.exists?
     # Stale and absent are different findings and must not collapse.
     next "evidence is #{es.age_days} days old (window #{evidence_lookback} days)" unless es.within_window?
+    next "shape — #{es.shape_detail}" unless es.valid_shape?
+    # A contradiction always fails; absent labels are governed by policy.
     next "attribution — #{es.attribution_detail}" unless es.attributed?
     # Evidence exists but the `latest` pointer did not: the scan is fine, the
     # emit is half-broken. Reported rather than silently accepted.

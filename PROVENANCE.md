@@ -60,6 +60,34 @@ visible on a surface. Asserting on that alone would pass a repository that decla
 SonarQube but has no project, without making a single API call. Each covered cell is
 therefore verified against the real source, and an unreachable source fails.
 
+### The evidence store surface
+
+`evidence_store` reads converted HDF out of the S3 evidence bucket. It is the
+only surface that can see a tool with **no API** from outside its own pipeline —
+TruffleHog is the standing case — and so it is what makes a standalone sweep
+meaningful rather than a list of things it cannot reach.
+
+Attribution is corroborated, not asserted. The S3 key path says which repository
+the evidence belongs to; the HDF's own labels (`repo`, `commit`, `run_id`,
+stamped at emit) say it independently. Path alone is a convention — anything
+with write access can file an object anywhere. Labels alone cannot prove the
+object is where a reader will look. Agreement makes the attribution
+trustworthy, and disagreement is a finding in its own right: evidence filed
+under the wrong repository is worse than absent, because it credits the wrong
+thing.
+
+Freshness is bounded by `evidence_lookback_days` (default 7). Absent, stale and
+misattributed evidence are three different findings and are reported separately.
+
+**Credential failures raise rather than fail.** A missing or unusable AWS
+credential says nothing about whether a scan ran: failing would assert
+something untrue, passing would be worse, and skipping would read as "not
+applicable". Raising makes InSpec emit `failed` *with a backtrace*, which
+Heimdall's rollup renders as Profile Error — no credit, and visibly not an
+assessment. This is deliberately inconsistent with `github_security` and
+`sonarqube_project`, which capture and fail; whether those should follow is an
+open question rather than an oversight.
+
 ### Evidence strength is recorded, not assumed
 
 A platform API reports whatever it last analysed; an artifact was produced by the run in

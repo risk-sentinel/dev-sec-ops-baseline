@@ -81,6 +81,7 @@ Every check resolves to exactly one surface. They differ by access requirement a
 | `artifact` | Report file on disk | In-pipeline execution, after the scanner stage | **execution** |
 | `platform_api` | Forge or evidence-source state | A token | **execution** |
 | `repo_contents` | A file in the repository | A clone, or the contents API | configuration |
+| `evidence_store` | Converted HDF in the evidence bucket | AWS credentials with s3:GetObject on the evidence bucket | **execution** |
 
 **A workflow file naming a scanner proves somebody wired it up — not that it ran.** So `repo_contents` is configuration evidence and can never satisfy a scan type. It still answers questions nothing else can: whether the scan fires on a merge request (shift-left), and whether CODEOWNERS covers the security paths (governance). Those are governance controls, never coverage controls.
 
@@ -91,8 +92,8 @@ Merge-request rules straddle the split. *Whether reviews are required* is platfo
 | Run mode | Surfaces readable | Can satisfy a scan type |
 |---|---|---|
 | `pipeline` | `artifact` | `artifact` |
-| `control-plane` | `platform_api`, `repo_contents` | `platform_api` |
-| `both` | `artifact`, `platform_api`, `repo_contents` | `artifact`, `platform_api` |
+| `control-plane` | `platform_api`, `repo_contents`, `evidence_store` | `platform_api`, `evidence_store` |
+| `both` | `artifact`, `platform_api`, `repo_contents`, `evidence_store` | `artifact`, `platform_api`, `evidence_store` |
 
 ### Coverage by scan type
 

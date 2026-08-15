@@ -64,6 +64,10 @@ gh_token = input('github_token')
 gh_api   = input('github_api_base')
 org_name = input('organization').to_h['name']
 
+evidence_bucket   = input('evidence_bucket')
+evidence_boundary = input('evidence_boundary')
+evidence_lookback = input('evidence_lookback_days')
+
 # ---- Live verification ------------------------------------------------------
 # coverage() resolves declaration x registry: it says a tool SHOULD be visible
 # on a surface. It does not look. Asserting on it alone passes a repository that
@@ -115,6 +119,23 @@ verify = lambda do |repo, tool, surface|
       next "#{cap}: #{st} — #{gs.capability_reason(cap)}" unless st == :enabled
       'verified'
     end
+  when 'evidence_store'
+    cfg = registry.surfaces_for(tool)['evidence_store']
+    src = cfg && cfg['source']
+    next "no evidence source declared for #{tool}" if src.to_s.empty?
+    # Constructed per cell; the resource raises on missing config or an
+    # unreadable bucket so the control ERRORS rather than reporting a
+    # repository as unevidenced because we could not look.
+    es = evidence_store(repo, source: src, bucket: evidence_bucket,
+                        boundary: evidence_boundary, lookback_days: evidence_lookback)
+    next "no HDF evidence under #{evidence_boundary}/*/#{repo}/#{src}/ within #{evidence_lookback} days" unless es.exists?
+    # Stale and absent are different findings and must not collapse.
+    next "evidence is #{es.age_days} days old (window #{evidence_lookback} days)" unless es.within_window?
+    next "attribution — #{es.attribution_detail}" unless es.attributed?
+    # Evidence exists but the `latest` pointer did not: the scan is fine, the
+    # emit is half-broken. Reported rather than silently accepted.
+    next "found only in a dated slot (#{es.slot}) — the `latest` pointer write is broken" if es.pointer_broken?
+    'verified'
   else
     "unsupported surface #{surface}"
   end
@@ -145,10 +166,17 @@ coverage_body = lambda do |scan_type|
       # on the registry alone would report a repository as covered without a
       # single API call or file read.
       c.covered_by.each do |hit|
-        scope   = hit[:scope] == :run_scoped ? SCOPE_RUN : SCOPE_POINT
-        outcome = verify.call(c.repo, hit[:tool], hit[:surface])
+        scope = hit[:scope] == :run_scoped ? SCOPE_RUN : SCOPE_POINT
         describe "#{c.repo} — #{scan_type} via #{hit[:tool]} (#{hit[:surface]}, #{scope})" do
-          subject { outcome }
+          # verify.call is DEFERRED into the example deliberately. Called in the
+          # control body, a raise aborts the whole control — one unconfigured
+          # evidence bucket silently dropped nineteen repositories' results.
+          # Inside subject, the raise lands on THIS example as failed+backtrace
+          # (Heimdall: Profile Error) and every other cell still reports.
+          #
+          # This is the form the resource-scope linter calls legal: a resource
+          # deferred into an example, never a bare call in a describe body.
+          subject { verify.call(c.repo, hit[:tool], hit[:surface]) }
           it { should cmp 'verified' }
         end
       end

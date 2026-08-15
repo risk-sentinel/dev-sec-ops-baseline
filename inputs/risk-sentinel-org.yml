@@ -204,8 +204,20 @@ targets:
     evidence_sources:
       sonarqube: { project_key: risk-sentinel_aws-ecr-baseline-v2r4 }
 
-  # No SonarCloud project is visible without a token, and SonarCloud returns 404
-  # for private projects rather than leaking existence — so whether one exists
-  # cannot be established from here. Declared as-is; the run reports it honestly
-  # rather than guessing.
-  - { repo: sparc-iac-template, declaration: partial }
+  # Inventoried from its workflows: Checkov, CodeQL, Semgrep, TruffleHog, Trivy
+  # and Cosign. It is the only repository in the organisation with NO SonarCloud
+  # project (code search returns zero hits), so inheriting `sast: [sonarqube]`
+  # from defaults was wrong — the earlier "no project_key declared" failure was
+  # this declaration being incorrect, not a missing scan.
+  #
+  # CodeQL and Semgrep are pinned to the artifact surface for the same reason as
+  # sparc-iac: the SARIF is the evidence, and Code Security is not licensed on
+  # private repositories here.
+  - repo: sparc-iac-template
+    declaration: confirmed
+    scans:
+      sast:      { enabled: true, tools: [{ name: codeql, surface: artifact }, { name: semgrep, surface: artifact }] }
+      secrets:   { enabled: true, tools: [trufflehog] }
+      iac:       { enabled: true, tools: [checkov] }
+      sca:       { enabled: true, tools: [trivy] }
+      container: { enabled: true, tools: [trivy, cosign] }

@@ -121,6 +121,13 @@ targets_by_repo = Array(input('targets')).each_with_object({}) { |t, h| h[t['rep
 artifact_dir    = input('artifact_dir')
 freshness_days  = input('evidence_freshness_days')
 
+
+SCOPE_RUN         = 'run-scoped'.freeze
+SCOPE_POINT       = 'point-in-time'.freeze
+DESC_ATTEST       = 'is not enabled and requires attestation'.freeze
+DESC_UNVERIFIABLE = 'is enabled but not reachable from this run mode'.freeze
+DESC_GAP          = 'is not yet detectable by this profile'.freeze
+
 verify = lambda do |repo, tool, surface|
   target = targets_by_repo[repo] || {}
   case surface
@@ -154,6 +161,63 @@ verify = lambda do |repo, tool, surface|
     "unsupported surface #{surface}"
   end
 end
+# ---- Shared coverage body ---------------------------------------------------
+# Emitted ONCE and invoked from each control with instance_exec, which rebinds
+# self to the Inspec::Rule so `describe` registers against the calling control.
+#
+# The alternative — generating ten copies of this block — duplicated ~40% of the
+# file. Generated duplication is still duplication: it makes every future change
+# ten edits and buries the one line that differs between controls.
+coverage_body = lambda do |scan_type|
+  results = ::CapabilityMatrix.coverage(registry, declaration, run_mode: run_mode)
+                              .select { |c| c.scan_type == scan_type }
+
+  if results.empty?
+    describe "#{scan_type} coverage" do
+      it 'has no declared targets' do
+        skip 'No repository declares this scan type. Every scan type must be ' \
+             'declared enabled true or false — omission would render as Not ' \
+             'Applicable, which reads as "does not apply" rather than "nobody looked".'
+      end
+    end
+  end
+
+  results.each do |c|
+    case c.status
+    when :covered
+      # Verify each satisfying (tool, surface) against the real source. Passing
+      # on the registry alone would report a repository as covered without a
+      # single API call or file read.
+      c.covered_by.each do |hit|
+        scope   = hit[:scope] == :run_scoped ? SCOPE_RUN : SCOPE_POINT
+        outcome = verify.call(c.repo, hit[:tool], hit[:surface])
+        describe "#{c.repo} — #{scan_type} via #{hit[:tool]} (#{hit[:surface]}, #{scope})" do
+          subject { outcome }
+          it { should cmp 'verified' }
+        end
+      end
+    when :attest
+      describe "#{c.repo} — #{scan_type}" do
+        it(DESC_ATTEST) { skip ::CapabilityMatrix::ATTEST_RATIONALE }
+      end
+    when :unverifiable
+      describe "#{c.repo} — #{scan_type}" do
+        it(DESC_UNVERIFIABLE) { skip "#{::CapabilityMatrix::UNVERIFIABLE_RATIONALE}: #{c.detail}" }
+      end
+    when :gap
+      describe "#{c.repo} — #{scan_type}" do
+        it(DESC_GAP) { skip "#{::CapabilityMatrix::GAP_RATIONALE}: #{c.detail}" }
+      end
+    else
+      # An unrecognised status must never vanish. Silently emitting no describe
+      # would make the control assess nothing while reporting not-red.
+      describe "#{c.repo} — #{scan_type}" do
+        subject { "unrecognised coverage status #{c.status.inspect}" }
+        it { should cmp 'unreachable' }
+      end
+    end
+  end
+end
 '''
 
 BODY = '''
@@ -164,8 +228,9 @@ control '{key_ctl}' do
     {desc}
 
     Satisfied by any declared tool on any execution surface this run mode can
-    reach. Configuration evidence does not count: a workflow file naming a
-    scanner proves somebody wired it up, not that it ran.
+    reach, then VERIFIED against that source. Configuration evidence does not
+    count: a workflow file naming a scanner proves somebody wired it up, not
+    that it ran.
   DESC
   tag nist: {nist}
   tag ssdf: {ssdf}
@@ -173,57 +238,7 @@ control '{key_ctl}' do
   tag scan_type: '{key}'
   tag layer: 'coverage'
 
-  results = ::CapabilityMatrix.coverage(registry, declaration, run_mode: run_mode)
-                            .select {{ |c| c.scan_type == '{key}' }}
-
-  if results.empty?
-    describe '{key} coverage' do
-      it 'has no declared targets' do
-        skip 'No repository declares this scan type. Every scan type must be ' \\
-             'declared enabled true or false — omission would render as Not ' \\
-             'Applicable, which reads as "does not apply" rather than "nobody looked".'
-      end
-    end
-  end
-
-  results.each do |c|
-    case c.status
-    when :covered
-      # The satisfying surface is named, because "covered by TruffleHog on the
-      # artifact surface" is what an assessor needs; a bare pass is not evidence
-      # of anything in particular. run-scoped means this run produced it;
-      # point-in-time means the tool analysed the project at some point.
-      # Verify each satisfying (tool, surface) against the real source. Passing
-      # on the registry alone would report a repository as covered without a
-      # single API call or file read.
-      c.covered_by.each do |hit|
-        scope   = hit[:scope] == :run_scoped ? 'run-scoped' : 'point-in-time'
-        outcome = verify.call(c.repo, hit[:tool], hit[:surface])
-        describe "#{{c.repo}} — {key} via #{{hit[:tool]}} (#{{hit[:surface]}}, #{{scope}})" do
-          subject {{ outcome }}
-          it {{ should cmp 'verified' }}
-        end
-      end
-    when :attest
-      describe "#{{c.repo}} — {key}" do
-        it 'is not enabled and requires attestation' do
-          skip ::CapabilityMatrix::ATTEST_RATIONALE
-        end
-      end
-    when :unverifiable
-      describe "#{{c.repo}} — {key}" do
-        it 'is enabled but not reachable from this run mode' do
-          skip "#{{::CapabilityMatrix::UNVERIFIABLE_RATIONALE}}: #{{c.detail}}"
-        end
-      end
-    when :gap
-      describe "#{{c.repo}} — {key}" do
-        it 'is not yet detectable by this profile' do
-          skip "#{{::CapabilityMatrix::GAP_RATIONALE}}: #{{c.detail}}"
-        end
-      end
-    end
-  end
+  instance_exec('{key}', &coverage_body)
 end
 '''
 

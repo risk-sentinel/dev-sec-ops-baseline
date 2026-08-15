@@ -91,3 +91,16 @@ module ArtifactHelper
     }
   end
 end
+
+# ---- Promote to top level ---------------------------------------------------
+# InSpec evaluates libraries/*.rb inside an anonymous context, so `module Foo`
+# defines the constant on THAT context and never on Object. Custom resources do
+# not have this problem because `Inspec.resource(1)` self-registers; a plain
+# module has nothing doing that for it, and control files then fail at exec with
+#
+#   uninitialized constant CapabilityMatrix
+#
+# Neither `check` nor `json` catches it: both only parse control files, never
+# evaluating their bodies. Promoting the constant explicitly is what makes the
+# module reachable from control scope, however the profile is run or vendored.
+::Object.const_set(:ArtifactHelper, ArtifactHelper) unless ::Object.const_defined?(:ArtifactHelper)

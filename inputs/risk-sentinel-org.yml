@@ -84,14 +84,19 @@ targets:
   # pipeline. The estate is assessed by our own InSpec baselines after deploy;
   # the SDLC does not stop at the deploy step, and evidence that stops there
   # claims more than it checked.
+  # SonarCloud via its API; everything else consumed as pipeline artifacts.
+  # CodeQL and Semgrep are PINNED to the artifact surface: their SARIF is the
+  # evidence, not GitHub code scanning. Without the pin, declaring them would
+  # demand Code Security be licensed on a private repository that does not use
+  # it — a finding about a product nobody bought rather than about this repo.
   - repo: sparc-iac
     declaration: confirmed
     evidence_sources:
       sonarqube: { project_key: risk-sentinel_sparc-iac }
     scans:
-      sast:      { enabled: true, tools: [codeql, semgrep, sonarqube] }
+      sast:      { enabled: true, tools: [{ name: codeql, surface: artifact }, { name: semgrep, surface: artifact }, sonarqube] }
       secrets:   { enabled: true, tools: [trufflehog] }
-      iac:       { enabled: true, tools: [semgrep] }
+      iac:       { enabled: true, tools: [checkov, { name: semgrep, surface: artifact }] }
       sca:       { enabled: true, tools: [grype, trivy] }
       sbom:      { enabled: true, tools: [syft] }
       container: { enabled: true, tools: [cosign] }
@@ -117,31 +122,102 @@ targets:
       secrets: { enabled: true, tools: [trufflehog] }
       dast:    { enabled: true, tools: [burpsuite] }
 
+  # Same model as sparc-iac: SonarCloud by API, the rest as artifacts.
   - repo: container-build-sign
     declaration: confirmed
     evidence_sources:
       sonarqube: { project_key: risk-sentinel_container-build-sign }
     scans:
-      sast:      { enabled: true, tools: [codeql, sonarqube] }
+      sast:      { enabled: true, tools: [{ name: codeql, surface: artifact }, sonarqube] }
       secrets:   { enabled: true, tools: [trufflehog] }
+      iac:       { enabled: true, tools: [checkov] }
       sca:       { enabled: true, tools: [grype, trivy] }
       sbom:      { enabled: true, tools: [syft] }
       container: { enabled: true, tools: [anchore, trivy, cosign] }
 
-  # -- inherit defaults; tooling not yet confirmed ---------------------------
-  - { repo: dev-sec-ops-baseline,              declaration: partial }
-  - { repo: aws-config,                        declaration: partial }
-  - { repo: cis-aws-compute-baseline,          declaration: partial }
-  - { repo: cis-aws-database-baseline,         declaration: partial }
-  - { repo: cis-aws-end-user-compute-baseline, declaration: partial }
-  - { repo: cis-aws-foundations-baseline,      declaration: partial }
-  - { repo: cis-aws-storage-baseline,          declaration: partial }
-  - { repo: cis-docker-baseline,               declaration: partial }
-  - { repo: cis-nginx-baseline,                declaration: partial }
-  - { repo: cis-postgresql-baseline,           declaration: partial }
-  - { repo: cis-rhel-9-baseline,               declaration: partial }
-  - { repo: rs-aws-ecs-fargate-baseline,       declaration: partial }
-  - { repo: rs-aws-secrets-baseline,           declaration: partial }
-  - { repo: rs-cloudtrail-baseline,            declaration: partial }
-  - { repo: sparc-iac-template,                declaration: partial }
-  - { repo: stig-aws-ecr-baseline,             declaration: partial }
+  # -- SonarQube project keys VERIFIED against the SonarCloud projects API -----
+  # Keys are NOT derivable from repository names: several carry the benchmark
+  # version, and the rs-/stig- prefixes are dropped. Guessing them returns 404,
+  # which is why they are declared rather than computed.
+  #
+  # Tooling beyond SonarQube is still unconfirmed for these repositories — they
+  # inherit `defaults`, and reconciliation counts them without pretending their
+  # full tooling is known.
+  - repo: dev-sec-ops-baseline
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_dev-sec-ops-profile }
+  - repo: aws-config
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_aws-config }
+  - repo: cis-aws-compute-baseline
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_cis-aws-compute-v1.1.0 }
+  - repo: cis-aws-database-baseline
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_cis-aws-database-v2.0.0 }
+  - repo: cis-aws-end-user-compute-baseline
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_cis-aws-end-user-compute-v1.2.0 }
+  - repo: cis-aws-foundations-baseline
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_cis-aws-foundations-v7.0.0 }
+  - repo: cis-aws-storage-baseline
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_cis-aws-storage-v1.0.0 }
+  - repo: cis-docker-baseline
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_cis-docker-v1.8.0 }
+  - repo: cis-nginx-baseline
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_cis-nginx-v3.0.0 }
+  - repo: cis-postgresql-baseline
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_cis-postgresql-v1.0.0 }
+  - repo: cis-rhel-9-baseline
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_cis-rhel-9-v2.0.0 }
+  - repo: rs-aws-ecs-fargate-baseline
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_aws-ecs-fargate-baseline }
+  - repo: rs-aws-secrets-baseline
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_aws-secrets-baseline }
+  - repo: rs-cloudtrail-baseline
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_cis-cloudtrail }
+  - repo: stig-aws-ecr-baseline
+    declaration: partial
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_aws-ecr-baseline-v2r4 }
+
+  # Inventoried from its workflows: Checkov, CodeQL, Semgrep, TruffleHog, Trivy
+  # and Cosign. It is the only repository in the organisation with NO SonarCloud
+  # project (code search returns zero hits), so inheriting `sast: [sonarqube]`
+  # from defaults was wrong — the earlier "no project_key declared" failure was
+  # this declaration being incorrect, not a missing scan.
+  #
+  # CodeQL and Semgrep are pinned to the artifact surface for the same reason as
+  # sparc-iac: the SARIF is the evidence, and Code Security is not licensed on
+  # private repositories here.
+  - repo: sparc-iac-template
+    declaration: confirmed
+    scans:
+      sast:      { enabled: true, tools: [{ name: codeql, surface: artifact }, { name: semgrep, surface: artifact }] }
+      secrets:   { enabled: true, tools: [trufflehog] }
+      iac:       { enabled: true, tools: [checkov] }
+      sca:       { enabled: true, tools: [trivy] }
+      container: { enabled: true, tools: [trivy, cosign] }

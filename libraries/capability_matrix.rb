@@ -42,6 +42,13 @@ module CapabilityMatrix
   ATTEST_RATIONALE = 'Not enabled and must be manually verified and attested to'.freeze
   GAP_RATIONALE    = 'Enabled, but not yet detectable by this profile — ' \
                      'coverage gap, not a repository finding'.freeze
+  # Distinct from GAP on purpose. GAP means we never built the detection;
+  # UNVERIFIABLE means we did, and this run mode cannot reach the surface it
+  # lives on. TruffleHog is the standing example: no API surface exists for it,
+  # so a control-plane run cannot see it however well the pipeline runs it.
+  # Failing that would report red against a repository doing everything right.
+  UNVERIFIABLE_RATIONALE = 'Enabled and detectable, but not on any surface this ' \
+                           'run mode can reach'.freeze
 
   class Registry
     attr_reader :scan_types, :tools, :sources, :capabilities, :sdlc_stages,
@@ -120,6 +127,25 @@ module CapabilityMatrix
       surface_status(tool_key, surface) == 'implemented'
     end
 
+    # Execution-role surfaces this tool is implemented on, ignoring run mode.
+    # Used to tell "we never built it" apart from "wrong mode to see it".
+    def implemented_execution_surfaces(tool_key)
+      execution_surfaces.select { |s| implemented?(tool_key, s) }
+    end
+
+    # A tool that can ONLY ever be seen through a platform API — nothing lands
+    # on a runner, so no artifact can prove it ran. Forge-native features are
+    # the case: platform secret scanning, Dependabot, GitLab Dependency
+    # Scanning.
+    #
+    # This is the test that decides whether a native capability must be
+    # enabled. Declaring CodeQL must NOT demand code scanning be licensed:
+    # CodeQL happily emits SARIF to a file and never touches the platform.
+    def api_only?(tool_key)
+      surfaces = execution_surfaces.select { |s| surfaces_for(tool_key).key?(s) }
+      surfaces == ['platform_api']
+    end
+
     # Endpoint + documentation for a capability on a given source.
     # Drives both the resource's request construction and the README links,
     # so the two cannot disagree.
@@ -159,9 +185,17 @@ module CapabilityMatrix
   # pass — an assessor needs to know which mechanism did the work.
   Coverage = Struct.new(:repo, :scan_type, :status, :covered_by, :rationale,
                         :detail, keyword_init: true) do
-    def covered? = status == :covered
-    def attest?  = status == :attest
-    def gap?     = status == :gap
+    def covered?      = status == :covered
+    def attest?       = status == :attest
+    def gap?          = status == :gap
+    def unverifiable? = status == :unverifiable
+
+    # True when at least one satisfying surface was produced by THIS run.
+    # A covered result backed only by point-in-time API evidence says the tool
+    # has analysed the project at some point, not that it ran today.
+    def run_scoped?
+      Array(covered_by).any? { |h| h[:scope] == :run_scoped }
+    end
 
     def summary
       return rationale unless covered?
@@ -275,9 +309,16 @@ module CapabilityMatrix
             next
           end
 
-          hits = tools.flat_map do |tool|
-            eligible.filter_map do |surface|
-              { tool: tool, surface: surface } if registry.implemented?(tool, surface)
+          declared = normalize_tools(tools)
+
+          hits = declared.flat_map do |t|
+            # An explicit surface pin narrows which surfaces count for this
+            # tool; without one, any eligible surface may satisfy it.
+            usable = t[:surface] ? (eligible & [t[:surface]]) : eligible
+            usable.filter_map do |surface|
+              if registry.implemented?(t[:name], surface)
+                { tool: t[:name], surface: surface, scope: evidence_scope(surface) }
+              end
             end
           end
 
@@ -285,13 +326,30 @@ module CapabilityMatrix
             results << Coverage.new(repo: repo, scan_type: canonical,
                                     status: :covered, covered_by: hits,
                                     rationale: nil)
+            next
+          end
+
+          # Nothing on an eligible surface. Two very different reasons, and
+          # collapsing them would blame the repository for our reach.
+          elsewhere = declared.flat_map do |t|
+            registry.implemented_execution_surfaces(t[:name])
+                    .map { |s| { tool: t[:name], surface: s } }
+          end
+
+          if elsewhere.any?
+            modes = registry.run_modes.select { |_, s| (s & elsewhere.map { |e| e[:surface] }).any? }.keys
+            results << Coverage.new(
+              repo: repo, scan_type: canonical, status: :unverifiable, covered_by: [],
+              rationale: UNVERIFIABLE_RATIONALE,
+              detail: "#{elsewhere.map { |e| "#{e[:tool]} (#{e[:surface]})" }.uniq.join(', ')} " \
+                      "— reachable in run_mode: #{modes.join(' | ')}; this run is #{run_mode}"
+            )
           else
             results << Coverage.new(
               repo: repo, scan_type: canonical, status: :gap, covered_by: [],
               rationale: GAP_RATIONALE,
-              detail: "declared #{tools.join(', ')}; " \
-                      "no execution surface implemented among #{eligible.join(', ')} " \
-                      "in run_mode=#{run_mode}"
+              detail: "declared #{declared.map { |t| t[:name] }.join(', ')}; " \
+                      "no execution surface implemented on any mode"
             )
           end
         end
@@ -318,18 +376,59 @@ module CapabilityMatrix
           spec ||= {}
           next unless spec['enabled']
 
-          Array(spec['tools']).each do |tool|
-            api = registry.surfaces_for(tool)['platform_api']
+          normalize_tools(spec['tools']).each do |t|
+            api = registry.surfaces_for(t[:name])['platform_api']
             next unless api && api['capability']
+
+            # THE GATE. A native capability is required only when the tool
+            # cannot be seen any other way, or when the declaration explicitly
+            # pinned it to the API surface.
+            #
+            # Without this, declaring CodeQL demands code scanning be licensed,
+            # and every private repository lights up red for failing to buy a
+            # product it does not need. Output like that trains people to
+            # ignore it.
+            next unless registry.api_only?(t[:name]) || t[:surface] == 'platform_api'
+
             required[repo] << {
-              tool:       tool,
+              tool:       t[:name],
               capability: api['capability'],
-              sources:    Array(api['sources'])
+              sources:    Array(api['sources']),
+              reason:     registry.api_only?(t[:name]) ? 'api-only tool' : 'surface pinned in declaration'
             }
           end
         end
       end
       required.transform_values(&:uniq)
+    end
+
+    # Tools may be declared as a bare name or as a hash pinning the surface:
+    #
+    #   tools: [codeql, {name: dependabot, surface: platform_api}]
+    #
+    # A pin is how a team says "we consume CodeQL THROUGH code scanning", which
+    # turns the native capability into a requirement. Absent a pin, any
+    # eligible surface satisfies the tool.
+    def normalize_tools(tools)
+      Array(tools).filter_map do |t|
+        case t
+        when Hash
+          name = t['name'] || t[:name]
+          next if name.nil?
+          { name: name.to_s, surface: (t['surface'] || t[:surface])&.to_s }
+        when nil then nil
+        else { name: t.to_s, surface: nil }
+        end
+      end
+    end
+
+    # Artifact evidence is produced BY THIS RUN. Platform-API evidence reflects
+    # whatever the tool last analysed, which may be days old. Carrying the
+    # distinction stops a stale API result from masking a scan that did not run
+    # today — the two are not equally strong and must not read as though they
+    # are.
+    def evidence_scope(surface)
+      surface == 'artifact' ? :run_scoped : :point_in_time
     end
 
     # ---- Reconciliation — the denominator -----------------------------------
@@ -370,3 +469,16 @@ module CapabilityMatrix
     end
   end
 end
+
+# ---- Promote to top level ---------------------------------------------------
+# InSpec evaluates libraries/*.rb inside an anonymous context, so `module Foo`
+# defines the constant on THAT context and never on Object. Custom resources do
+# not have this problem because `Inspec.resource(1)` self-registers; a plain
+# module has nothing doing that for it, and control files then fail at exec with
+#
+#   uninitialized constant CapabilityMatrix
+#
+# Neither `check` nor `json` catches it: both only parse control files, never
+# evaluating their bodies. Promoting the constant explicitly is what makes the
+# module reachable from control scope, however the profile is run or vendored.
+::Object.const_set(:CapabilityMatrix, CapabilityMatrix) unless ::Object.const_defined?(:CapabilityMatrix)

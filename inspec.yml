@@ -92,6 +92,20 @@ inputs:
     value: ''
     description: 'GitLab instance API base. Per-instance; no sensible default.'
 
+  - name: sonar_token
+    type: string
+    value: ''
+    sensitive: true
+    description: 'SonarQube / SonarCloud token. Falls back to SONAR_TOKEN in the environment. Public projects need none.'
+
+  - name: evidence_freshness_days
+    type: numeric
+    value: 30
+    description: >-
+      How recent a platform-API analysis must be to count as evidence. API
+      results are point-in-time and may be stale; without a bound, an analysis
+      from last year would satisfy a coverage control.
+
   - name: protected_branch
     type: string
     value: 'main'

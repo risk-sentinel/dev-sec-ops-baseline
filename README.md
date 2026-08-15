@@ -98,10 +98,10 @@ Merge-request rules straddle the split. *Whether reviews are required* is platfo
 
 | Scan type | SDLC stage | Tools | Artifact | Platform API | Repo contents | NIST 800-53r5 |
 |---|---|---|---|---|---|---|
-| **sast** &mdash; Static Application Security Testing | [Code](docs/sdlc/code.md) | Bandit, CodeQL, Semgrep, SonarQube | **yes** | planned | planned | `SA-11(1)` |
-| **secrets** &mdash; Secrets Detection | [Code](docs/sdlc/code.md) | Gitleaks, Forge-native secret scanning, Trivy, TruffleHog | **yes** | planned | planned | `IA-5(7)`, `SA-11` |
-| **iac** &mdash; Infrastructure as Code Scanning | [Code](docs/sdlc/code.md) | Checkov, Semgrep, tfsec, Trivy | **yes** | planned | planned | `CM-2`, `CM-6`, `RA-5` |
-| **sca** &mdash; Software Composition Analysis | [Build](docs/sdlc/build.md) | Dependabot, GitLab Dependency Scanning, Grype, Snyk, Sonatype, Trivy | **yes** | planned | planned | `RA-5`, `SA-11(1)`, `SR-3` |
+| **sast** &mdash; Static Application Security Testing | [Code](docs/sdlc/code.md) | Bandit, CodeQL, Semgrep, SonarQube | **yes** | **yes** | planned | `SA-11(1)` |
+| **secrets** &mdash; Secrets Detection | [Code](docs/sdlc/code.md) | Gitleaks, Forge-native secret scanning, Trivy, TruffleHog | **yes** | **yes** | planned | `IA-5(7)`, `SA-11` |
+| **iac** &mdash; Infrastructure as Code Scanning | [Code](docs/sdlc/code.md) | Checkov, Semgrep, tfsec, Trivy | **yes** | **yes** | planned | `CM-2`, `CM-6`, `RA-5` |
+| **sca** &mdash; Software Composition Analysis | [Build](docs/sdlc/build.md) | Dependabot, GitLab Dependency Scanning, Grype, Snyk, Sonatype, Trivy | **yes** | **yes** | planned | `RA-5`, `SA-11(1)`, `SR-3` |
 | **sbom** &mdash; Software Bill of Materials | [Build](docs/sdlc/build.md) | Syft | **yes** | &mdash; | planned | `SR-3`, `SR-4` |
 | **container** &mdash; Container Image Scanning | [Build](docs/sdlc/build.md) | Anchore, Cosign, Grype, Trivy | **yes** | &mdash; | planned | `RA-5`, `CM-6`, `SR-3` |
 | **licensing** &mdash; Software Licensing Review | [Build](docs/sdlc/build.md) | Snyk, Sonatype, Trivy | **yes** | &mdash; | planned | `SR-3`, `SA-4` |
@@ -121,19 +121,19 @@ Merge-request rules straddle the split. *Whether reviews are required* is platfo
 | Bandit | `sast` | **yes** | &mdash; | planned |
 | Burp Suite | `dast` | planned | &mdash; | &mdash; |
 | Checkov | `iac` | planned | &mdash; | planned |
-| CodeQL | `sast` | **yes** | planned | planned |
+| CodeQL | `sast` | **yes** | **yes** | planned |
 | Cosign | `container` | **yes** | &mdash; | &mdash; |
-| Dependabot | `sca` | &mdash; | planned | planned |
-| Forge-native secret scanning | `secrets` | &mdash; | planned | &mdash; |
+| Dependabot | `sca` | &mdash; | **yes** | planned |
+| Forge-native secret scanning | `secrets` | &mdash; | **yes** | &mdash; |
 | GitLab Dependency Scanning | `sca` | &mdash; | planned | planned |
 | Gitleaks | `secrets` | **yes** | &mdash; | planned |
 | Grype | `sca`, `container` | **yes** | &mdash; | planned |
 | InSpec / CINC baselines | `runtime` | **yes** | &mdash; | &mdash; |
 | OWASP ZAP | `dast` | planned | &mdash; | &mdash; |
 | Prowler | `runtime` | planned | &mdash; | &mdash; |
-| Semgrep | `sast`, `iac` | **yes** | planned | planned |
+| Semgrep | `sast`, `iac` | **yes** | **yes** | planned |
 | Snyk | `sca`, `licensing` | **yes** | &mdash; | planned |
-| SonarQube | `sast` | **yes** | planned | planned |
+| SonarQube | `sast` | **yes** | **yes** | planned |
 | Sonatype | `sca`, `licensing` | **yes** | &mdash; | &mdash; |
 | Syft | `sbom` | **yes** | &mdash; | planned |
 | tfsec | `iac` | planned | &mdash; | &mdash; |
@@ -207,18 +207,48 @@ python3 tools/render_matrix.py --check   # exit 1 if stale
 
 ---
 
-## Token scopes
+## Tokens
 
-| Surface | GitHub | GitLab |
-|---|---|---|
-| Enablement + alerts | `security_events` (or `repo` on private) | `read_api` |
-| Branch protection, rulesets | `repo` / `admin:repo_hook` for some reads | `read_api` |
-| Repo contents | `contents:read` | `read_repository` |
-| Organisation enumeration | `read:org` | `read_api` |
+Every credential can be supplied **either** as an InSpec input **or** as a conventional
+environment variable. The environment fallback means an organisation- or group-level CI
+secret works with no input plumbing at all.
 
-A token missing a scope returns `401`/`403`, which this profile reports as an **error**,
-distinct from a capability being switched off. The two have different owners — a broken
-scan is not the same finding as an unconfigured one.
+| Credential | Input | Environment variable | Needed for |
+|---|---|---|---|
+| GitHub | `github_token` | `GITHUB_TOKEN`, then `GH_TOKEN` | Enablement, alerts, branch protection, org enumeration |
+| SonarQube | `sonar_token` | `SONAR_TOKEN`, then `SONARQUBE_TOKEN` | Project existence, analysis freshness, issues |
+| GitLab | `gitlab_token` | `GITLAB_TOKEN` | Portability only; not exec-validated |
+
+```bash
+# Environment — the usual CI shape, nothing passed as an input
+export GITHUB_TOKEN=$GH_ORG_TOKEN
+export SONAR_TOKEN=$SONAR_ORG_TOKEN
+cinc-auditor exec . -t local:// --input-file inputs/risk-sentinel-org.yml
+
+# Or explicitly. NOTE: repeated --input flags are silently dropped — only the
+# last survives. One flag, many pairs.
+cinc-auditor exec . -t local:// --input-file inputs/risk-sentinel-org.yml \
+  --input github_token="$GH_ORG_TOKEN" sonar_token="$SONAR_ORG_TOKEN"
+```
+
+### Scopes
+
+| Surface | GitHub | GitLab | SonarQube |
+|---|---|---|---|
+| Enablement + findings | `security_events` (or `repo` on private) | `read_api` | `Execute Analysis` / read |
+| Branch protection, rulesets | `repo` | `read_api` | &mdash; |
+| Repo contents | `contents:read` | `read_repository` | &mdash; |
+| Organisation enumeration | `read:org` | `read_api` | &mdash; |
+
+**A missing token is not the same finding as a disabled feature**, and this profile keeps
+them apart. GitHub returns `403`/`404` with its own message for a switched-off capability
+and `401 Bad credentials` for a bad token; both fail, with different text, because they
+have different owners.
+
+SonarQube needs particular care: it returns **404 for a private project the caller cannot
+see**, deliberately not leaking existence. So without a token, "absent" and "private" are
+the same response — the profile reports that as *indeterminate* rather than claiming the
+project is missing.
 
 ---
 

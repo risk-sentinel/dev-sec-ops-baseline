@@ -402,7 +402,7 @@ tools:
           - '*codeql*.sarif'
           - 'sast*.sarif'
       platform_api:
-        status: planned
+        status: implemented
         sources: [github]
         capability: code_scanning
         filter: { tool_name: CodeQL }
@@ -424,7 +424,7 @@ tools:
           - '*semgrep*.sarif'
           - '*semgrep*.json'
       platform_api:
-        status: planned
+        status: implemented
         sources: [github, gitlab]
         capability: code_scanning
         filter: { tool_name: Semgrep }
@@ -446,7 +446,7 @@ tools:
           - '*sonar*.json'
           - 'quality*.json'
       platform_api:
-        status: planned
+        status: implemented
         sources: [sonarqube]
         capability: issues
       repo_contents:
@@ -513,7 +513,7 @@ tools:
     # Same capability, same control, different vendor noun.
     surfaces:
       platform_api:
-        status: planned
+        status: implemented
         sources: [github, gitlab]
         capability: secret_scanning
         also: [push_protection]
@@ -572,7 +572,7 @@ tools:
     scan_types: [sca]
     surfaces:
       platform_api:
-        status: planned
+        status: implemented
         sources: [github]
         capability: dependabot_alerts
         also: [security_updates]

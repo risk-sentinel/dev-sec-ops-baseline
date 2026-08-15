@@ -312,3 +312,14 @@ class GithubSecurity < Inspec.resource(1)
     nil
   end
 end
+
+# Small cache so a control asserting several capabilities for one repository
+# does not construct (and re-request) a fresh resource each time.
+module GithubSecurityHandle
+  def self.call(repo, org, token, api_base)
+    @cache ||= {}
+    slug = repo.include?('/') ? repo : "#{org}/#{repo}"
+    @cache[slug] ||= GithubSecurity.new(slug, token: token, api_base: api_base)
+  end
+end
+::Object.const_set(:GithubSecurityHandle, GithubSecurityHandle) unless ::Object.const_defined?(:GithubSecurityHandle)

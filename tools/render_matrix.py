@@ -188,33 +188,58 @@ def render_api_reference(reg: dict) -> list[str]:
     return out
 
 
-def render_surfaces() -> list[str]:
-    return [
-        "### The three detection surfaces",
+def render_surfaces(reg: dict) -> list[str]:
+    """Surfaces, their access requirement, and — the load-bearing column — role."""
+    surfaces = reg.get("surfaces") or {}
+    modes = reg.get("run_modes") or {}
+    out = [
+        "### The detection surfaces",
         "",
-        "Every check resolves to exactly one surface, and each needs different "
-        "access. This is what determines whether a given check can run at all.",
+        "Every check resolves to exactly one surface. They differ by access "
+        "requirement and, critically, by **role**: only *execution* evidence may "
+        "satisfy a scan type.",
         "",
-        "| Surface | What it reads | Access required | Runs outside a pipeline? |",
+        "| Surface | What it reads | Access required | Role |",
         "|---|---|---|---|",
-        "| **Artifact** | A report file on disk | In-pipeline execution, after "
-        "the scanner stage | No |",
-        "| **Platform API** | Forge or evidence-source state | A token | Yes |",
-        "| **Repo contents** | A file in the repository &mdash; workflow "
-        "triggers, CODEOWNERS, scanner config | A clone, or the contents API | Yes |",
-        "",
-        "Merge-request rules straddle two of them. *Whether reviews are required* "
-        "is platform state a token can read; *whether the scan runs on a merge "
-        "request at all* is a fact about a YAML file. A cell reachable by neither "
-        "surface is not a control we can write, and this profile says so rather "
-        "than shipping one that skips.",
-        "",
     ]
+    for key, meta in surfaces.items():
+        role = meta.get("role", "")
+        badge = "**execution**" if role == "execution" else "configuration"
+        out.append(
+            f"| `{key}` | {meta.get('title', '')} | {meta.get('access', '')} | {badge} |"
+        )
+    out += [
+        "",
+        "**A workflow file naming a scanner proves somebody wired it up — not that "
+        "it ran.** So `repo_contents` is configuration evidence and can never "
+        "satisfy a scan type. It still answers questions nothing else can: whether "
+        "the scan fires on a merge request (shift-left), and whether CODEOWNERS "
+        "covers the security paths (governance). Those are governance controls, "
+        "never coverage controls.",
+        "",
+        "Merge-request rules straddle the split. *Whether reviews are required* is "
+        "platform state a token reads; *whether the security scan runs on the merge "
+        "request at all* is a fact about a YAML file.",
+        "",
+        "### What each run mode can read",
+        "",
+        "| Run mode | Surfaces readable | Can satisfy a scan type |",
+        "|---|---|---|",
+    ]
+    execution = {k for k, m in surfaces.items() if m.get("role") == "execution"}
+    for mode, readable in modes.items():
+        eligible = [s for s in readable if s in execution]
+        out.append(
+            f"| `{mode}` | {', '.join(f'`{s}`' for s in readable)} | "
+            f"{', '.join(f'`{s}`' for s in eligible) or '&mdash;'} |"
+        )
+    out.append("")
+    return out
 
 
 def render(reg: dict) -> str:
     body: list[str] = []
-    body += render_surfaces()
+    body += render_surfaces(reg)
     body += render_scan_types(reg)
     body += render_tools(reg)
     body += render_api_reference(reg)

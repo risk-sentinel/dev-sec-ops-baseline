@@ -10,15 +10,32 @@
 # tools/render_matrix.py. Never hand-edit that table — edit here and re-render,
 # so documented coverage cannot drift from real coverage.
 #
-# ---- The three detection surfaces -------------------------------------------
+# ---- Detection surfaces, and what each is allowed to prove ------------------
 #
-#   artifact        A report file on disk. Requires in-pipeline execution,
+# Surfaces differ by ACCESS REQUIREMENT, and — critically — by ROLE. Only
+# execution evidence may satisfy a scan type.
+#
+#   artifact        role: execution
+#                   A report file on disk. Requires in-pipeline execution,
 #                   after the scanner stage. Cannot be read out-of-band.
-#   platform_api    State held by a forge or evidence source. Requires a token.
-#   repo_contents   A fact about a file in the repository (workflow triggers,
+#   platform_api    role: execution
+#                   State held by a forge or evidence source. Requires a token.
+#   repo_contents   role: configuration
+#                   A fact about a file in the repository (workflow triggers,
 #                   CODEOWNERS, scanner config). Requires a clone or the
-#                   contents API. This is NOT platform state and NOT an
-#                   artifact — it is its own surface with its own access need.
+#                   contents API.
+#
+# ---- Why repo_contents cannot satisfy a scan type ---------------------------
+#
+# A workflow file naming TruffleHog proves somebody WIRED IT UP. It does not
+# prove it ran, that it ran on this commit, or that it produced anything. A
+# scan type is satisfied only by evidence of EXECUTION: an emitted artifact, or
+# platform state recording findings.
+#
+# repo_contents still matters — it answers a different question. Whether the
+# scan fires on a merge request (shift-left) and whether CODEOWNERS covers the
+# security paths (governance) are facts about files and nothing else can report
+# them. They are governance controls, never coverage controls.
 #
 # ---- Artifact filenames are PATTERNS, not fixed names -----------------------
 #
@@ -65,6 +82,32 @@
 # =============================================================================
 
 schema_version: 1
+
+# ---- Surface roles ----------------------------------------------------------
+# Consumed by CapabilityMatrix: only `execution` surfaces count toward scan-type
+# coverage. Declared here rather than hardcoded in Ruby so adding a surface is a
+# registry edit.
+surfaces:
+  artifact:
+    role: execution
+    title: Report file on disk
+    access: In-pipeline execution, after the scanner stage
+  platform_api:
+    role: execution
+    title: Forge or evidence-source state
+    access: A token
+  repo_contents:
+    role: configuration
+    title: A file in the repository
+    access: A clone, or the contents API
+
+# ---- Run modes --------------------------------------------------------------
+# Which surfaces are reachable in each mode. A scan type can only be shown
+# covered by a surface the current mode can actually read.
+run_modes:
+  pipeline:      [artifact]
+  control-plane: [platform_api, repo_contents]
+  both:          [artifact, platform_api, repo_contents]
 
 # ---- Evidence sources -------------------------------------------------------
 # A forge hosts code AND enforces merge rules. An evidence source has an API

@@ -54,3 +54,17 @@ build-iPhoneSimulator/
 
 # Used by RuboCop. Remote config files pulled in from inherit_from directive.
 # .rubocop-https?--*
+
+# ---- Local scan / evidence artifacts ----------------------------------------
+# Produced by running the profile or the HDF tooling locally. Kept out of the
+# repository deliberately: an HDF or scanner output can contain REAL findings —
+# including, for a secrets scanner, the secret itself. Committing one by
+# accident would publish the very thing the scan exists to catch.
+*.hdf.json
+hdf*.json
+trufflehog.json
+output.json
+saf-cli.log
+/out/
+/reports/
+inspec.lock

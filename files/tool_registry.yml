@@ -1,0 +1,589 @@
+# =============================================================================
+# Tool registry — what this profile CAN detect, and where.
+#
+# This file is profile-owned knowledge, NOT user input. It answers
+# "what is detectable, on which surface, and have we built it yet?"
+# The user's declaration (inputs/*.yml) answers "what does my pipeline run?"
+# Controls evaluate the intersection of the two.
+#
+# The README coverage matrix is GENERATED from this file by
+# tools/render_matrix.py. Never hand-edit that table — edit here and re-render,
+# so documented coverage cannot drift from real coverage.
+#
+# ---- The three detection surfaces -------------------------------------------
+#
+#   artifact        A report file on disk. Requires in-pipeline execution,
+#                   after the scanner stage. Cannot be read out-of-band.
+#   platform_api    State held by a forge or evidence source. Requires a token.
+#   repo_contents   A fact about a file in the repository (workflow triggers,
+#                   CODEOWNERS, scanner config). Requires a clone or the
+#                   contents API. This is NOT platform state and NOT an
+#                   artifact — it is its own surface with its own access need.
+#
+# Every surface entry carries `status:`
+#   implemented  this profile can evaluate it today
+#   planned      detectable in principle; not built yet
+# A surface key that is ABSENT means the tool is not detectable that way at all
+# (e.g. a forge-native feature leaves no artifact on the runner).
+#
+# ---- Result semantics these statuses drive ----------------------------------
+#
+#   declared enabled + surface implemented -> real check (pass / fail)
+#   declared NOT enabled                   -> skip, "must be manually verified
+#                                             and attested to" (attestation
+#                                             picks it up)
+#   declared enabled + surface planned     -> skip, coverage-gap rationale.
+#                                             This is OUR gap, not a repository
+#                                             finding, and is deliberately
+#                                             worded differently so the two
+#                                             skips stay distinguishable in HDF
+#                                             and only the first is an
+#                                             attestation candidate.
+#
+# There is no "not declared" state. Omission would render as Not Applicable,
+# which reads as "does not apply" rather than "nobody looked" — a false
+# maturity signal. Every scan type is declared, enabled true or false.
+# =============================================================================
+
+schema_version: 1
+
+# ---- Evidence sources -------------------------------------------------------
+# A forge hosts code AND enforces merge rules. An evidence source has an API
+# and no forge duties. Collapsing these makes "which forge enforces MR rules?"
+# unanswerable, so they stay distinct.
+sources:
+  github:
+    name: GitHub
+    kind: forge
+    api_base: https://api.github.com
+    enforces_merge_rules: true
+    docs: https://docs.github.com/en/rest
+  gitlab:
+    name: GitLab
+    kind: forge
+    api_base: null                  # per-instance; supplied by the declaration
+    enforces_merge_rules: true
+    docs: https://docs.gitlab.com/api/
+  sonarqube:
+    name: SonarQube / SonarCloud
+    kind: evidence
+    api_base: https://sonarcloud.io
+    enforces_merge_rules: false
+    docs: https://sonarcloud.io/web_api
+  pipeline:
+    name: Pipeline artifacts
+    kind: artifact
+    api_base: null
+    enforces_merge_rules: false
+    docs: null
+
+# ---- Capabilities -----------------------------------------------------------
+# A capability is the abstract thing being read; a binding is how a given source
+# exposes it. Tool surfaces reference `capability:` and the README generator
+# resolves the bindings into linked endpoint documentation, so API references
+# live here once instead of being hand-maintained in prose.
+#
+# Structural difference worth knowing before writing the resource: GitHub
+# exposes a SEPARATE endpoint per capability (code scanning, secret scanning and
+# Dependabot are three different routes with three different enablement states
+# and three different failure codes). GitLab funnels SAST, secret detection,
+# dependency scanning and container scanning through ONE vulnerability-findings
+# endpoint discriminated by `report_type`. The resource interface is shared;
+# the fan-out behind it is not, and gitlab_security collapses to far fewer
+# round-trips as a result.
+capabilities:
+
+  repo_enumeration:
+    title: Repository enumeration — the denominator
+    why: >-
+      The independent truth source for reconciliation. Must never be the same
+      file being verified, or an omitted repository is invisible.
+    bindings:
+      github:
+        endpoint: GET /orgs/{org}/repos
+        docs: https://docs.github.com/en/rest/repos/repos
+      gitlab:
+        endpoint: GET /groups/{id}/projects
+        docs: https://docs.gitlab.com/api/groups/
+
+  code_scanning:
+    title: Static analysis findings
+    bindings:
+      github:
+        endpoint: GET /repos/{owner}/{repo}/code-scanning/alerts
+        docs: https://docs.github.com/en/rest/code-scanning/code-scanning
+        disabled_status: 403
+      gitlab:
+        endpoint: GET /projects/{id}/vulnerability_findings?report_type=sast
+        docs: https://docs.gitlab.com/api/vulnerability_findings/
+
+  secret_scanning:
+    title: Secrets findings and push protection
+    bindings:
+      github:
+        endpoint: GET /repos/{owner}/{repo}/secret-scanning/alerts
+        docs: https://docs.github.com/en/rest/secret-scanning/secret-scanning
+        disabled_status: 404
+      gitlab:
+        endpoint: GET /projects/{id}/vulnerability_findings?report_type=secret_detection
+        docs: https://docs.gitlab.com/api/vulnerability_findings/
+        push_protection_docs: https://docs.gitlab.com/api/projects/
+
+  dependabot_alerts:
+    title: Dependency vulnerability findings
+    bindings:
+      github:
+        endpoint: GET /repos/{owner}/{repo}/dependabot/alerts
+        docs: https://docs.github.com/en/rest/dependabot/alerts
+        disabled_status: 403
+      gitlab:
+        endpoint: GET /projects/{id}/dependencies
+        docs: https://docs.gitlab.com/api/dependencies/
+
+  sbom_export:
+    title: Platform-generated SBOM
+    bindings:
+      github:
+        endpoint: GET /repos/{owner}/{repo}/dependency-graph/sbom
+        docs: https://docs.github.com/en/rest/dependency-graph/sboms
+      gitlab:
+        endpoint: GET /projects/{id}/dependencies
+        docs: https://docs.gitlab.com/api/dependencies/
+
+  branch_protection:
+    title: Protected-branch rules
+    bindings:
+      github:
+        endpoint: GET /repos/{owner}/{repo}/branches/{branch}/protection
+        docs: https://docs.github.com/en/rest/branches/branch-protection
+      gitlab:
+        endpoint: GET /projects/{id}/protected_branches
+        docs: https://docs.gitlab.com/api/protected_branches/
+
+  required_reviews:
+    title: Merge-request review requirements
+    why: >-
+      API state, not repository content — this is the half of the MR/PR rules
+      question that a token can answer.
+    bindings:
+      github:
+        endpoint: GET /repos/{owner}/{repo}/branches/{branch}/protection
+        docs: https://docs.github.com/en/rest/branches/branch-protection
+      gitlab:
+        endpoint: GET /projects/{id}/approval_rules
+        docs: https://docs.gitlab.com/api/merge_request_approvals/
+
+  rulesets:
+    title: Repository rulesets and push rules
+    bindings:
+      github:
+        endpoint: GET /repos/{owner}/{repo}/rulesets
+        docs: https://docs.github.com/en/rest/repos/rules
+      gitlab:
+        endpoint: GET /projects/{id} (push_rules)
+        docs: https://docs.gitlab.com/api/projects/
+
+  repo_contents:
+    title: File contents — workflow triggers, CODEOWNERS, scanner config
+    why: >-
+      The other half of the MR/PR rules question. Whether a scan fires on a
+      merge request at all is a fact about a YAML file, not platform state, and
+      needs a clone or the contents API rather than a policy read.
+    bindings:
+      github:
+        endpoint: GET /repos/{owner}/{repo}/contents/{path}
+        docs: https://docs.github.com/en/rest/repos/contents
+      gitlab:
+        endpoint: GET /projects/{id}/repository/files/{path}
+        docs: https://docs.gitlab.com/api/repository_files/
+
+# ---- SDLC stages ------------------------------------------------------------
+# Each stage gets a reference doc under docs/sdlc/, linked from the README.
+sdlc_stages:
+  plan:    { title: Plan and Design, doc: docs/sdlc/plan.md }
+  code:    { title: Code,            doc: docs/sdlc/code.md }
+  build:   { title: Build,           doc: docs/sdlc/build.md }
+  test:    { title: Test,            doc: docs/sdlc/test.md }
+  deploy:  { title: Deploy,          doc: docs/sdlc/deploy.md }
+  operate: { title: Operate,         doc: docs/sdlc/operate.md }
+
+# ---- Scan types -------------------------------------------------------------
+# `aliases` settles vendor-vocabulary collisions once, here, rather than
+# letting both spellings drift through the codebase.
+scan_types:
+  sast:
+    title: Static Application Security Testing
+    sdlc_stage: code
+    nist: ['SA-11(1)']
+    ssdf: [PW.7, PW.8]
+    description: Analyses source without executing it.
+
+  secrets:
+    title: Secrets Detection
+    sdlc_stage: code
+    nist: ['IA-5(7)', 'SA-11']
+    ssdf: [PW.1]
+    description: Finds embedded static authenticators in source and git history.
+
+  iac:
+    title: Infrastructure as Code Scanning
+    sdlc_stage: code
+    nist: ['CM-2', 'CM-6', 'RA-5']
+    ssdf: [PW.9]
+    description: Misconfiguration analysis of declarative infrastructure.
+
+  sca:
+    title: Software Composition Analysis
+    aliases: [dependency]
+    sdlc_stage: build
+    nist: ['RA-5', 'SA-11(1)', 'SR-3']
+    ssdf: [RV.1, PW.4]
+    description: >-
+      Known-vulnerable third-party components. GitLab calls this "Dependency
+      Scanning"; `sca` is canonical here and `dependency` resolves to it.
+
+  sbom:
+    title: Software Bill of Materials
+    sdlc_stage: build
+    nist: ['SR-3', 'SR-4']
+    ssdf: [PS.3, PW.4]
+    description: Component inventory and provenance record.
+
+  container:
+    title: Container Image Scanning
+    sdlc_stage: build
+    nist: ['RA-5', 'CM-6', 'SR-3']
+    ssdf: [RV.1]
+    description: >-
+      Vulnerability and misconfiguration analysis of a built image. Frequently
+      the same binary as `sca` pointed at a different target — the target is
+      what separates the two axes, not the tool.
+
+  licensing:
+    title: Software Licensing Review
+    sdlc_stage: build
+    nist: ['SR-3', 'SA-4']
+    ssdf: [PW.4]
+    description: OSS licence governance over acquired and reused components.
+
+  dast:
+    title: Dynamic Application Security Testing
+    sdlc_stage: test
+    nist: ['SA-11(8)', 'RA-5', 'CA-8']
+    ssdf: [PW.8, RV.1]
+    description: Exercises a running application from the outside.
+
+  iast:
+    title: Interactive Application Security Testing
+    sdlc_stage: test
+    nist: ['SA-11(9)']
+    ssdf: [PW.8]
+    description: >-
+      Instrumented analysis of a running application. NIST 800-53r5 names this
+      exactly at SA-11(9). No tooling anywhere in the organisation today — this
+      entry exists so the gap is declared rather than silently absent.
+
+# ---- Tools ------------------------------------------------------------------
+# Surface statuses here are what the README matrix renders. `implemented` on
+# `artifact` reflects the fourteen presence controls already shipped; every
+# platform_api and repo_contents surface is `planned` until its phase lands.
+tools:
+
+  # -- SAST -------------------------------------------------------------------
+  codeql:
+    name: CodeQL
+    scan_types: [sast]
+    surfaces:
+      artifact:
+        status: implemented
+        format: sarif
+        marker: runs
+        default_file: sast.sarif
+      platform_api:
+        status: planned
+        sources: [github]
+        capability: code_scanning
+        filter: { tool_name: CodeQL }
+      repo_contents:
+        status: planned
+        sources: [github, gitlab]
+        evidence: workflow_uses
+        match: github/codeql-action
+
+  semgrep:
+    name: Semgrep
+    scan_types: [sast, iac]
+    surfaces:
+      artifact:
+        status: implemented
+        format: sarif
+        marker: runs
+        default_file: semgrep.sarif
+      platform_api:
+        status: planned
+        sources: [github, gitlab]
+        capability: code_scanning
+        filter: { tool_name: Semgrep }
+      repo_contents:
+        status: planned
+        sources: [github, gitlab]
+        evidence: workflow_uses
+        match: semgrep
+
+  sonarqube:
+    name: SonarQube
+    scan_types: [sast]
+    surfaces:
+      artifact:
+        status: implemented
+        format: json
+        marker: null
+        default_file: quality.json
+      platform_api:
+        status: planned
+        sources: [sonarqube]
+        capability: issues
+      repo_contents:
+        status: planned
+        sources: [github, gitlab]
+        evidence: config_file
+        match: sonar-project.properties
+
+  bandit:
+    name: Bandit
+    scan_types: [sast]
+    surfaces:
+      artifact:
+        status: implemented
+        format: json
+        marker: results
+        default_file: bandit.json
+      repo_contents:
+        status: planned
+        sources: [github, gitlab]
+        evidence: workflow_uses
+        match: bandit
+
+  # -- Secrets ----------------------------------------------------------------
+  trufflehog:
+    name: TruffleHog
+    scan_types: [secrets]
+    surfaces:
+      artifact:
+        status: implemented
+        format: jsonl
+        marker: null
+        default_file: trufflehog.json
+      repo_contents:
+        status: planned
+        sources: [github, gitlab]
+        evidence: workflow_uses
+        match: trufflehog
+
+  gitleaks:
+    name: Gitleaks
+    scan_types: [secrets]
+    surfaces:
+      artifact:
+        status: implemented
+        format: json
+        marker: null
+        default_file: gitleaks.json
+      repo_contents:
+        status: planned
+        sources: [github, gitlab]
+        evidence: workflow_uses
+        match: gitleaks
+
+  platform_secret_scanning:
+    name: Forge-native secret scanning
+    scan_types: [secrets]
+    # Forge-native: nothing lands on the runner, so there is no artifact surface.
+    # GitHub calls this "secret scanning"; GitLab calls it "Secret Detection".
+    # Same capability, same control, different vendor noun.
+    surfaces:
+      platform_api:
+        status: planned
+        sources: [github, gitlab]
+        capability: secret_scanning
+        also: [push_protection]
+
+  # -- SCA --------------------------------------------------------------------
+  grype:
+    name: Grype
+    scan_types: [sca, container]
+    surfaces:
+      artifact:
+        status: implemented
+        format: json
+        marker: descriptor.name
+        default_file: grype.json
+      repo_contents:
+        status: planned
+        sources: [github, gitlab]
+        evidence: workflow_uses
+        match: anchore/scan-action
+
+  trivy:
+    name: Trivy
+    scan_types: [sca, container, iac, secrets, licensing]
+    surfaces:
+      artifact:
+        status: implemented
+        format: json
+        marker: SchemaVersion
+        default_file: trivy.json
+      repo_contents:
+        status: planned
+        sources: [github, gitlab]
+        evidence: workflow_uses
+        match: aquasecurity/trivy-action
+
+  snyk:
+    name: Snyk
+    scan_types: [sca, licensing]
+    surfaces:
+      artifact:
+        status: implemented
+        format: json
+        marker: vulnerabilities
+        default_file: snyk.json
+      repo_contents:
+        status: planned
+        sources: [github, gitlab]
+        evidence: workflow_uses
+        match: snyk
+
+  dependabot:
+    name: Dependabot
+    scan_types: [sca]
+    surfaces:
+      platform_api:
+        status: planned
+        sources: [github]
+        capability: dependabot_alerts
+        also: [security_updates]
+      repo_contents:
+        status: planned
+        sources: [github]
+        evidence: config_file
+        match: .github/dependabot.yml
+
+  gitlab_dependency_scanning:
+    name: GitLab Dependency Scanning
+    scan_types: [sca]
+    # GitLab's native equivalent of Dependabot. Kept as its own entry rather
+    # than folded into `dependabot`, because they are different products with
+    # different enablement semantics — only the capability they satisfy is
+    # shared.
+    surfaces:
+      platform_api:
+        status: planned
+        sources: [gitlab]
+        capability: dependabot_alerts
+      repo_contents:
+        status: planned
+        sources: [gitlab]
+        evidence: config_file
+        match: .gitlab-ci.yml
+
+  sonatype:
+    name: Sonatype
+    scan_types: [sca, licensing]
+    surfaces:
+      artifact:
+        status: implemented
+        format: json
+        marker: null
+        default_file: sonatype-policy.json
+
+  # -- SBOM -------------------------------------------------------------------
+  syft:
+    name: Syft
+    scan_types: [sbom]
+    surfaces:
+      artifact:
+        status: implemented
+        format: cyclonedx
+        marker: bomFormat
+        default_file: sbom.cdx.json
+      repo_contents:
+        status: planned
+        sources: [github, gitlab]
+        evidence: workflow_uses
+        match: anchore/sbom-action
+
+  # -- Container --------------------------------------------------------------
+  anchore:
+    name: Anchore
+    scan_types: [container]
+    surfaces:
+      artifact:
+        status: implemented
+        format: json
+        marker: null
+        default_file: anchore.json
+
+  # -- IaC --------------------------------------------------------------------
+  checkov:
+    name: Checkov
+    scan_types: [iac]
+    surfaces:
+      artifact:
+        status: planned
+        format: sarif
+        marker: runs
+        default_file: checkov.sarif
+      repo_contents:
+        status: planned
+        sources: [github, gitlab]
+        evidence: workflow_uses
+        match: bridgecrewio/checkov-action
+
+  tfsec:
+    name: tfsec
+    scan_types: [iac]
+    surfaces:
+      artifact:
+        status: planned
+        format: sarif
+        marker: runs
+        default_file: tfsec.sarif
+
+  # -- DAST -------------------------------------------------------------------
+  burpsuite:
+    name: Burp Suite
+    scan_types: [dast]
+    surfaces:
+      artifact:
+        status: planned
+        format: hdf
+        marker: profiles
+        default_file: burp-hdf.json
+
+  zap:
+    name: OWASP ZAP
+    scan_types: [dast]
+    surfaces:
+      artifact:
+        status: planned
+        format: json
+        marker: null
+        default_file: zap.json
+
+  # -- IAST -------------------------------------------------------------------
+  # Intentionally empty. `iast` appears in scan_types with no tool referencing
+  # it, so the matrix renders a row with no coverage rather than omitting the
+  # concept. An absent row would imply the scan type does not exist; an empty
+  # row states plainly that nothing in the organisation performs it.
+
+  # -- Supply-chain integrity -------------------------------------------------
+  cosign:
+    name: Cosign
+    scan_types: [container]
+    surfaces:
+      artifact:
+        status: implemented
+        format: json
+        marker: null
+        default_file: cosign-verify.json

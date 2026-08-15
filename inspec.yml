@@ -1,24 +1,119 @@
 name: dev-sec-ops-v1r1
-title: CI/CD Pipeline Artifact Presence & Validity Validation
+title: DevSecOps Pipeline and Control-Plane Validation
 maintainer: Clem
 copyright: SPDX-License-Identifier MIT OR Apache-2.0
 license: MIT OR Apache-2.0
 summary: >-
-  Validates that expected security/quality scan artifacts were produced by a
-  pipeline and are structurally valid. Pass/Skip/Fail is driven entirely by
-  per-pipeline input toggles. This profile asserts that scans RAN and emitted
-  well-formed reports; it does NOT evaluate the findings inside them.
-version: 1.0.0
+  Verifies that a DevSecOps pipeline is in place: that expected scans run and
+  emit valid artifacts, that the forge's security capabilities are enabled, and
+  that merge protection is enforced. Runs both as an in-pipeline bolt-on and
+  standalone against the platform control plane.
+version: 1.1.0
 supports: []
 inspec_version: '>= 5.0'
 
+# =============================================================================
+# INPUTS
+#
+# Every non-scalar default MUST be declared here. A control doing
+# `input('x', value: [...])` or `input('x', value: some_method)` crashes
+# `check` and `json` outright with "undefined method 'value' for an instance of
+# RuboCop::AST::ArrayNode/SendNode" UNLESS the input is declared in this file.
+# The failure is at parse time and takes the whole profile down with it.
+# =============================================================================
+
 inputs:
+
+  # ---- Run mode -------------------------------------------------------------
+  # Which control families are eligible. Explicit, never inferred: "no artifacts
+  # on disk" must not be indistinguishable from "this mode does not check
+  # artifacts".
+  - name: run_mode
+    type: string
+    value: 'control-plane'
+    description: 'pipeline | control-plane | both.'
+
+  # ---- Declaration (control-plane mode) -------------------------------------
+  # See inputs/risk-sentinel-org.yml for a worked example, and
+  # files/tool_registry.yml for what the profile can detect.
+
+  - name: organization
+    type: hash
+    value: {}
+    description: >-
+      Forge and organisation/group name. Supplies the reconciliation
+      denominator, which is enumerated through the forge API rather than read
+      from this file.
+
+  - name: targets
+    type: array
+    value: []
+    description: >-
+      Repositories to assess, each declaring every scan type as enabled true or
+      false. There is no omission option: an omitted scan type would render as
+      Not Applicable, which reads as "does not apply" rather than "nobody
+      looked".
+
+  - name: exclusions
+    type: array
+    value: []
+    description: >-
+      Repositories deliberately not assessed. Each entry needs a written
+      `reason`. Archived, fork and template repositories are NOT auto-excluded.
+
+  - name: defaults
+    type: hash
+    value: {}
+    description: 'Baseline `scans:` block that targets inherit and override per key.'
+
+  # ---- Credentials ----------------------------------------------------------
+  # InSpec resources cannot call input(); the control body reads these and
+  # passes them into the resource through its opts hash. Values come from CI
+  # secrets, never from a committed file.
+  - name: github_token
+    type: string
+    value: ''
+    sensitive: true
+    description: 'GitHub token. Falls back to GITHUB_TOKEN / GH_TOKEN in the environment.'
+
+  - name: gitlab_token
+    type: string
+    value: ''
+    sensitive: true
+    description: 'GitLab token. Falls back to GITLAB_TOKEN in the environment.'
+
+  - name: github_api_base
+    type: string
+    value: 'https://api.github.com'
+    description: 'Override for GitHub Enterprise Server.'
+
+  - name: gitlab_api_base
+    type: string
+    value: ''
+    description: 'GitLab instance API base. Per-instance; no sensible default.'
+
+  - name: protected_branch
+    type: string
+    value: 'main'
+    description: 'Branch whose protection and review requirements are assessed.'
+
+  # ===========================================================================
+  # LEGACY — pipeline artifact toggles
+  #
+  # Consumed by controls/artifacts.rb, which has not yet been migrated onto the
+  # declaration model above. They are retained so the existing fourteen
+  # controls keep parsing, NOT because both models should coexist.
+  #
+  # These are removed, and the version goes to 2.0.0, in the phase that
+  # migrates artifacts.rb onto `targets`. Adding a new expect_* toggle here
+  # instead of a registry entry is going the wrong way.
+  # ===========================================================================
+
   - name: artifact_dir
     type: string
     value: 'reports'
     description: 'Directory containing pipeline report artifacts.'
 
-  # ---- EXPECTATION TOGGLES (true => REQUIRE artifact; false/unset => SKIP) ----
   - name: expect_sast
     type: boolean
     value: false
@@ -62,13 +157,11 @@ inputs:
     type: boolean
     value: false
 
-  # ---- License review provenance ----
   - name: license_source
     type: string
     value: 'sonatype'
     description: 'Which tool/process performed OSS license review: sonatype | trivy | snyk | manual.'
 
-  # ---- ARTIFACT FILE NAMES (override per pipeline as needed) ----
   - name: sast_report
     type: string
     value: 'sast.sarif'

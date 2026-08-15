@@ -65,6 +65,12 @@ class GithubSecurity < Inspec.resource(1)
 
   DEFAULT_API = 'https://api.github.com'.freeze
 
+  # Blank-safe credential resolution — "" and whitespace count as absent,
+  # because an unset InSpec input is an empty string, not nil.
+  def self.first_credential(*candidates)
+    candidates.map { |c| c.to_s.strip }.find { |c| !c.empty? }
+  end
+
   # message fragments GitHub returns when a capability is off rather than
   # when the caller is genuinely unauthorised
   DISABLED_HINTS = [
@@ -93,12 +99,16 @@ class GithubSecurity < Inspec.resource(1)
     @repo     = repo.to_s.empty? ? nil : repo.to_s
     @org      = (opts[:org] || opts['org'] || (@repo&.include?('/') ? @repo.split('/').first : nil))
     @api_base = (opts[:api_base] || opts['api_base'] || DEFAULT_API).to_s.chomp('/')
-    # ENV.fetch with an explicit nil default rather than ENV[...]: the
-    # bracket form reads as an assertion that the variable exists, and a
-    # missing token should fall through to the next source rather than look
-    # like a lookup that was expected to succeed.
-    @token    = opts[:token] || opts['token'] ||
-                ENV.fetch('GITHUB_TOKEN', nil) || ENV.fetch('GH_TOKEN', nil)
+    # Blank-safe, NOT `a || b || c`. An InSpec input declared with an
+    # empty-string default arrives as "", which is TRUTHY in Ruby, so a plain
+    # || chain short-circuits on it and never reaches the environment. That
+    # breaks the documented "org-level CI secret needs no input plumbing" path.
+    #
+    # ENV.fetch with an explicit nil default rather than ENV[...]: the bracket
+    # form reads as an assertion that the variable exists.
+    @token    = self.class.first_credential(opts[:token], opts['token'],
+                                            ENV.fetch('GITHUB_TOKEN', nil),
+                                            ENV.fetch('GH_TOKEN', nil))
     @timeout  = (opts[:timeout] || opts['timeout'] || 15).to_i
 
     @connection_error = nil

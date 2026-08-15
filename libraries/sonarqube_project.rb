@@ -46,6 +46,13 @@ class SonarqubeProject < Inspec.resource(1)
 
   DEFAULT_API = 'https://sonarcloud.io'.freeze
 
+  # Blank-safe credential resolution. Returns the first value that is actually
+  # present, treating "" and whitespace as absent — because an unset InSpec
+  # input is an empty string, not nil.
+  def self.first_credential(*candidates)
+    candidates.map { |c| c.to_s.strip }.find { |c| !c.empty? }
+  end
+
   attr_reader :project_key, :connection_error
 
   def initialize(project_key = nil, opts = {})
@@ -57,8 +64,14 @@ class SonarqubeProject < Inspec.resource(1)
 
     @project_key = project_key.to_s
     @api_base    = (opts[:api_base] || opts['api_base'] || DEFAULT_API).to_s.chomp('/')
-    @token       = opts[:token] || opts['token'] ||
-                   ENV.fetch('SONAR_TOKEN', nil) || ENV.fetch('SONARQUBE_TOKEN', nil)
+    # first_credential, NOT `a || b || c`. An InSpec input declared with an
+    # empty-string default arrives as "", which is TRUTHY in Ruby, so a plain ||
+    # chain short-circuits on it and never consults the environment. That
+    # silently broke the documented "org-level CI secret needs no input
+    # plumbing" path: -e SONAR_TOKEN arrived correctly and was thrown away.
+    @token       = self.class.first_credential(opts[:token], opts['token'],
+                                               ENV.fetch('SONAR_TOKEN', nil),
+                                               ENV.fetch('SONARQUBE_TOKEN', nil))
     @timeout     = (opts[:timeout] || opts['timeout'] || 15).to_i
     @authenticated = !@token.to_s.empty?
 

@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline Evidence Plane</title>
+<meta name="description" content="Build-out plan extending the DevSecOps baseline from pipeline artifact checks to a dual-mode GitHub/GitLab control-plane evidence profile.">
+<style>
+  /* ---- minimal reset (the Artifact host supplies one; a standalone file must not assume it) ---- */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, h4, p, ul, ol, figure, pre, blockquote, table { margin: 0; padding: 0; }
+  ul, ol { list-style-position: outside; }
+  img, svg { display: block; max-width: 100%; }
+  table { border-collapse: collapse; border-spacing: 0; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+
+  :root {
+    --ground: #F6F7F9;
+    --surface: #FFFFFF;
+    --surface-2: #EFF1F4;
+    --ink: #191C22;
+    --ink-2: #4A515C;
+    --ink-3: #78808C;
+    --rule: #DCE0E6;
+    --rule-strong: #C3C9D2;
+    --accent: #1F6152;
+    --accent-ink: #17493E;
+    --accent-soft: #E3EFEA;
+    --fail: #A93A28;
+    --fail-soft: #F7E7E3;
+    --warn: #8A6314;
+    --warn-soft: #F6EFDD;
+    --shadow: 0 1px 2px rgba(25, 28, 34, .05), 0 8px 24px -16px rgba(25, 28, 34, .25);
+
+    --font-display: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --font-body: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #14171C;
+      --surface: #1B1F26;
+      --surface-2: #232830;
+      --ink: #E7EAEE;
+      --ink-2: #A8B0BB;
+      --ink-3: #79828F;
+      --rule: #2C323B;
+      --rule-strong: #3B434F;
+      --accent: #6FBFA5;
+      --accent-ink: #8FD4BC;
+      --accent-soft: #1A2E28;
+      --fail: #E08472;
+      --fail-soft: #32211E;
+      --warn: #D6AA5A;
+      --warn-soft: #2C2517;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #14171C;
+    --surface: #1B1F26;
+    --surface-2: #232830;
+    --ink: #E7EAEE;
+    --ink-2: #A8B0BB;
+    --ink-3: #79828F;
+    --rule: #2C323B;
+    --rule-strong: #3B434F;
+    --accent: #6FBFA5;
+    --accent-ink: #8FD4BC;
+    --accent-soft: #1A2E28;
+    --fail: #E08472;
+    --fail-soft: #32211E;
+    --warn: #D6AA5A;
+    --warn-soft: #2C2517;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .8);
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.62;
+    padding: 0 1.25rem 6rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 50rem;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 3.25rem;
+  }
+
+  /* ---- masthead ---- */
+  header.masthead {
+    padding-top: 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 2.25rem;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: .72rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.1rem, 5.5vw, 3rem);
+    line-height: 1.08;
+    letter-spacing: -.015em;
+    font-weight: 600;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: 1.075rem;
+    color: var(--ink-2);
+    margin: 0;
+    max-width: 42rem;
+  }
+  .meta {
+    font-family: var(--font-mono);
+    font-size: .74rem;
+    color: var(--ink-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem 1.15rem;
+    margin: .35rem 0 0;
+  }
+
+  /* ---- sections ---- */
+  section { display: flex; flex-direction: column; gap: 1.1rem; }
+  h2 {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    line-height: 1.2;
+    letter-spacing: -.01em;
+    font-weight: 600;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-size: .95rem;
+    font-weight: 650;
+    letter-spacing: .005em;
+    margin: 0;
+    color: var(--ink);
+  }
+  p { margin: 0; max-width: 44rem; }
+  .lede { color: var(--ink-2); }
+
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: .855em;
+    background: var(--surface-2);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: .06em .32em;
+    white-space: nowrap;
+  }
+
+  ul, ol { margin: 0; padding-left: 1.15rem; display: flex; flex-direction: column; gap: .45rem; max-width: 44rem; }
+  li::marker { color: var(--ink-3); }
+
+  /* ---- tables ---- */
+  .scroller { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); box-shadow: var(--shadow); }
+  table { width: 100%; font-size: .875rem; min-width: 34rem; }
+  caption {
+    caption-side: top;
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: .7rem;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding: .85rem 1rem .55rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  th, td { text-align: left; padding: .62rem 1rem; vertical-align: top; border-bottom: 1px solid var(--rule); }
+  thead th {
+    font-size: .7rem;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.mono, th.mono { font-family: var(--font-mono); font-size: .8rem; font-variant-numeric: tabular-nums; }
+
+  /* ---- status pills ---- */
+  .pill {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: .68rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: .16em .5em;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .pill.have { background: var(--accent-soft); color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+  .pill.gap  { background: var(--fail-soft); color: var(--fail); border-color: color-mix(in srgb, var(--fail) 35%, transparent); }
+  .pill.part { background: var(--warn-soft); color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+
+  /* ---- phase rail (a real sequence: order of execution matters) ---- */
+  .phases { display: flex; flex-direction: column; gap: 1.5rem; }
+  .phase {
+    display: grid;
+    grid-template-columns: 2.75rem 1fr;
+    gap: 0 1.15rem;
+    align-items: start;
+  }
+  .phase-num {
+    font-family: var(--font-mono);
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    border-radius: 4px;
+    text-align: center;
+    padding: .3rem 0;
+    letter-spacing: .04em;
+  }
+  .phase-body { display: flex; flex-direction: column; gap: .6rem; min-width: 0; }
+  .phase-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem .75rem; }
+  .phase-head h3 { font-size: 1.05rem; font-weight: 650; }
+  .phase-where {
+    font-family: var(--font-mono);
+    font-size: .7rem;
+    color: var(--ink-3);
+    letter-spacing: .04em;
+  }
+
+  /* ---- callout ---- */
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 1.05rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+    box-shadow: var(--shadow);
+  }
+  .callout.risk { border-left-color: var(--fail); }
+  .callout h3 { font-size: .8rem; letter-spacing: .09em; text-transform: uppercase; font-family: var(--font-mono); font-weight: 600; color: var(--ink-3); }
+  .callout p, .callout ul { max-width: 42rem; }
+
+  pre {
+    font-family: var(--font-mono);
+    font-size: .8rem;
+    line-height: 1.55;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: .9rem 1.1rem;
+    overflow-x: auto;
+    margin: 0;
+    color: var(--ink-2);
+    box-shadow: var(--shadow);
+  }
+  pre code { background: none; border: none; padding: 0; font-size: inherit; white-space: pre; }
+
+  hr { border: none; border-top: 1px solid var(--rule); margin: 0; }
+
+  footer.colophon {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    font-size: .82rem;
+    color: var(--ink-3);
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+  }
+
+  @media (max-width: 560px) {
+    .phase { grid-template-columns: 1fr; gap: .5rem; }
+    .phase-num { width: 2.75rem; }
+  }
+
+  @media print {
+    body { background: #fff; color: #000; padding: 0; }
+    .scroller, .callout, pre { box-shadow: none; }
+    .phase { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">risk-sentinel / dev-sec-ops-baseline</p>
+    <h1>Pipeline Evidence Plane</h1>
+    <p class="standfirst">Extending the DevSecOps baseline from &ldquo;a scan artifact landed on the runner&rdquo; to &ldquo;the platform&rsquo;s security control plane is configured, enabled, and producing evidence&rdquo; &mdash; as one profile that runs both standalone and inside the sparc-validate orchestration.</p>
+    <p class="meta">
+      <span>2026-08-14</span>
+      <span>main @ a34a100</span>
+      <span>14 controls today</span>
+      <span>20 repos in scope</span>
+    </p>
+  </header>
+
+  <!-- ============================ CONTEXT ============================ -->
+  <section>
+    <h2>Why this work</h2>
+    <p class="lede"><code>dev-sec-ops-baseline</code> holds 14 input-gated controls that assert a pipeline scan <em>ran and emitted a well-formed file</em>. Every one of them resolves to <code>file(ArtifactHelper.path(adir, &hellip;))</code> against a local <code>reports/</code> directory. That makes the profile in-pipeline only: it must execute on the runner, after the scanners, with artifacts already on disk. It has no overlay in <code>sparc-validate</code>, no CI leg, and has never been exec&rsquo;d against a real pipeline.</p>
+    <p>Measured against the ten DevSecOps practices we&rsquo;re targeting, artifact-presence covers one and a half of them. The rest &mdash; shift-left enforcement, merge gating, policy-as-code, secure-coding evidence, vulnerability-dashboard monitoring, threat modeling &mdash; are <strong>control-plane facts held by GitHub and GitLab</strong>, not files on a runner. Roughly two-thirds of the target surface is unreachable from the filesystem.</p>
+
+    <div class="scroller">
+      <table>
+        <caption>Practice coverage against today&rsquo;s profile</caption>
+        <thead>
+          <tr><th>Practice</th><th>Where the evidence actually lives</th><th>State</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Security testing tools across the pipeline</td><td>The 14 existing artifact controls</td><td><span class="pill have">covered</span></td></tr>
+          <tr><td>Automate security wherever possible</td><td>Artifacts prove it ran; triggers prove it&rsquo;s automatic</td><td><span class="pill part">partial</span></td></tr>
+          <tr><td>Infrastructure as code</td><td>Checkov/tfsec artifact + repo contains Terraform</td><td><span class="pill part">partial</span></td></tr>
+          <tr><td>Secure coding practices</td><td>Lint/quality artifacts + a published standard</td><td><span class="pill part">partial</span></td></tr>
+          <tr><td>Shift left</td><td>Workflow triggers &mdash; does the scan run on <code>pull_request</code> or only <code>main</code>?</td><td><span class="pill gap">control plane</span></td></tr>
+          <tr><td>CI/CD delivery gates</td><td>Branch protection: required status checks, required reviews</td><td><span class="pill gap">control plane</span></td></tr>
+          <tr><td>Policy as code</td><td>Repository rulesets + OPA/Conftest artifacts</td><td><span class="pill gap">control plane</span></td></tr>
+          <tr><td>Continuously monitor and log</td><td>The vulnerability dashboard &mdash; open alert counts, remediation age</td><td><span class="pill gap">control plane</span></td></tr>
+          <tr><td>Shared security responsibility</td><td>CODEOWNERS + training records</td><td><span class="pill gap">attestation</span></td></tr>
+          <tr><td>Threat modeling</td><td>Threat-model document</td><td><span class="pill gap">attestation</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================ SUBSTRATE ============================ -->
+  <section>
+    <h2>What we&rsquo;re building on, not building</h2>
+    <p class="lede">Three pieces of existing machinery carry most of this. None of them needs to be invented.</p>
+
+    <div class="callout">
+      <h3>The fetch resource pattern</h3>
+      <p><code>sparc-validate/tools/attestation/document_attestation.rb</code> already speaks <code>github://</code>, <code>gitlab://</code>, <code>s3://</code>, <code>https://</code> and <code>file://</code>, with token resolution from opts&rarr;ENV and &mdash; critically &mdash; a <code>connection_error</code> path so an unreachable source <em>fails</em> instead of quietly passing. Its <code>initialize(uri = nil, opts = {})</code> shape also encodes the Ruby 3 positional-opts lesson. The new resources clone this pattern rather than re-deriving it.</p>
+    </div>
+
+    <div class="callout">
+      <h3>The HDF conversion path</h3>
+      <p>The org already runs <code>hdf fetch</code> / <code>hdf convert</code> in production. <code>container-build-sign/.github/workflows/sonarqube-hdf.yml</code> does <code>hdf fetch sonarqube</code> &rarr; OHDF &rarr; S3 evidence bucket and is called from four repos; <code>sca-emit-images.yml</code> uses <code>--from grype</code>; <code>build-sign-publish.yml</code> uses <code>--from sarif</code>. GitHub code-scanning alerts are retrievable as SARIF, so the dashboard&rarr;HDF bridge is an existing converter plus a fetch &mdash; no new converter.</p>
+    </div>
+
+    <div class="callout">
+      <h3>The KSI system of record</h3>
+      <p><code>risk-sentinel/sparc</code> seeds an 11-theme FedRAMP 20x KSI catalog (<code>db/seeds/fedramp_20x_ksi.rb</code>) plus a <code>ControlMapping</code> to NIST 800-53r5, served read-only at <code>/api/v1/ksi_catalog/{themes,indicators,mappings}</code>, with <code>/api/v1/&hellip;/ksi_validations</code> for write-back. The profile consumes this. It does not fork a KSI table into <code>PROVENANCE.md</code>.</p>
+    </div>
+  </section>
+
+  <!-- ============================ TWO MODES ============================ -->
+  <section>
+    <h2>Two run modes, and why order matters</h2>
+    <p class="lede">The profile has to satisfy two callers with different prerequisites. Conflating them is how you get a control that silently passes because its input was never populated.</p>
+
+    <div class="scroller">
+      <table>
+        <caption>Run modes</caption>
+        <thead>
+          <tr><th>Mode</th><th>Target</th><th>Prerequisite</th><th>Control families it can evaluate</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Bolt-on</strong><br><span class="phase-where">in-pipeline</span></td>
+            <td class="mono">-t local://</td>
+            <td>Runs on the runner, <em>after</em> every scanner stage, with <code>reports/</code> populated</td>
+            <td>Artifact presence + validity (the existing 14)</td>
+          </tr>
+          <tr>
+            <td><strong>Standalone</strong><br><span class="phase-where">control plane</span></td>
+            <td class="mono">-t local://</td>
+            <td>A platform token only. No pipeline, no runner, no artifacts</td>
+            <td>Enablement, branch protection, rulesets, triggers, dashboard</td>
+          </tr>
+          <tr>
+            <td><strong>Orchestrated</strong><br><span class="phase-where">sparc-validate</span></td>
+            <td class="mono">overlay + matrix leg</td>
+            <td>Overlay supplies the repo list and expectations; sweeps all 20 repos</td>
+            <td>Standalone families, fanned across the org</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout risk">
+      <h3>Ordering is a correctness property, not a convenience</h3>
+      <ul>
+        <li><strong>Enablement precedes findings.</strong> &ldquo;Is Code Security on?&rdquo; must be evaluated before &ldquo;how many open alerts?&rdquo; &mdash; otherwise a disabled repo reports zero alerts and looks clean.</li>
+        <li><strong>Production precedes validation.</strong> The SBOM-validity control is meaningless before the SBOM control; Grype consumes the SBOM Syft produced.</li>
+        <li><strong>Do not rely on InSpec execution order to express this.</strong> InSpec gives no cross-file ordering guarantee. Each dependent control encodes its precondition explicitly in its own body &mdash; a resource-level predicate, not a hope about file sequence.</li>
+        <li><strong>Mode selection is an input, not an inference.</strong> A single <code>run_mode</code> input (<code>pipeline</code> / <code>control-plane</code> / <code>both</code>) gates the families. Absent artifacts must not be indistinguishable from &ldquo;this mode doesn&rsquo;t check artifacts.&rdquo;</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================ THE 403 FINDING ============================ -->
+  <section>
+    <h2>The measurement that shapes phase one</h2>
+    <p class="lede">I probed the GitHub security APIs directly against the org. Code Security is off on most private repos:</p>
+    <pre><code>sparc-validate   code-scanning   &rarr; 403  "Code Security must be enabled"
+                 dependabot      &rarr; 403  "Dependabot alerts are disabled"
+                 secret-scanning &rarr; 404  "Secret scanning is disabled"
+sparc-iac        &rarr; same three
+sparc            &rarr; all three respond (enabled)
+cis-*-baseline   &rarr; all respond, 0 alerts (public, free tier)</code></pre>
+    <p>A naive resource reads <code>403</code> as an empty alert list and passes. That is exactly the silence-as-success defect class that produced every serious bug in this stack in August: a step that assessed nothing while reporting not-red.</p>
+    <p><strong>So the first control written is the enablement control</strong>, and <code>403</code>/<code>404</code> map to FAIL with the API message carried into the result. &ldquo;Code Security is not enabled on this repository&rdquo; is a genuine, actionable finding &mdash; arguably the most valuable one in the set, and the thing that drives the licensing decision rather than waiting on it.</p>
+  </section>
+
+  <!-- ============================ PHASES ============================ -->
+  <section>
+    <h2>Build sequence</h2>
+    <p class="lede">Numbered because it is a real dependency chain &mdash; each phase consumes the one before it. Every phase is one issue, one branch, one PR, per <code>issue_rules.md</code>.</p>
+
+    <div class="phases">
+
+      <div class="phase">
+        <div class="phase-num">01</div>
+        <div class="phase-body">
+          <div class="phase-head"><h3>The <code>github_security</code> resource</h3><span class="phase-where">dev-sec-ops-baseline &middot; libraries/</span></div>
+          <p>Clone the <code>document_attestation</code> shape: <code>initialize(repo = nil, opts = {})</code>, token from <code>opts[:token]</code> &rarr; ENV, all network failure captured in <code>connection_error</code>. Exposes <code>code_security_enabled?</code>, <code>secret_scanning_enabled?</code>, <code>dependabot_enabled?</code>, <code>branch_protection(branch)</code>, <code>rulesets</code>, <code>workflow_triggers(path)</code>, <code>open_alerts(kind)</code>. Every predicate raises-or-fails on a transport error; none of them returns a falsy default that masks an unreachable API.</p>
+          <p><strong>Constraint carried in:</strong> InSpec resources cannot call <code>input()</code>. Tokens and repo names arrive through the opts hash, passed from the control body. <code>defined?(input)</code> is not a usable guard.</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">02</div>
+        <div class="phase-body">
+          <div class="phase-head"><h3>Enablement controls</h3><span class="phase-where">controls/platform_enablement.rb</span></div>
+          <p>One control per capability &mdash; code scanning, secret scanning with push protection, Dependabot alerts and security updates. These are the preconditions everything downstream depends on, and they are the phase that produces immediate, real findings against the current org state. Anchor to RA-5, SI-5, SA-11; the KSI rollup follows in phase 6.</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">03</div>
+        <div class="phase-body">
+          <div class="phase-head"><h3>Practice controls on the control plane</h3><span class="phase-where">controls/pipeline_governance.rb</span></div>
+          <p>The six practices that are unreachable from the filesystem: required status checks and required reviews (delivery gating), rulesets and their enforcement status (policy as code), scan-workflow trigger analysis (shift left &mdash; does the scanner fire on <code>pull_request</code>, or only after merge?), CODEOWNERS coverage (shared responsibility), signed-commit requirement, and stale-review dismissal.</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">04</div>
+        <div class="phase-body">
+          <div class="phase-head"><h3>Dual-mode packaging</h3><span class="phase-where">dev-sec-ops-baseline + sparc-validate/overlays/</span></div>
+          <p>Introduce <code>run_mode</code> and gate the two families. Add <code>inputs/control-plane.yml</code> alongside the existing pipeline input files. Create <code>overlays/dev-sec-ops/</code> in <code>sparc-validate</code> following the established overlay shape &mdash; <code>depends:</code> on a tagged upstream, <code>controls/include.rb</code>, an <code>inputs.yml</code> carrying the 20-repo list, and the <code>--input-file</code> wiring on the exec leg. Remember that repeated <code>--input</code> flags are silently dropped; one flag with many pairs, or a second input file.</p>
+          <p><strong>This is the phase that first exec-validates the profile.</strong> Static <code>check</code> and <code>json</code> only load controls &mdash; they have never proven a single one of these 14 assertions runs.</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">05</div>
+        <div class="phase-body">
+          <div class="phase-head"><h3>Dashboard &rarr; HDF bridge</h3><span class="phase-where">container-build-sign reusable</span></div>
+          <p>Fetch code-scanning alerts as SARIF and run them through the existing <code>hdf convert --from sarif</code>, emitting to the same S3 evidence bucket the SonarQube path already writes to. Follows the <code>sonarqube-hdf.yml</code> reusable-workflow pattern exactly, so the vulnerability dashboard joins the unified evidence stream Heimdall already aggregates rather than becoming a parallel one.</p>
+          <p>Dependabot and secret-scanning alerts have no SARIF form and no stock converter &mdash; handle them as a separate decision, not a silent omission.</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">06</div>
+        <div class="phase-body">
+          <div class="phase-head"><h3>KSI wiring through SPARC</h3><span class="phase-where">sparc API &middot; not a local table</span></div>
+          <p>The profile keeps emitting <code>tag nist:</code> and SPARC resolves coverage through its existing mapping. A generator pulls <code>/api/v1/ksi_catalog/mappings</code> and stamps a derived <code>tag ksi:</code> into the profile so the value is pinned and reviewable in a PR &mdash; derived from the system of record, never hand-maintained beside it.</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">07</div>
+        <div class="phase-body">
+          <div class="phase-head"><h3>GitLab portability</h3><span class="phase-where">fixture-tested, not exec-validated</span></div>
+          <p>Build <code>gitlab_security</code> to the same interface against the vulnerability-report and security-policy APIs, validated against a recorded fixture. All 20 org repos are on GitHub today and there is no live GitLab instance, so this ships explicitly labelled as portability-only. No exec-validation claim.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================ RISKS ============================ -->
+  <section>
+    <h2>Decisions worth flagging before we start</h2>
+
+    <div class="callout risk">
+      <h3>KSI mapping direction is not reversible</h3>
+      <p>SPARC&rsquo;s mapping is typed <code>superset</code> &mdash; &ldquo;each KSI encapsulates the intent of multiple NIST controls&rdquo; (<code>ksi-cm-04 &rarr; sa-11</code>, <code>ksi-cna-02 &rarr; cp-6, cp-7</code>). Reverse-resolving NIST&rarr;KSI is therefore necessary but <em>not</em> sufficient: a passing <code>SA-11</code>-tagged control does not on its own satisfy <code>ksi-cm-04</code>. The profile must not assert KSI status. It emits NIST tags; SPARC decides coverage from the full set.</p>
+    </div>
+
+    <div class="callout risk">
+      <h3>SPARC&rsquo;s KSI catalog looks like an earlier 20x release</h3>
+      <p>The seeded themes are <code>AUTH &middot; CM &middot; CNA &middot; EDU &middot; IAM &middot; IR &middot; MLA &middot; POL &middot; REC &middot; SVC &middot; SCR</code>. Current FedRAMP 20x publications use a partly different set of theme codes and drop the authorization theme. That drift belongs in a <code>sparc</code> issue against the seed, pinned to a specific FRMR release &mdash; it should not be papered over or forked into this profile.</p>
+    </div>
+
+    <div class="callout risk">
+      <h3>The profile has never been exec&rsquo;d</h3>
+      <p>Zero of the 14 controls has run against a real pipeline. <code>check</code> and <code>json</code> load controls; they do not evaluate them. Phase 4 is where that debt gets paid, and the plan deliberately places it before the dashboard and KSI work rather than after.</p>
+    </div>
+  </section>
+
+  <!-- ============================ VERIFICATION ============================ -->
+  <section>
+    <h2>How each phase is proven</h2>
+    <ul>
+      <li><strong>Resource behaviour (1):</strong> exercise <code>github_security</code> against a repo with Code Security on (<code>sparc</code>), one with it off (<code>sparc-validate</code>), and an unreachable host. The off case must FAIL with the API message; the unreachable case must FAIL, not pass empty.</li>
+      <li><strong>Static gates (1&ndash;3):</strong> <code>vendor</code> &rarr; <code>check</code> &rarr; <code>json</code> in the pinned <code>sparc-auditor</code> image. The <code>json</code> leg is non-optional &mdash; it catches library load errors <code>check</code> does not.</li>
+      <li><strong>Live exec (2&ndash;4):</strong> <code>exec -t local:// --input-file inputs/control-plane.yml</code> across all 20 repos, then read the HDF. Every control must land on pass or fail with a reason; a run where controls skip silently is a failed verification, not a clean one.</li>
+      <li><strong>Bolt-on mode (4):</strong> run the profile as the last step of one real pipeline with <code>reports/</code> populated, and confirm the artifact family evaluates rather than skips.</li>
+      <li><strong>Evidence stream (5):</strong> confirm the converted SARIF lands in the S3 evidence bucket under the same layout the SonarQube emit uses, and renders in Heimdall.</li>
+    </ul>
+  </section>
+
+  <hr>
+
+  <footer class="colophon">
+    <p>Scope confirmed: all 20 <code>risk-sentinel</code> repositories &middot; GitLab portability-only &middot; Code Security assumed to be enabled on the private repos, with the enablement failures driving that change rather than blocking on it.</p>
+    <p>Every phase follows the 13-step workflow in <code>docs/dev/issue_rules.md</code>: issue first, branch prefixed with the issue number, no direct pushes to <code>main</code>, no self-merges.</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

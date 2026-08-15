@@ -648,7 +648,7 @@ tools:
     scan_types: [iac]
     surfaces:
       artifact:
-        status: planned
+        status: implemented
         format: sarif
         marker: runs
         patterns:
@@ -665,7 +665,7 @@ tools:
     scan_types: [iac]
     surfaces:
       artifact:
-        status: planned
+        status: implemented
         format: sarif
         marker: runs
         patterns:
@@ -677,7 +677,7 @@ tools:
     scan_types: [dast]
     surfaces:
       artifact:
-        status: planned
+        status: implemented
         format: hdf
         marker: profiles
         patterns:
@@ -688,7 +688,7 @@ tools:
     scan_types: [dast]
     surfaces:
       artifact:
-        status: planned
+        status: implemented
         format: json
         marker: null
         patterns:
@@ -721,7 +721,7 @@ tools:
     scan_types: [runtime]
     surfaces:
       artifact:
-        status: planned
+        status: implemented
         format: json
         marker: null
         patterns:
@@ -737,7 +737,7 @@ tools:
     scan_types: [runtime]
     surfaces:
       artifact:
-        status: planned
+        status: implemented
         format: json
         marker: null
         patterns:
@@ -753,7 +753,7 @@ tools:
     scan_types: [runtime]
     surfaces:
       artifact:
-        status: planned
+        status: implemented
         format: json
         marker: null
         patterns:

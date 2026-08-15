@@ -147,9 +147,12 @@ verify = lambda do |repo, tool, surface|
       # reason. exists? alone returns a bare false and leaves the message nil,
       # so the failure reads "sonarqube:" with nothing after it.
       next "sonarqube: #{sq.connection_error || 'project not readable'}" unless sq.readable?
-      unless sq.analyzed_within?(freshness_days)
-        next "sonarqube analysis is #{sq.analysis_age_days.inspect} days old (limit #{freshness_days})"
-      end
+      age = sq.analysis_age_days
+      # A project that exists but has NEVER been analysed is a different finding
+      # from one whose analysis went stale, and "nil days old" tells nobody
+      # which they are looking at.
+      next 'sonarqube project exists but has never been analysed' if age.nil?
+      next "sonarqube analysis is #{age} days old (limit #{freshness_days})" if age > freshness_days
       'verified'
     else
       gs = ::GithubSecurityHandle.call(repo, org_name, gh_token, gh_api)

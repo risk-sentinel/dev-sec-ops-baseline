@@ -105,7 +105,7 @@ Merge-request rules straddle the split. *Whether reviews are required* is platfo
 | **sbom** &mdash; Software Bill of Materials | [Build](docs/sdlc/build.md) | Syft | **yes** | &mdash; | planned | `SR-3`, `SR-4` |
 | **container** &mdash; Container Image Scanning | [Build](docs/sdlc/build.md) | Anchore, Cosign, Grype, Trivy | **yes** | &mdash; | planned | `RA-5`, `CM-6`, `SR-3` |
 | **licensing** &mdash; Software Licensing Review | [Build](docs/sdlc/build.md) | Snyk, Sonatype, Trivy | **yes** | &mdash; | planned | `SR-3`, `SA-4` |
-| **dast** &mdash; Dynamic Application Security Testing | [Test](docs/sdlc/test.md) | Burp Suite, OWASP ZAP | planned | &mdash; | &mdash; | `SA-11(8)`, `RA-5`, `CA-8` |
+| **dast** &mdash; Dynamic Application Security Testing | [Test](docs/sdlc/test.md) | Burp Suite, OWASP ZAP | **yes** | &mdash; | &mdash; | `SA-11(8)`, `RA-5`, `CA-8` |
 | **runtime** &mdash; Post-Deployment Validation | [Operate](docs/sdlc/operate.md) | AWS Config, AWS Security Hub, InSpec / CINC baselines, Prowler | **yes** | planned | &mdash; | `CA-2(2)`, `CA-7`, `CM-6`, `RA-5` |
 | **iast** &mdash; Interactive Application Security Testing | [Test](docs/sdlc/test.md) | _none_ | &mdash; | &mdash; | &mdash; | `SA-11(9)` |
 
@@ -116,11 +116,11 @@ Merge-request rules straddle the split. *Whether reviews are required* is platfo
 | Tool | Scan types | Artifact | Platform API | Repo contents |
 |---|---|---|---|---|
 | Anchore | `container` | **yes** | &mdash; | &mdash; |
-| AWS Config | `runtime` | planned | planned | &mdash; |
-| AWS Security Hub | `runtime` | planned | planned | &mdash; |
+| AWS Config | `runtime` | **yes** | planned | &mdash; |
+| AWS Security Hub | `runtime` | **yes** | planned | &mdash; |
 | Bandit | `sast` | **yes** | &mdash; | planned |
-| Burp Suite | `dast` | planned | &mdash; | &mdash; |
-| Checkov | `iac` | planned | &mdash; | planned |
+| Burp Suite | `dast` | **yes** | &mdash; | &mdash; |
+| Checkov | `iac` | **yes** | &mdash; | planned |
 | CodeQL | `sast` | **yes** | **yes** | planned |
 | Cosign | `container` | **yes** | &mdash; | &mdash; |
 | Dependabot | `sca` | &mdash; | **yes** | planned |
@@ -129,14 +129,14 @@ Merge-request rules straddle the split. *Whether reviews are required* is platfo
 | Gitleaks | `secrets` | **yes** | &mdash; | planned |
 | Grype | `sca`, `container` | **yes** | &mdash; | planned |
 | InSpec / CINC baselines | `runtime` | **yes** | &mdash; | &mdash; |
-| OWASP ZAP | `dast` | planned | &mdash; | &mdash; |
-| Prowler | `runtime` | planned | &mdash; | &mdash; |
+| OWASP ZAP | `dast` | **yes** | &mdash; | &mdash; |
+| Prowler | `runtime` | **yes** | &mdash; | &mdash; |
 | Semgrep | `sast`, `iac` | **yes** | **yes** | planned |
 | Snyk | `sca`, `licensing` | **yes** | &mdash; | planned |
 | SonarQube | `sast` | **yes** | **yes** | planned |
 | Sonatype | `sca`, `licensing` | **yes** | &mdash; | &mdash; |
 | Syft | `sbom` | **yes** | &mdash; | planned |
-| tfsec | `iac` | planned | &mdash; | &mdash; |
+| tfsec | `iac` | **yes** | &mdash; | &mdash; |
 | Trivy | `sca`, `container`, `iac`, `secrets`, `licensing` | **yes** | &mdash; | planned |
 | TruffleHog | `secrets` | **yes** | &mdash; | planned |
 

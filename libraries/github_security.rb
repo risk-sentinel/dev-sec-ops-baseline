@@ -93,7 +93,12 @@ class GithubSecurity < Inspec.resource(1)
     @repo     = repo.to_s.empty? ? nil : repo.to_s
     @org      = (opts[:org] || opts['org'] || (@repo&.include?('/') ? @repo.split('/').first : nil))
     @api_base = (opts[:api_base] || opts['api_base'] || DEFAULT_API).to_s.chomp('/')
-    @token    = opts[:token] || opts['token'] || ENV['GITHUB_TOKEN'] || ENV['GH_TOKEN']
+    # ENV.fetch with an explicit nil default rather than ENV[...]: the
+    # bracket form reads as an assertion that the variable exists, and a
+    # missing token should fall through to the next source rather than look
+    # like a lookup that was expected to succeed.
+    @token    = opts[:token] || opts['token'] ||
+                ENV.fetch('GITHUB_TOKEN', nil) || ENV.fetch('GH_TOKEN', nil)
     @timeout  = (opts[:timeout] || opts['timeout'] || 15).to_i
 
     @connection_error = nil

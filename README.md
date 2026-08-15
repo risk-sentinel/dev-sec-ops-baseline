@@ -96,6 +96,7 @@ Merge-request rules straddle two of them. *Whether reviews are required* is plat
 | **container** &mdash; Container Image Scanning | [Build](docs/sdlc/build.md) | Anchore, Cosign, Grype, Trivy | **yes** | &mdash; | planned | `RA-5`, `CM-6`, `SR-3` |
 | **licensing** &mdash; Software Licensing Review | [Build](docs/sdlc/build.md) | Snyk, Sonatype, Trivy | **yes** | &mdash; | planned | `SR-3`, `SA-4` |
 | **dast** &mdash; Dynamic Application Security Testing | [Test](docs/sdlc/test.md) | Burp Suite, OWASP ZAP | planned | &mdash; | &mdash; | `SA-11(8)`, `RA-5`, `CA-8` |
+| **runtime** &mdash; Post-Deployment Validation | [Operate](docs/sdlc/operate.md) | AWS Config, AWS Security Hub, InSpec / CINC baselines, Prowler | **yes** | planned | &mdash; | `CA-2(2)`, `CA-7`, `CM-6`, `RA-5` |
 | **iast** &mdash; Interactive Application Security Testing | [Test](docs/sdlc/test.md) | _none_ | &mdash; | &mdash; | &mdash; | `SA-11(9)` |
 
 > **No tooling anywhere in the organisation for `iast`.** The row is kept deliberately. Dropping it would imply the scan type does not apply; keeping it empty states that nobody performs it.
@@ -105,6 +106,8 @@ Merge-request rules straddle two of them. *Whether reviews are required* is plat
 | Tool | Scan types | Artifact | Platform API | Repo contents |
 |---|---|---|---|---|
 | Anchore | `container` | **yes** | &mdash; | &mdash; |
+| AWS Config | `runtime` | planned | planned | &mdash; |
+| AWS Security Hub | `runtime` | planned | planned | &mdash; |
 | Bandit | `sast` | **yes** | &mdash; | planned |
 | Burp Suite | `dast` | planned | &mdash; | &mdash; |
 | Checkov | `iac` | planned | &mdash; | planned |
@@ -115,7 +118,9 @@ Merge-request rules straddle two of them. *Whether reviews are required* is plat
 | GitLab Dependency Scanning | `sca` | &mdash; | planned | planned |
 | Gitleaks | `secrets` | **yes** | &mdash; | planned |
 | Grype | `sca`, `container` | **yes** | &mdash; | planned |
+| InSpec / CINC baselines | `runtime` | **yes** | &mdash; | &mdash; |
 | OWASP ZAP | `dast` | planned | &mdash; | &mdash; |
+| Prowler | `runtime` | planned | &mdash; | &mdash; |
 | Semgrep | `sast`, `iac` | **yes** | planned | planned |
 | Snyk | `sca`, `licensing` | **yes** | &mdash; | planned |
 | SonarQube | `sast` | **yes** | planned | planned |
@@ -127,19 +132,21 @@ Merge-request rules straddle two of them. *Whether reviews are required* is plat
 
 ### What each check reads, and where it is documented
 
-| Capability | GitHub | GitLab |
-|---|---|---|
-| **repo_enumeration**<br>Repository enumeration — the denominator | `GET /orgs/{org}/repos`<br>[docs](https://docs.github.com/en/rest/repos/repos) | `GET /groups/{id}/projects`<br>[docs](https://docs.gitlab.com/api/groups/) |
-| **code_scanning**<br>Static analysis findings | `GET /repos/{owner}/{repo}/code-scanning/alerts`<br>[docs](https://docs.github.com/en/rest/code-scanning/code-scanning) | `GET /projects/{id}/vulnerability_findings?report_type=sast`<br>[docs](https://docs.gitlab.com/api/vulnerability_findings/) |
-| **secret_scanning**<br>Secrets findings and push protection | `GET /repos/{owner}/{repo}/secret-scanning/alerts`<br>[docs](https://docs.github.com/en/rest/secret-scanning/secret-scanning) | `GET /projects/{id}/vulnerability_findings?report_type=secret_detection`<br>[docs](https://docs.gitlab.com/api/vulnerability_findings/) |
-| **dependabot_alerts**<br>Dependency vulnerability findings | `GET /repos/{owner}/{repo}/dependabot/alerts`<br>[docs](https://docs.github.com/en/rest/dependabot/alerts) | `GET /projects/{id}/dependencies`<br>[docs](https://docs.gitlab.com/api/dependencies/) |
-| **sbom_export**<br>Platform-generated SBOM | `GET /repos/{owner}/{repo}/dependency-graph/sbom`<br>[docs](https://docs.github.com/en/rest/dependency-graph/sboms) | `GET /projects/{id}/dependencies`<br>[docs](https://docs.gitlab.com/api/dependencies/) |
-| **branch_protection**<br>Protected-branch rules | `GET /repos/{owner}/{repo}/branches/{branch}/protection`<br>[docs](https://docs.github.com/en/rest/branches/branch-protection) | `GET /projects/{id}/protected_branches`<br>[docs](https://docs.gitlab.com/api/protected_branches/) |
-| **required_reviews**<br>Merge-request review requirements | `GET /repos/{owner}/{repo}/branches/{branch}/protection`<br>[docs](https://docs.github.com/en/rest/branches/branch-protection) | `GET /projects/{id}/approval_rules`<br>[docs](https://docs.gitlab.com/api/merge_request_approvals/) |
-| **rulesets**<br>Repository rulesets and push rules | `GET /repos/{owner}/{repo}/rulesets`<br>[docs](https://docs.github.com/en/rest/repos/rules) | `GET /projects/{id} (push_rules)`<br>[docs](https://docs.gitlab.com/api/projects/) |
-| **repo_contents**<br>File contents — workflow triggers, CODEOWNERS, scanner config | `GET /repos/{owner}/{repo}/contents/{path}`<br>[docs](https://docs.github.com/en/rest/repos/contents) | `GET /projects/{id}/repository/files/{path}`<br>[docs](https://docs.gitlab.com/api/repository_files/) |
+| Capability | GitHub | GitLab | AWS |
+|---|---|---|---|
+| **repo_enumeration**<br>Repository enumeration — the denominator | `GET /orgs/{org}/repos`<br>[docs](https://docs.github.com/en/rest/repos/repos) | `GET /groups/{id}/projects`<br>[docs](https://docs.gitlab.com/api/groups/) | &mdash; |
+| **code_scanning**<br>Static analysis findings | `GET /repos/{owner}/{repo}/code-scanning/alerts`<br>[docs](https://docs.github.com/en/rest/code-scanning/code-scanning) | `GET /projects/{id}/vulnerability_findings?report_type=sast`<br>[docs](https://docs.gitlab.com/api/vulnerability_findings/) | &mdash; |
+| **secret_scanning**<br>Secrets findings and push protection | `GET /repos/{owner}/{repo}/secret-scanning/alerts`<br>[docs](https://docs.github.com/en/rest/secret-scanning/secret-scanning) | `GET /projects/{id}/vulnerability_findings?report_type=secret_detection`<br>[docs](https://docs.gitlab.com/api/vulnerability_findings/) | &mdash; |
+| **dependabot_alerts**<br>Dependency vulnerability findings | `GET /repos/{owner}/{repo}/dependabot/alerts`<br>[docs](https://docs.github.com/en/rest/dependabot/alerts) | `GET /projects/{id}/dependencies`<br>[docs](https://docs.gitlab.com/api/dependencies/) | &mdash; |
+| **sbom_export**<br>Platform-generated SBOM | `GET /repos/{owner}/{repo}/dependency-graph/sbom`<br>[docs](https://docs.github.com/en/rest/dependency-graph/sboms) | `GET /projects/{id}/dependencies`<br>[docs](https://docs.gitlab.com/api/dependencies/) | &mdash; |
+| **branch_protection**<br>Protected-branch rules | `GET /repos/{owner}/{repo}/branches/{branch}/protection`<br>[docs](https://docs.github.com/en/rest/branches/branch-protection) | `GET /projects/{id}/protected_branches`<br>[docs](https://docs.gitlab.com/api/protected_branches/) | &mdash; |
+| **required_reviews**<br>Merge-request review requirements | `GET /repos/{owner}/{repo}/branches/{branch}/protection`<br>[docs](https://docs.github.com/en/rest/branches/branch-protection) | `GET /projects/{id}/approval_rules`<br>[docs](https://docs.gitlab.com/api/merge_request_approvals/) | &mdash; |
+| **rulesets**<br>Repository rulesets and push rules | `GET /repos/{owner}/{repo}/rulesets`<br>[docs](https://docs.github.com/en/rest/repos/rules) | `GET /projects/{id} (push_rules)`<br>[docs](https://docs.gitlab.com/api/projects/) | &mdash; |
+| **config_compliance**<br>Post-deployment configuration compliance | &mdash; | &mdash; | `DescribeComplianceByConfigRule`<br>[docs](https://docs.aws.amazon.com/config/latest/APIReference/API_DescribeComplianceByConfigRule.html) |
+| **runtime_findings**<br>Aggregated post-deployment security findings | &mdash; | &mdash; | `GetFindings (Security Hub)`<br>[docs](https://docs.aws.amazon.com/securityhub/1.0/APIReference/API_GetFindings.html) |
+| **repo_contents**<br>File contents — workflow triggers, CODEOWNERS, scanner config | `GET /repos/{owner}/{repo}/contents/{path}`<br>[docs](https://docs.github.com/en/rest/repos/contents) | `GET /projects/{id}/repository/files/{path}`<br>[docs](https://docs.gitlab.com/api/repository_files/) | &mdash; |
 
-Full API references: [GitHub](https://docs.github.com/en/rest), [GitLab](https://docs.gitlab.com/api/), [SonarQube / SonarCloud](https://sonarcloud.io/web_api).
+Full API references: [GitHub](https://docs.github.com/en/rest), [GitLab](https://docs.gitlab.com/api/), [SonarQube / SonarCloud](https://sonarcloud.io/web_api), [AWS](https://docs.aws.amazon.com/).
 
 <!-- END GENERATED: coverage-matrix -->
 

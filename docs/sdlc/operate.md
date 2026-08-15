@@ -1,7 +1,6 @@
 # Operate
 
-**Scan types:** none directly. This stage is about *monitoring what the earlier stages
-produced*.
+**Scan types:** `runtime` (post-deployment validation)
 
 ## What is expected
 
@@ -11,6 +10,37 @@ produced*.
 | The vulnerability dashboard is populated and read | Platform API | `RA-5`, `CA-7` |
 | Findings remediated within policy timeframes | Platform API | `RA-5(2)`, `SI-2` |
 | Deployed-resource configuration assessed continuously | Artifact | `CA-2(2)`, `CA-7`, `CM-6` |
+
+## The SDLC does not end at deploy
+
+A pipeline that was clean at build time says nothing about the running estate.
+Configuration drifts, resources are created outside the pipeline, and controls that
+passed at merge can be switched off in production a week later. Evidence that stops at
+the deploy step claims more than it checked.
+
+`runtime` is therefore a scan type in its own right, not a footnote:
+
+| Tool | What it validates | Surface |
+|---|---|---|
+| InSpec / CINC baselines | Deployed resources against our own CIS, STIG and bespoke profiles | Artifact |
+| AWS Config | Configuration compliance of live resources | Artifact + platform API |
+| AWS Security Hub | Aggregated findings across the account | Artifact + platform API |
+| Prowler | Account-level posture assessment | Artifact |
+
+The existing `artifact-inspec-deployed` control belongs to this scan type. It confirms
+that the *other* InSpec run — the one against live infrastructure — delivered its
+results into the pipeline. It deliberately does not assert that run passed: that is the
+deployed profile's job, and conflating "the assessment happened" with "the assessment
+was clean" is the same category error as treating an artifact's existence as evidence
+of what it contains.
+
+### Declared, never inferred
+
+Post-deployment validation is declared per repository like every other scan type. It is
+tempting to infer it — "this repo deploys infrastructure, so of course it is assessed"
+— but inference produces exactly the false maturity signal the whole declaration model
+exists to prevent. A repository that deploys and is *not* assessed afterwards should
+say so and attest to it.
 
 ## Enablement is checked before findings, always
 

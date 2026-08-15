@@ -132,18 +132,35 @@ def render_tools(reg: dict) -> list[str]:
     return out
 
 
+def binding_sources(reg: dict) -> list[str]:
+    """Which sources actually appear in bindings, in registry order.
+
+    Derived rather than hardcoded so adding a source (AWS, for post-deployment
+    reads) grows the table without anyone remembering to edit this function.
+    """
+    seen = []
+    for cap in (reg.get("capabilities") or {}).values():
+        for source in (cap.get("bindings") or {}):
+            if source not in seen:
+                seen.append(source)
+    order = list((reg.get("sources") or {}).keys())
+    return sorted(seen, key=lambda s: order.index(s) if s in order else 99)
+
+
 def render_api_reference(reg: dict) -> list[str]:
-    """Per-capability endpoint + vendor documentation, both forges side by side."""
+    """Per-capability endpoint + vendor documentation, one column per source."""
+    sources = binding_sources(reg)
+    names = {k: v.get("name", k) for k, v in (reg.get("sources") or {}).items()}
     out = [
         "### What each check reads, and where it is documented",
         "",
-        "| Capability | GitHub | GitLab |",
-        "|---|---|---|",
+        "| Capability | " + " | ".join(names.get(s, s) for s in sources) + " |",
+        "|---" * (len(sources) + 1) + "|",
     ]
     for key, cap in (reg.get("capabilities") or {}).items():
         bindings = cap.get("bindings") or {}
         cells = []
-        for source in ("github", "gitlab"):
+        for source in sources:
             b = bindings.get(source)
             if not b:
                 cells.append(MARK[None])

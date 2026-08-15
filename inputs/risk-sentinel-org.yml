@@ -58,6 +58,7 @@ defaults:
     licensing: { enabled: false, tools: [] }
     dast:      { enabled: false, tools: [] }
     iast:      { enabled: false, tools: [] }   # no IAST tooling org-wide
+    runtime:   { enabled: false, tools: [] }   # post-deployment validation
 
 # ---- Targets ----------------------------------------------------------------
 # The five repositories below were inventoried from their actual workflow
@@ -79,6 +80,10 @@ targets:
       sbom:      { enabled: true, tools: [syft] }
       container: { enabled: true, tools: [anchore, trivy, cosign] }
 
+  # Post-deployment validation is declared here, not inferred from the
+  # pipeline. The estate is assessed by our own InSpec baselines after deploy;
+  # the SDLC does not stop at the deploy step, and evidence that stops there
+  # claims more than it checked.
   - repo: sparc-iac
     declaration: confirmed
     evidence_sources:
@@ -90,6 +95,7 @@ targets:
       sca:       { enabled: true, tools: [grype, trivy] }
       sbom:      { enabled: true, tools: [syft] }
       container: { enabled: true, tools: [cosign] }
+      runtime:   { enabled: true, tools: [inspec] }
 
   - repo: sparc-validate
     declaration: confirmed

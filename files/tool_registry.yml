@@ -20,6 +20,25 @@
 #                   contents API. This is NOT platform state and NOT an
 #                   artifact — it is its own surface with its own access need.
 #
+# ---- Artifact filenames are PATTERNS, not fixed names -----------------------
+#
+# Teams stamp report filenames with a timestamp, a commit SHA, or what was
+# scanned — `trivy-2026-08-15.json`, `grype-api-image.json`,
+# `sast-20260815T1000.sarif`. A registry of exact filenames would report those
+# pipelines as having run no scans at all, which is the worst possible failure
+# direction: a silent false negative dressed as a finding.
+#
+# `patterns` is therefore a list of globs. Resolution rules:
+#   - zero matches while the scan is declared enabled -> FAIL
+#   - one or more matches -> EVERY match must be structurally valid, not just
+#     the first. A pipeline emitting one good report and one truncated one has
+#     a problem, and "the first file parsed" would hide it.
+#   - the match count is reported, so a run that found six Trivy reports where
+#     one was expected is visible rather than silently collapsed.
+#
+# A target may override `patterns` in its declaration when local naming is
+# unusual. See ArtifactHelper.match in libraries/artifact_helper.rb.
+#
 # Every surface entry carries `status:`
 #   implemented  this profile can evaluate it today
 #   planned      detectable in principle; not built yet
@@ -70,6 +89,12 @@ sources:
     api_base: https://sonarcloud.io
     enforces_merge_rules: false
     docs: https://sonarcloud.io/web_api
+  aws:
+    name: AWS
+    kind: cloud
+    api_base: null                  # per-region service endpoints
+    enforces_merge_rules: false
+    docs: https://docs.aws.amazon.com/
   pipeline:
     name: Pipeline artifacts
     kind: artifact
@@ -183,6 +208,24 @@ capabilities:
         endpoint: GET /projects/{id} (push_rules)
         docs: https://docs.gitlab.com/api/projects/
 
+  config_compliance:
+    title: Post-deployment configuration compliance
+    why: >-
+      Validation does not stop at the pipeline. Deployed resources drift, and
+      an assessment covering only build-time evidence claims more than it
+      checked.
+    bindings:
+      aws:
+        endpoint: DescribeComplianceByConfigRule
+        docs: https://docs.aws.amazon.com/config/latest/APIReference/API_DescribeComplianceByConfigRule.html
+
+  runtime_findings:
+    title: Aggregated post-deployment security findings
+    bindings:
+      aws:
+        endpoint: GetFindings (Security Hub)
+        docs: https://docs.aws.amazon.com/securityhub/1.0/APIReference/API_GetFindings.html
+
   repo_contents:
     title: File contents — workflow triggers, CODEOWNERS, scanner config
     why: >-
@@ -205,7 +248,7 @@ sdlc_stages:
   build:   { title: Build,           doc: docs/sdlc/build.md }
   test:    { title: Test,            doc: docs/sdlc/test.md }
   deploy:  { title: Deploy,          doc: docs/sdlc/deploy.md }
-  operate: { title: Operate,         doc: docs/sdlc/operate.md }
+  operate: { title: Operate,         doc: docs/sdlc/operate.md }   # post-deployment validation lives here
 
 # ---- Scan types -------------------------------------------------------------
 # `aliases` settles vendor-vocabulary collisions once, here, rather than
@@ -273,6 +316,20 @@ scan_types:
     ssdf: [PW.8, RV.1]
     description: Exercises a running application from the outside.
 
+  runtime:
+    title: Post-Deployment Validation
+    aliases: [post_deploy, continuous_monitoring]
+    sdlc_stage: operate
+    nist: ['CA-2(2)', 'CA-7', 'CM-6', 'RA-5']
+    ssdf: [RV.1, PW.9]
+    description: >-
+      Assessment of what is actually deployed, not what was built. The SDLC
+      does not end at deploy: configuration drifts, and a pipeline that was
+      clean at build time says nothing about the running estate. This is where
+      our own InSpec baselines, AWS Config rules and Security Hub findings
+      land. The existing `artifact-inspec-deployed` control belongs to this
+      scan type.
+
   iast:
     title: Interactive Application Security Testing
     sdlc_stage: test
@@ -298,7 +355,9 @@ tools:
         status: implemented
         format: sarif
         marker: runs
-        default_file: sast.sarif
+        patterns:
+          - '*codeql*.sarif'
+          - 'sast*.sarif'
       platform_api:
         status: planned
         sources: [github]
@@ -318,7 +377,9 @@ tools:
         status: implemented
         format: sarif
         marker: runs
-        default_file: semgrep.sarif
+        patterns:
+          - '*semgrep*.sarif'
+          - '*semgrep*.json'
       platform_api:
         status: planned
         sources: [github, gitlab]
@@ -338,7 +399,9 @@ tools:
         status: implemented
         format: json
         marker: null
-        default_file: quality.json
+        patterns:
+          - '*sonar*.json'
+          - 'quality*.json'
       platform_api:
         status: planned
         sources: [sonarqube]
@@ -357,7 +420,8 @@ tools:
         status: implemented
         format: json
         marker: results
-        default_file: bandit.json
+        patterns:
+          - '*bandit*.json'
       repo_contents:
         status: planned
         sources: [github, gitlab]
@@ -373,7 +437,9 @@ tools:
         status: implemented
         format: jsonl
         marker: null
-        default_file: trufflehog.json
+        patterns:
+          - '*trufflehog*.json'
+          - '*trufflehog*.jsonl'
       repo_contents:
         status: planned
         sources: [github, gitlab]
@@ -388,7 +454,8 @@ tools:
         status: implemented
         format: json
         marker: null
-        default_file: gitleaks.json
+        patterns:
+          - '*gitleaks*.json'
       repo_contents:
         status: planned
         sources: [github, gitlab]
@@ -417,7 +484,8 @@ tools:
         status: implemented
         format: json
         marker: descriptor.name
-        default_file: grype.json
+        patterns:
+          - '*grype*.json'
       repo_contents:
         status: planned
         sources: [github, gitlab]
@@ -432,7 +500,8 @@ tools:
         status: implemented
         format: json
         marker: SchemaVersion
-        default_file: trivy.json
+        patterns:
+          - '*trivy*.json'
       repo_contents:
         status: planned
         sources: [github, gitlab]
@@ -447,7 +516,8 @@ tools:
         status: implemented
         format: json
         marker: vulnerabilities
-        default_file: snyk.json
+        patterns:
+          - '*snyk*.json'
       repo_contents:
         status: planned
         sources: [github, gitlab]
@@ -495,7 +565,8 @@ tools:
         status: implemented
         format: json
         marker: null
-        default_file: sonatype-policy.json
+        patterns:
+          - '*sonatype*.json'
 
   # -- SBOM -------------------------------------------------------------------
   syft:
@@ -506,7 +577,10 @@ tools:
         status: implemented
         format: cyclonedx
         marker: bomFormat
-        default_file: sbom.cdx.json
+        patterns:
+          - '*.cdx.json'
+          - '*sbom*.json'
+          - '*syft*.json'
       repo_contents:
         status: planned
         sources: [github, gitlab]
@@ -522,7 +596,8 @@ tools:
         status: implemented
         format: json
         marker: null
-        default_file: anchore.json
+        patterns:
+          - '*anchore*.json'
 
   # -- IaC --------------------------------------------------------------------
   checkov:
@@ -533,7 +608,9 @@ tools:
         status: planned
         format: sarif
         marker: runs
-        default_file: checkov.sarif
+        patterns:
+          - '*checkov*.sarif'
+          - '*checkov*.json'
       repo_contents:
         status: planned
         sources: [github, gitlab]
@@ -548,7 +625,8 @@ tools:
         status: planned
         format: sarif
         marker: runs
-        default_file: tfsec.sarif
+        patterns:
+          - '*tfsec*.sarif'
 
   # -- DAST -------------------------------------------------------------------
   burpsuite:
@@ -559,7 +637,8 @@ tools:
         status: planned
         format: hdf
         marker: profiles
-        default_file: burp-hdf.json
+        patterns:
+          - '*burp*.json'
 
   zap:
     name: OWASP ZAP
@@ -569,13 +648,73 @@ tools:
         status: planned
         format: json
         marker: null
-        default_file: zap.json
+        patterns:
+          - '*zap*.json'
 
   # -- IAST -------------------------------------------------------------------
   # Intentionally empty. `iast` appears in scan_types with no tool referencing
   # it, so the matrix renders a row with no coverage rather than omitting the
   # concept. An absent row would imply the scan type does not exist; an empty
   # row states plainly that nothing in the organisation performs it.
+
+  # -- Post-deployment --------------------------------------------------------
+  inspec:
+    name: InSpec / CINC baselines
+    scan_types: [runtime]
+    # Our own profile estate — the CIS, STIG and bespoke baselines. This is the
+    # OTHER InSpec run (against live infrastructure); the check here confirms
+    # its results artifact reached the pipeline, not that the run passed.
+    surfaces:
+      artifact:
+        status: implemented
+        format: json
+        marker: profiles
+        patterns:
+          - '*inspec*.json'
+          - '*hdf*.json'
+
+  aws_config:
+    name: AWS Config
+    scan_types: [runtime]
+    surfaces:
+      artifact:
+        status: planned
+        format: json
+        marker: null
+        patterns:
+          - '*aws-config*.json'
+          - '*config-snapshot*.json'
+      platform_api:
+        status: planned
+        sources: [aws]
+        capability: config_compliance
+
+  aws_security_hub:
+    name: AWS Security Hub
+    scan_types: [runtime]
+    surfaces:
+      artifact:
+        status: planned
+        format: json
+        marker: null
+        patterns:
+          - '*securityhub*.json'
+          - '*security-hub*.json'
+      platform_api:
+        status: planned
+        sources: [aws]
+        capability: runtime_findings
+
+  prowler:
+    name: Prowler
+    scan_types: [runtime]
+    surfaces:
+      artifact:
+        status: planned
+        format: json
+        marker: null
+        patterns:
+          - '*prowler*.json'
 
   # -- Supply-chain integrity -------------------------------------------------
   cosign:
@@ -586,4 +725,5 @@ tools:
         status: implemented
         format: json
         marker: null
-        default_file: cosign-verify.json
+        patterns:
+          - '*cosign*.json'

@@ -318,7 +318,7 @@
       <span>2026-08-14</span>
       <span>main @ a34a100</span>
       <span>14 controls today</span>
-      <span>20 repos in scope</span>
+      <span>21 repos in scope</span>
     </p>
   </header>
 
@@ -424,10 +424,69 @@
                  dependabot      &rarr; 403  "Dependabot alerts are disabled"
                  secret-scanning &rarr; 404  "Secret scanning is disabled"
 sparc-iac        &rarr; same three
-sparc            &rarr; all three respond (enabled)
+sparc            &rarr; all three respond (public repo &mdash; free tier)
 cis-*-baseline   &rarr; all respond, 0 alerts (public, free tier)</code></pre>
     <p>A naive resource reads <code>403</code> as an empty alert list and passes. That is exactly the silence-as-success defect class that produced every serious bug in this stack in August: a step that assessed nothing while reporting not-red.</p>
     <p><strong>So the first control written is the enablement control</strong>, and <code>403</code>/<code>404</code> map to FAIL with the API message carried into the result. &ldquo;Code Security is not enabled on this repository&rdquo; is a genuine, actionable finding &mdash; arguably the most valuable one in the set, and the thing that drives the licensing decision rather than waiting on it.</p>
+    <div class="callout risk">
+      <h3>Correction: every responding repository above is public</h3>
+      <p>An earlier reading of this probe treated <code>sparc</code> as proof that Code Security is switched on somewhere. It is not &mdash; <code>sparc</code> is a <em>public</em> repository, where code scanning and secret scanning are free. That splits the remediation into two different asks with two different owners: on private repositories Dependabot alerts are a <strong>free toggle</strong>, while code scanning and secret scanning need <strong>paid Code Security licensing</strong>. A plan that treats all three as one switch stalls on the wrong blocker.</p>
+    </div>
+  </section>
+
+  <!-- ============================ SURFACES ============================ -->
+  <section>
+    <h2>Three surfaces, not two</h2>
+    <p class="lede">The coverage table above splits the world into &ldquo;files on a runner&rdquo; and &ldquo;control plane&rdquo;. Building phase&nbsp;1 showed that collapses two genuinely different things, and the distinction decides whether a given check can run at all.</p>
+
+    <div class="scroller">
+      <table>
+        <caption>Detection surfaces</caption>
+        <thead>
+          <tr><th>Surface</th><th>What it reads</th><th>Access required</th><th>Runs outside a pipeline?</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Artifact</strong></td><td>A report file on disk</td><td>In-pipeline execution, after the scanner stage</td><td>No</td></tr>
+          <tr><td><strong>Platform API</strong></td><td>Forge or evidence-source state</td><td>A token</td><td>Yes</td></tr>
+          <tr><td><strong>Repo contents</strong></td><td>A file in the repository &mdash; workflow triggers, CODEOWNERS, scanner config</td><td>A clone, or the contents API</td><td>Yes</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <h3>Where merge-request rules actually live</h3>
+      <p>They straddle the boundary, which is why the third surface has to exist. <em>Whether reviews are required</em> is platform state a token reads from the protection endpoint. <em>Whether the security scan fires on a merge request at all</em> is a fact about a YAML file, and no security endpoint reports it. A repository can require status checks that include no security scan &mdash; strong on the API surface, hollow in practice. Reading one surface would miss it entirely.</p>
+    </div>
+
+    <h2>Registry and declaration</h2>
+    <p class="lede">Two files doing two different jobs. Controls evaluate the intersection, and the coverage tables in the README are generated from the registry so documented reach cannot drift from real reach.</p>
+
+    <div class="scroller">
+      <table>
+        <caption>Who owns what</caption>
+        <thead>
+          <tr><th></th><th><code>files/tool_registry.yml</code></th><th><code>inputs/*.yml</code></th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Answers</td><td>What <em>can</em> the profile detect, and where?</td><td>What does <em>this organisation</em> run?</td></tr>
+          <tr><td>Owned by</td><td>The profile</td><td>The user</td></tr>
+          <tr><td>Changes when</td><td>Detection capability is added</td><td>A team adopts a tool</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout risk">
+      <h3>There is no &ldquo;not declared&rdquo; state</h3>
+      <p>Every scan type is declared for every repository, <code>enabled: true</code> or <code>enabled: false</code>. Omission would render as <strong>Not Applicable</strong> in HDF, which reads as &ldquo;does not apply here&rdquo; rather than &ldquo;nobody has looked&rdquo; &mdash; a false maturity signal in an assessment. An explicit <code>enabled: false</code> yields a <strong>skip</strong> carrying &ldquo;must be manually verified and attested to&rdquo;, which the attestation flow can satisfy with a signed rationale.</p>
+      <p>A scan declared enabled that the profile cannot yet see yields a <em>differently worded</em> skip. That gap belongs to us, not to the repository, and an attestation must not paper over it. The two skips stay verbally distinct so they remain distinguishable in HDF.</p>
+    </div>
+
+    <div class="callout risk">
+      <h3>The denominator cannot come from the file being verified</h3>
+      <p>If the target list were both the claim and the scope, a repository nobody added would be invisible &mdash; the same failure mode one layer up. Reconciliation enumerates the organisation through the forge API and fails on undeclared repositories, stale declarations, and exclusions carrying no written reason. Archived, fork and template repositories are <strong>not</strong> auto-excluded: churn in the input file is the intended cost of never silently shrinking the denominator.</p>
+    </div>
+
+    <p>Two vocabulary collisions are settled once in the registry rather than left to drift: <strong>dependency</strong> resolves to <code>sca</code> (GitLab&rsquo;s name for the same concern), and <strong>container</strong> is separated from <code>sca</code> by the <em>target</em> rather than the tool, since Grype and Trivy serve both. <code>iast</code> is carried as a scan type with no tools attached &mdash; no tooling anywhere in the organisation performs it, and an absent row would imply the concept does not apply rather than that nobody does it.</p>
   </section>
 
   <!-- ============================ PHASES ============================ -->
@@ -440,7 +499,8 @@ cis-*-baseline   &rarr; all respond, 0 alerts (public, free tier)</code></pre>
       <div class="phase">
         <div class="phase-num">01</div>
         <div class="phase-body">
-          <div class="phase-head"><h3>The <code>github_security</code> resource</h3><span class="phase-where">dev-sec-ops-baseline &middot; libraries/</span></div>
+          <div class="phase-head"><h3>Resource, capability matrix, and coverage docs</h3><span class="phase-where">dev-sec-ops-baseline &middot; four coupled parts</span></div>
+          <p>Scoped to the resource alone at first, then widened: a fetch mechanism with no capability-declaration model gives users nothing to configure and a README that describes nothing. The phase delivers the resource, the registry, the declaration schema, and generated documentation of reach &mdash; one logical unit.</p>
           <p>Clone the <code>document_attestation</code> shape: <code>initialize(repo = nil, opts = {})</code>, token from <code>opts[:token]</code> &rarr; ENV, all network failure captured in <code>connection_error</code>. Exposes <code>code_security_enabled?</code>, <code>secret_scanning_enabled?</code>, <code>dependabot_enabled?</code>, <code>branch_protection(branch)</code>, <code>rulesets</code>, <code>workflow_triggers(path)</code>, <code>open_alerts(kind)</code>. Every predicate raises-or-fails on a transport error; none of them returns a falsy default that masks an unreachable API.</p>
           <p><strong>Constraint carried in:</strong> InSpec resources cannot call <code>input()</code>. Tokens and repo names arrive through the opts hash, passed from the control body. <code>defined?(input)</code> is not a usable guard.</p>
         </div>
@@ -534,7 +594,7 @@ cis-*-baseline   &rarr; all respond, 0 alerts (public, free tier)</code></pre>
   <hr>
 
   <footer class="colophon">
-    <p>Scope confirmed: all 20 <code>risk-sentinel</code> repositories &middot; GitLab portability-only &middot; Code Security assumed to be enabled on the private repos, with the enablement failures driving that change rather than blocking on it.</p>
+    <p>Scope confirmed: all 21 <code>risk-sentinel</code> repositories &middot; GitLab portability-only &middot; Code Security assumed to be enabled on the private repos, with the enablement failures driving that change rather than blocking on it.</p>
     <p>Every phase follows the 13-step workflow in <code>docs/dev/issue_rules.md</code>: issue first, branch prefixed with the issue number, no direct pushes to <code>main</code>, no self-merges.</p>
   </footer>
 

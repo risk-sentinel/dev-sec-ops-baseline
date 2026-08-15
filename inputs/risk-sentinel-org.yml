@@ -1,0 +1,147 @@
+# =============================================================================
+# Declaration — what THIS organisation's pipelines run.
+#
+# Pairs with files/tool_registry.yml (what the profile CAN detect). Controls
+# evaluate the intersection. See docs/sdlc/ for what each stage expects.
+#
+# ---- The one rule that shapes this file -------------------------------------
+#
+# Every scan type is declared for every target, `enabled: true` or
+# `enabled: false`. There is no "leave it out" option.
+#
+# Omission would render as Not Applicable in HDF, which reads as "does not
+# apply here" rather than "nobody has looked" — a false maturity signal in an
+# assessment. An explicit `enabled: false` instead produces a SKIP carrying
+# "not enabled; must be manually verified and attested to", which the SAF
+# attestation flow can then satisfy with a real, signed rationale.
+#
+# The same principle governs `exclusions`: a repository that is not scanned
+# must say so, with a reason, in writing. Archived and template repositories
+# are NOT auto-excluded — churn in this file when a repo is archived is the
+# intended cost of never silently dropping something from the denominator.
+# =============================================================================
+
+schema_version: 1
+run_mode: control-plane            # pipeline | control-plane | both
+
+# ---- The denominator --------------------------------------------------------
+# Reconciliation enumerates this organisation through the forge API and
+# compares it against `targets` + `exclusions`. The truth source is deliberately
+# NOT this file: an omitted repository has to be catchable from outside the
+# document that omitted it.
+#
+#   in org, not declared, not excluded -> FAIL (undeclared repository)
+#   declared, no longer in org         -> FAIL (stale declaration)
+#   excluded without a reason          -> FAIL (undocumented exclusion)
+organization:
+  forge: github
+  name: risk-sentinel
+
+# ---- Exclusions -------------------------------------------------------------
+# Empty today, and verified so: no repository in the organisation is currently
+# archived, a fork, or a template. Every entry needs `reason`.
+exclusions: []
+
+# ---- Defaults ---------------------------------------------------------------
+# Targets inherit this and override per key. Reflects the organisation-wide
+# reusable workflows: SonarCloud analysis and TruffleHog secret scanning are
+# wired almost everywhere; everything else is opted into per repository.
+defaults:
+  forge: github
+  scans:
+    sast:      { enabled: true,  tools: [sonarqube] }
+    secrets:   { enabled: true,  tools: [trufflehog] }
+    iac:       { enabled: false, tools: [] }
+    sca:       { enabled: false, tools: [] }
+    sbom:      { enabled: false, tools: [] }
+    container: { enabled: false, tools: [] }
+    licensing: { enabled: false, tools: [] }
+    dast:      { enabled: false, tools: [] }
+    iast:      { enabled: false, tools: [] }   # no IAST tooling org-wide
+    runtime:   { enabled: false, tools: [] }   # post-deployment validation
+
+# ---- Targets ----------------------------------------------------------------
+# The five repositories below were inventoried from their actual workflow
+# files. The remainder inherit defaults and are marked `declaration: partial`
+# — they need their real tooling confirmed before this file can be trusted as
+# evidence. Reconciliation counts them (they are in the denominator); it does
+# not pretend their tooling is known.
+targets:
+
+  # -- inventoried from workflow files ---------------------------------------
+  - repo: sparc
+    declaration: confirmed
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_sparc }
+    scans:
+      sast:      { enabled: true, tools: [codeql, semgrep, sonarqube] }
+      secrets:   { enabled: true, tools: [gitleaks] }
+      sca:       { enabled: true, tools: [grype, trivy] }
+      sbom:      { enabled: true, tools: [syft] }
+      container: { enabled: true, tools: [anchore, trivy, cosign] }
+
+  # Post-deployment validation is declared here, not inferred from the
+  # pipeline. The estate is assessed by our own InSpec baselines after deploy;
+  # the SDLC does not stop at the deploy step, and evidence that stops there
+  # claims more than it checked.
+  - repo: sparc-iac
+    declaration: confirmed
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_sparc-iac }
+    scans:
+      sast:      { enabled: true, tools: [codeql, semgrep, sonarqube] }
+      secrets:   { enabled: true, tools: [trufflehog] }
+      iac:       { enabled: true, tools: [semgrep] }
+      sca:       { enabled: true, tools: [grype, trivy] }
+      sbom:      { enabled: true, tools: [syft] }
+      container: { enabled: true, tools: [cosign] }
+      runtime:   { enabled: true, tools: [inspec] }
+
+  - repo: sparc-validate
+    declaration: confirmed
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_sparc-validate }
+    scans:
+      sast:      { enabled: true, tools: [sonarqube] }
+      secrets:   { enabled: true, tools: [trufflehog] }
+      sca:       { enabled: true, tools: [grype, trivy] }
+      sbom:      { enabled: true, tools: [syft] }
+      container: { enabled: true, tools: [cosign] }
+
+  - repo: sparc-dast
+    declaration: confirmed
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_sparc-dast }
+    scans:
+      sast:    { enabled: true, tools: [sonarqube] }
+      secrets: { enabled: true, tools: [trufflehog] }
+      dast:    { enabled: true, tools: [burpsuite] }
+
+  - repo: container-build-sign
+    declaration: confirmed
+    evidence_sources:
+      sonarqube: { project_key: risk-sentinel_container-build-sign }
+    scans:
+      sast:      { enabled: true, tools: [codeql, sonarqube] }
+      secrets:   { enabled: true, tools: [trufflehog] }
+      sca:       { enabled: true, tools: [grype, trivy] }
+      sbom:      { enabled: true, tools: [syft] }
+      container: { enabled: true, tools: [anchore, trivy, cosign] }
+
+  # -- inherit defaults; tooling not yet confirmed ---------------------------
+  - { repo: dev-sec-ops-baseline,              declaration: partial }
+  - { repo: aws-config,                        declaration: partial }
+  - { repo: cis-aws-compute-baseline,          declaration: partial }
+  - { repo: cis-aws-database-baseline,         declaration: partial }
+  - { repo: cis-aws-end-user-compute-baseline, declaration: partial }
+  - { repo: cis-aws-foundations-baseline,      declaration: partial }
+  - { repo: cis-aws-storage-baseline,          declaration: partial }
+  - { repo: cis-docker-baseline,               declaration: partial }
+  - { repo: cis-nginx-baseline,                declaration: partial }
+  - { repo: cis-postgresql-baseline,           declaration: partial }
+  - { repo: cis-rhel-9-baseline,               declaration: partial }
+  - { repo: rs-aws-ecs-fargate-baseline,       declaration: partial }
+  - { repo: rs-aws-secrets-baseline,           declaration: partial }
+  - { repo: rs-cloudtrail-baseline,            declaration: partial }
+  - { repo: sparc-iac-template,                declaration: partial }
+  - { repo: stig-aws-ecr-baseline,             declaration: partial }

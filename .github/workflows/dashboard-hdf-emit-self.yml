@@ -1,0 +1,41 @@
+name: Dashboard HDF emit (this repo)
+
+# This repository's caller for its own reusable dashboard-hdf-emit.yml (#22).
+#
+# A caller rather than a copy. secret-scan-hdf-emit.yml was copied to fourteen
+# repositories, and correcting it now takes fourteen PRs (#21) — the same
+# mistake is not repeated here. Every other repository gets a file that looks
+# like this one, and the bridge itself is fixed in one place.
+#
+# Pinned to the local ref while the bridge is under development; the other
+# callers pin to a tag.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Dashboards change without a push: a newly published advisory raises a
+    # Dependabot alert on code nobody touched. A push-only trigger would report
+    # the posture as of the last commit and present it as current.
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: read
+  id-token: write
+
+jobs:
+  bridge:
+    # No job-level `environment:` — it flips the OIDC subject to
+    # environment:NAME and the emit-role assume fails, because the roles are
+    # pinned to refs/heads/main (the sparc-iac#399 shape).
+    uses: ./.github/workflows/dashboard-hdf-emit.yml
+    with:
+      boundary: ${{ vars.EVIDENCE_BOUNDARY || 'sparc' }}
+    secrets:
+      S3_EMIT_ROLE_ARN: ${{ secrets.DEV_SEC_OPS_BASELINE_EMIT_ARN }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      COMPLIANCE_S3_BUCKET: ${{ secrets.COMPLIANCE_S3_BUCKET }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

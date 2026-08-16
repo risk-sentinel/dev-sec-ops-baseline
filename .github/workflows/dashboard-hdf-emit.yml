@@ -1,0 +1,246 @@
+name: Dashboard HDF emit
+
+# Bridges the three GitHub security dashboards into the evidence stream as HDF
+# (#22): code scanning, secret scanning, and Dependabot.
+#
+# Reusable. Other repositories call this rather than copying it, so there is one
+# bridge to fix when the conversion changes — unlike secret-scan-hdf-emit.yml,
+# which was copied to fourteen repositories and now needs fourteen PRs to
+# correct (#21). A caller is a dozen lines:
+#
+#   jobs:
+#     bridge:
+#       uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/dashboard-hdf-emit.yml@v0.3.0
+#       permissions:
+#         contents: read
+#         security-events: read
+#         id-token: write
+#       secrets:
+#         S3_EMIT_ROLE_ARN: ${{ secrets.MY_REPO_EMIT_ARN }}
+#         AWS_REGION:       ${{ secrets.AWS_REGION }}
+#
+# ---- Why this emits on a clean scan ------------------------------------------
+#
+# A repository with nothing wrong is the outcome we want and the one the
+# evidence stream is worst at recording. A clean scan that writes nothing is
+# byte-for-byte what a broken bridge writes, so provenance.json goes to the
+# bucket on EVERY run, including clean ones. The profile turns it into a
+# passing control; the findings HDF only appears when there are findings.
+#
+# ---- No job-level environment: ----------------------------------------------
+#
+# Declaring one flips the OIDC subject to environment:NAME and the reader/emit
+# role assume fails, because the roles are pinned to refs/heads/main. This is
+# the sparc-iac#399 shape. Do not add one to any job here.
+
+on:
+  workflow_call:
+    inputs:
+      repository:
+        description: 'owner/name to bridge. Defaults to the calling repository.'
+        type: string
+        required: false
+      ref:
+        description: 'Git ref whose analyses are collected.'
+        type: string
+        required: false
+        default: refs/heads/main
+      boundary:
+        description: 'Evidence boundary — the first path segment in the bucket.'
+        type: string
+        required: false
+        default: sparc
+      profile_ref:
+        description: 'Tag of dev-sec-ops-baseline supplying the bridge.'
+        type: string
+        required: false
+        default: main
+    secrets:
+      # Declared explicitly rather than relied on via `secrets: inherit`. A
+      # reusable workflow that declares any secret gets ONLY the declared ones,
+      # so an undeclared name resolves empty at runtime and the step it feeds
+      # is skipped silently — the failure mode this whole phase is about.
+      S3_EMIT_ROLE_ARN:
+        required: false
+      AWS_REGION:
+        required: false
+      COMPLIANCE_S3_BUCKET:
+        required: false
+      DOCKERHUB_USERNAME:
+        required: false
+      DOCKERHUB_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+  security-events: read
+  id-token: write
+
+jobs:
+  bridge:
+    name: Dashboards -> HDF
+    runs-on: ubuntu-latest
+    env:
+      TARGET_REPO: ${{ inputs.repository || github.repository }}
+      TARGET_REF: ${{ inputs.ref || 'refs/heads/main' }}
+      BOUNDARY: ${{ inputs.boundary || vars.EVIDENCE_BOUNDARY || 'sparc' }}
+      OUTDIR: bridge-out
+    steps:
+      - name: Checkout the profile (supplies the bridge and the mapper)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: risk-sentinel/dev-sec-ops-baseline
+          ref: ${{ inputs.profile_ref }}
+
+      - name: Docker Hub login (auditor image pull)
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+      - name: Fetch dashboards -> SARIF + provenance
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUTDIR"
+          docker run --rm \
+            -v "$PWD:/work" -w /work \
+            -e GITHUB_TOKEN \
+            -e BRIDGE_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --entrypoint /opt/cinc-workstation/embedded/bin/ruby \
+            risksentinel/sparc-auditor:v0.5.0 \
+            tools/bridge.rb --repo "$TARGET_REPO" --ref "$TARGET_REF" --out "$OUTDIR"
+
+      - name: Convert SARIF -> HDF, reconcile dispositions, summarise
+        id: convert
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          converted=0
+          findings=0
+
+          for sarif in "$OUTDIR"/*.sarif; do
+            base="$(basename "$sarif" .sarif)"
+            out="$OUTDIR/${base}-hdf.json"
+
+            docker run --rm -v "$PWD:/work" -w /work \
+              --entrypoint saf risksentinel/sparc-auditor:v0.5.0 \
+              convert sarif2hdf -i "$sarif" -o "$out"
+
+            # Dispositions apply only to code scanning: secret-scanning and
+            # Dependabot alerts are fetched already filtered to open, so there
+            # is no triaged-but-still-in-the-payload problem to reconcile.
+            case "$base" in
+              code-scanning-*)
+                python3 tools/apply_dispositions.py \
+                  --hdf "$out" --dispositions "$OUTDIR/dispositions.json" \
+                  --source code_scanning
+                ;;
+            esac
+
+            # Required in the job log, not merely in the artifact. A converted
+            # file holding nothing and a conversion that silently failed produce
+            # identical green checks otherwise.
+            echo "::group::saf view summary — $base"
+            docker run --rm -v "$PWD:/work" -w /work \
+              --entrypoint saf risksentinel/sparc-auditor:v0.5.0 \
+              view summary -i "$out"
+            echo "::endgroup::"
+
+            n="$(python3 -c "import json,sys; d=json.load(open('$out')); print(sum(1 for p in d.get('profiles',[]) for c in p.get('controls',[]) for r in c.get('results',[]) if r.get('status')=='failed'))")"
+            echo "$base: $n live finding(s)"
+            findings=$((findings + n))
+            converted=$((converted + 1))
+
+            # An HDF with no live findings is not emitted: it converts to a
+            # profile with zero passing controls and renders as 0% compliant,
+            # which reports a clean repository as non-compliant. The
+            # executed-and-clean claim is made by the profile from provenance,
+            # not by this file.
+            if [ "$n" -eq 0 ]; then
+              echo "::notice::$base has no live findings — HDF not emitted; provenance records the clean run."
+              rm -f "$out"
+            fi
+          done
+
+          echo "converted=$converted" >> "$GITHUB_OUTPUT"
+          echo "findings=$findings"   >> "$GITHUB_OUTPUT"
+          echo "Converted $converted SARIF document(s); $findings live finding(s) total."
+
+      - name: Summarise provenance in the job log
+        run: |
+          set -euo pipefail
+          echo "::group::provenance.json"
+          cat "$OUTDIR/provenance.json"
+          echo "::endgroup::"
+          python3 - <<'PY'
+          import json, os, pathlib
+          p = json.load(open(pathlib.Path(os.environ["OUTDIR"]) / "provenance.json"))
+          lines = [f"### Dashboard bridge — `{p['repository']}` @ `{p['ref']}`", ""]
+          lines += ["| Source | Status | Detail |", "|---|---|---|"]
+          for name, rec in p["sources"].items():
+              status = rec.get("status")
+              detail = rec.get("reason") or ", ".join(
+                  f"{k}={v}" for k, v in rec.items()
+                  if k not in ("status", "reason", "analyses")
+              )
+              lines.append(f"| {name} | {status} | {detail or '—'} |")
+          if p.get("connectionError"):
+              lines += ["", f"**Connection error recorded:** {p['connectionError']}"]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("\n".join(lines) + "\n")
+          PY
+
+      - name: Upload bridge output (evidence even without S3)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dashboard-bridge-${{ github.run_id }}
+          path: ${{ env.OUTDIR }}/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Configure AWS credentials (OIDC)
+        id: aws
+        continue-on-error: true
+        uses: aws-actions/configure-aws-credentials@517a711dbcd0e402f90c77e7e2f81e849156e31d # v6.2.2
+        with:
+          role-to-assume: ${{ secrets.S3_EMIT_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Emit to the evidence bucket
+        # Gated on the credential step SUCCEEDING, not merely running.
+        if: steps.aws.outcome == 'success'
+        env:
+          BUCKET: ${{ secrets.COMPLIANCE_S3_BUCKET }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          repo_name="${TARGET_REPO##*/}"
+          d="$(date -u +%Y-%m-%d)"
+
+          for slot in "$d" latest; do
+            base="s3://${BUCKET}/${BOUNDARY}/${slot}/${repo_name}"
+
+            # Provenance on every run, clean included. This is the object the
+            # profile reads to distinguish "scanned and clean" from "never ran".
+            aws s3 cp "$OUTDIR/provenance.json" \
+              "${base}/dashboard/provenance.json" --content-type application/json
+
+            for hdf in "$OUTDIR"/code-scanning-*-hdf.json; do
+              aws s3 cp "$hdf" "${base}/code-scanning/$(basename "$hdf")" \
+                --content-type application/json
+            done
+            for pair in "secret-scanning:secret-scanning" "dependabot:dependabot"; do
+              src="$OUTDIR/${pair%%:*}-hdf.json"
+              [ -f "$src" ] || continue
+              aws s3 cp "$src" "${base}/${pair##*:}/$(basename "$src")" \
+                --content-type application/json
+            done
+          done
+          echo "Emitted to ${BOUNDARY}/{${d},latest}/${repo_name}/"
+
+      - name: Report a skipped emit
+        if: steps.aws.outcome != 'success'
+        run: |
+          echo "::warning::AWS credentials were not configured, so nothing reached the evidence bucket. The bridge output is attached to this run as an artifact. Check that the emit role secret is set and named correctly — a missing secret resolves empty and this step is the only place that says so."

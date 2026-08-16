@@ -97,49 +97,49 @@ Merge-request rules straddle the split. *Whether reviews are required* is platfo
 
 ### Coverage by scan type
 
-| Scan type | SDLC stage | Tools | Artifact | Platform API | Repo contents | NIST 800-53r5 |
-|---|---|---|---|---|---|---|
-| **sast** &mdash; Static Application Security Testing | [Code](docs/sdlc/code.md) | Bandit, CodeQL, Semgrep, SonarQube | **yes** | **yes** | planned | `SA-11(1)` |
-| **secrets** &mdash; Secrets Detection | [Code](docs/sdlc/code.md) | Gitleaks, Forge-native secret scanning, Trivy, TruffleHog | **yes** | **yes** | planned | `IA-5(7)`, `SA-11` |
-| **iac** &mdash; Infrastructure as Code Scanning | [Code](docs/sdlc/code.md) | Checkov, Semgrep, tfsec, Trivy | **yes** | **yes** | planned | `CM-2`, `CM-6`, `RA-5` |
-| **sca** &mdash; Software Composition Analysis | [Build](docs/sdlc/build.md) | Dependabot, GitLab Dependency Scanning, Grype, Snyk, Sonatype, Trivy | **yes** | **yes** | planned | `RA-5`, `SA-11(1)`, `SR-3` |
-| **sbom** &mdash; Software Bill of Materials | [Build](docs/sdlc/build.md) | Syft | **yes** | &mdash; | planned | `SR-3`, `SR-4` |
-| **container** &mdash; Container Image Scanning | [Build](docs/sdlc/build.md) | Anchore, Cosign, Grype, Trivy | **yes** | &mdash; | planned | `RA-5`, `CM-6`, `SR-3` |
-| **licensing** &mdash; Software Licensing Review | [Build](docs/sdlc/build.md) | Snyk, Sonatype, Trivy | **yes** | &mdash; | planned | `SR-3`, `SA-4` |
-| **dast** &mdash; Dynamic Application Security Testing | [Test](docs/sdlc/test.md) | Burp Suite, OWASP ZAP | **yes** | &mdash; | &mdash; | `SA-11(8)`, `RA-5`, `CA-8` |
-| **runtime** &mdash; Post-Deployment Validation | [Operate](docs/sdlc/operate.md) | AWS Config, AWS Security Hub, InSpec / CINC baselines, Prowler | **yes** | planned | &mdash; | `CA-2(2)`, `CA-7`, `CM-6`, `RA-5` |
-| **iast** &mdash; Interactive Application Security Testing | [Test](docs/sdlc/test.md) | _none_ | &mdash; | &mdash; | &mdash; | `SA-11(9)` |
+| Scan type | SDLC stage | Tools | Artifact | Platform API | Repo contents | Evidence store | NIST 800-53r5 |
+|---|---|---|---|---|---|---|---|
+| **sast** &mdash; Static Application Security Testing | [Code](docs/sdlc/code.md) | Bandit, CodeQL, Semgrep, SonarQube | **yes** | **yes** | planned | **yes** | `SA-11(1)` |
+| **secrets** &mdash; Secrets Detection | [Code](docs/sdlc/code.md) | Gitleaks, Forge-native secret scanning, Trivy, TruffleHog | **yes** | **yes** | planned | **yes** | `IA-5(7)`, `SA-11` |
+| **iac** &mdash; Infrastructure as Code Scanning | [Code](docs/sdlc/code.md) | Checkov, Semgrep, tfsec, Trivy | **yes** | **yes** | planned | &mdash; | `CM-2`, `CM-6`, `RA-5` |
+| **sca** &mdash; Software Composition Analysis | [Build](docs/sdlc/build.md) | Dependabot, GitLab Dependency Scanning, Grype, Snyk, Sonatype, Trivy | **yes** | **yes** | planned | **yes** | `RA-5`, `SA-11(1)`, `SR-3` |
+| **sbom** &mdash; Software Bill of Materials | [Build](docs/sdlc/build.md) | Syft | **yes** | &mdash; | planned | &mdash; | `SR-3`, `SR-4` |
+| **container** &mdash; Container Image Scanning | [Build](docs/sdlc/build.md) | Anchore, Cosign, Grype, Trivy | **yes** | &mdash; | planned | **yes** | `RA-5`, `CM-6`, `SR-3` |
+| **licensing** &mdash; Software Licensing Review | [Build](docs/sdlc/build.md) | Snyk, Sonatype, Trivy | **yes** | &mdash; | planned | &mdash; | `SR-3`, `SA-4` |
+| **dast** &mdash; Dynamic Application Security Testing | [Test](docs/sdlc/test.md) | Burp Suite, OWASP ZAP | **yes** | &mdash; | &mdash; | planned | `SA-11(8)`, `RA-5`, `CA-8` |
+| **runtime** &mdash; Post-Deployment Validation | [Operate](docs/sdlc/operate.md) | AWS Config, AWS Security Hub, InSpec / CINC baselines, Prowler | **yes** | planned | &mdash; | **yes** | `CA-2(2)`, `CA-7`, `CM-6`, `RA-5` |
+| **iast** &mdash; Interactive Application Security Testing | [Test](docs/sdlc/test.md) | _none_ | &mdash; | &mdash; | &mdash; | &mdash; | `SA-11(9)` |
 
 > **No tooling anywhere in the organisation for `iast`.** The row is kept deliberately. Dropping it would imply the scan type does not apply; keeping it empty states that nobody performs it.
 
 ### Coverage by tool
 
-| Tool | Scan types | Artifact | Platform API | Repo contents |
-|---|---|---|---|---|
-| Anchore | `container` | **yes** | &mdash; | &mdash; |
-| AWS Config | `runtime` | **yes** | planned | &mdash; |
-| AWS Security Hub | `runtime` | **yes** | planned | &mdash; |
-| Bandit | `sast` | **yes** | &mdash; | planned |
-| Burp Suite | `dast` | **yes** | &mdash; | &mdash; |
-| Checkov | `iac` | **yes** | &mdash; | planned |
-| CodeQL | `sast` | **yes** | **yes** | planned |
-| Cosign | `container` | **yes** | &mdash; | &mdash; |
-| Dependabot | `sca` | &mdash; | **yes** | planned |
-| Forge-native secret scanning | `secrets` | &mdash; | **yes** | &mdash; |
-| GitLab Dependency Scanning | `sca` | &mdash; | planned | planned |
-| Gitleaks | `secrets` | **yes** | &mdash; | planned |
-| Grype | `sca`, `container` | **yes** | &mdash; | planned |
-| InSpec / CINC baselines | `runtime` | **yes** | &mdash; | &mdash; |
-| OWASP ZAP | `dast` | **yes** | &mdash; | &mdash; |
-| Prowler | `runtime` | **yes** | &mdash; | &mdash; |
-| Semgrep | `sast`, `iac` | **yes** | **yes** | planned |
-| Snyk | `sca`, `licensing` | **yes** | &mdash; | planned |
-| SonarQube | `sast` | **yes** | **yes** | planned |
-| Sonatype | `sca`, `licensing` | **yes** | &mdash; | &mdash; |
-| Syft | `sbom` | **yes** | &mdash; | planned |
-| tfsec | `iac` | **yes** | &mdash; | &mdash; |
-| Trivy | `sca`, `container`, `iac`, `secrets`, `licensing` | **yes** | &mdash; | planned |
-| TruffleHog | `secrets` | **yes** | &mdash; | planned |
+| Tool | Scan types | Artifact | Platform API | Repo contents | Evidence store |
+|---|---|---|---|---|---|
+| Anchore | `container` | **yes** | &mdash; | &mdash; | &mdash; |
+| AWS Config | `runtime` | **yes** | planned | &mdash; | **yes** |
+| AWS Security Hub | `runtime` | **yes** | planned | &mdash; | &mdash; |
+| Bandit | `sast` | **yes** | &mdash; | planned | &mdash; |
+| Burp Suite | `dast` | **yes** | &mdash; | &mdash; | planned |
+| Checkov | `iac` | **yes** | &mdash; | planned | &mdash; |
+| CodeQL | `sast` | **yes** | **yes** | planned | **yes** |
+| Cosign | `container` | **yes** | &mdash; | &mdash; | &mdash; |
+| Dependabot | `sca` | &mdash; | **yes** | planned | **yes** |
+| Forge-native secret scanning | `secrets` | &mdash; | **yes** | &mdash; | **yes** |
+| GitLab Dependency Scanning | `sca` | &mdash; | planned | planned | &mdash; |
+| Gitleaks | `secrets` | **yes** | &mdash; | planned | &mdash; |
+| Grype | `sca`, `container` | **yes** | &mdash; | planned | **yes** |
+| InSpec / CINC baselines | `runtime` | **yes** | &mdash; | &mdash; | &mdash; |
+| OWASP ZAP | `dast` | **yes** | &mdash; | &mdash; | &mdash; |
+| Prowler | `runtime` | **yes** | &mdash; | &mdash; | &mdash; |
+| Semgrep | `sast`, `iac` | **yes** | **yes** | planned | &mdash; |
+| Snyk | `sca`, `licensing` | **yes** | &mdash; | planned | &mdash; |
+| SonarQube | `sast` | **yes** | **yes** | planned | **yes** |
+| Sonatype | `sca`, `licensing` | **yes** | &mdash; | &mdash; | &mdash; |
+| Syft | `sbom` | **yes** | &mdash; | planned | &mdash; |
+| tfsec | `iac` | **yes** | &mdash; | &mdash; | &mdash; |
+| Trivy | `sca`, `container`, `iac`, `secrets`, `licensing` | **yes** | &mdash; | planned | &mdash; |
+| TruffleHog | `secrets` | **yes** | &mdash; | planned | **yes** |
 
 ### What each check reads, and where it is documented
 

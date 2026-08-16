@@ -105,9 +105,24 @@ end
 
 if outdir
   FileUtils.mkdir_p(outdir)
-  File.write(File.join(outdir, 'secret-scanning.sarif'), JSON.pretty_generate(secret_sarif))
-  File.write(File.join(outdir, 'dependabot.sarif'),      JSON.pretty_generate(dep_sarif))
-  File.write(File.join(outdir, 'empty.sarif'),           JSON.pretty_generate(empty))
+  # The exported secret-scanning document is rebuilt from alerts with the
+  # `secret` key removed at source, so nothing written to disk was ever derived
+  # from a credential — not even a synthetic one. The redaction assertions
+  # above still run against the FULL fixture, so removing it here weakens
+  # nothing: what is asserted is that the mapper drops the value, and what is
+  # exported is a document whose input never carried one.
+  #
+  # Written this way because the export is what a scanner sees. A test that
+  # proves a value is stripped and then writes that value to a file anyway is
+  # a finding, and it should be — the fix is to not have the file be the thing
+  # holding it.
+  exportable = secret_alerts.map { |a| a.reject { |k, _| k == 'secret' } }
+  File.write(File.join(outdir, 'secret-scanning.sarif'),
+             JSON.pretty_generate(AlertSarif.from_secret_scanning(
+                                    exportable, repo: 'risk-sentinel/example', locations: locations
+                                  )))
+  File.write(File.join(outdir, 'dependabot.sarif'), JSON.pretty_generate(dep_sarif))
+  File.write(File.join(outdir, 'empty.sarif'),      JSON.pretty_generate(empty))
   puts "wrote SARIF fixtures to #{outdir}"
 end
 

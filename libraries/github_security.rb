@@ -167,6 +167,102 @@ class GithubSecurity < Inspec.resource(1)
     alerts.nil? ? nil : alerts.size
   end
 
+  # ---- Dashboard bridge (#22) ----------------------------------------------
+  # Code scanning is the only one of the three that already speaks SARIF; the
+  # API serves it directly under a content-type negotiation. The other two are
+  # shaped by AlertSarif.
+
+  # Analyses for a ref, newest first. Returns nil (never []) when code scanning
+  # is not enabled, keeping "off" distinguishable from "ran and found nothing".
+  def code_scanning_analyses(ref: nil)
+    return nil unless capability_status(:code_scanning) == :enabled
+    key = [:analyses, ref]
+    return @cache[key] if @cache.key?(key)
+
+    path = "/repos/#{@repo}/code-scanning/analyses?per_page=100"
+    path += "&ref=#{URI.encode_www_form_component(ref)}" if ref
+    resp = get(path)
+    @cache[key] = resp[:code] == 200 ? Array(resp[:body]) : nil
+  end
+
+  # The newest analysis per CodeQL language on the ref. GitHub records one
+  # analysis per language per run, so taking only the single newest would
+  # report a repository as scanned when just one of its languages was.
+  def latest_analyses_by_language(ref: nil)
+    analyses = code_scanning_analyses(ref: ref)
+    return nil if analyses.nil?
+    analyses.each_with_object({}) do |a, acc|
+      lang = analysis_language(a)
+      acc[lang] = a unless acc.key?(lang) # already newest-first
+    end
+  end
+
+  # Provenance for the executed-and-clean claim: everything the control needs
+  # to say WHAT ran, WHERE, WHEN, and WITH WHAT RESULT — sourced from the API
+  # rather than inferred from the presence of a file.
+  def scan_provenance(ref: nil)
+    by_lang = latest_analyses_by_language(ref: ref)
+    return nil if by_lang.nil?
+    by_lang.map do |lang, a|
+      {
+        'language'      => lang,
+        'analysisId'    => a['id'],
+        'ref'           => a['ref'],
+        'commitSha'     => a['commit_sha'],
+        'tool'          => a.dig('tool', 'name'),
+        'toolVersion'   => a.dig('tool', 'version'),
+        'resultsCount'  => a['results_count'],
+        'createdAt'     => a['created_at']
+      }
+    end
+  end
+
+  # Raw SARIF for one analysis. Content negotiation, not a different endpoint.
+  def analysis_sarif(analysis_id)
+    resp = get("/repos/#{@repo}/code-scanning/analyses/#{analysis_id}",
+               accept: 'application/sarif+json')
+    return nil unless resp[:code] == 200
+    resp[:body]
+  end
+
+  # Secret-scanning alert locations. The list payload carries none, so this is
+  # one extra request per alert — bounded by alert count, which is normally 0.
+  def secret_alert_locations(number)
+    return nil unless capability_status(:secret_scanning) == :enabled
+    @cache[[:sloc, number]] ||=
+      paginate("/repos/#{@repo}/secret-scanning/alerts/#{number}/locations?per_page=100")
+  end
+
+  # Alerts plus their locations, in the shape AlertSarif.from_secret_scanning
+  # expects. Returns nil when the capability is off.
+  def secret_scanning_bundle
+    alerts = open_alerts(:secret_scanning)
+    return nil if alerts.nil?
+    locs = alerts.each_with_object({}) do |a, acc|
+      acc[a['number']] = secret_alert_locations(a['number']) || []
+    end
+    { 'alerts' => alerts, 'locations' => locs }
+  end
+
+  # Alerts in EVERY state, not just open. `results_count` on an analysis counts
+  # everything in that upload including findings already triaged, so converting
+  # the SARIF alone would republish closed dismissals as live failures on every
+  # run. The disposition is what makes the finding readable.
+  def code_scanning_alerts(state: 'all')
+    return nil unless capability_status(:code_scanning) == :enabled
+    @cache[[:cs_alerts, state]] ||=
+      paginate("/repos/#{@repo}/code-scanning/alerts?state=#{state}&per_page=100")
+  end
+
+  # Push-protection bypasses are a governance event, not a finding: someone
+  # was told a credential was about to be committed and proceeded anyway.
+  # Reported separately so it cannot be buried among the findings.
+  def push_protection_bypasses
+    alerts = open_alerts(:secret_scanning)
+    return nil if alerts.nil?
+    alerts.select { |a| a['push_protection_bypassed'] }
+  end
+
   # ---- Merge protection (API surface of the MR/PR question) ----------------
   def branch_protection(branch = 'main')
     @cache[[:protection, branch]] ||= begin
@@ -506,6 +602,17 @@ class GithubSecurity < Inspec.resource(1)
   def disabled_response?(resp)
     msg = resp[:message].to_s.downcase
     DISABLED_HINTS.any? { |h| msg.include?(h) }
+  end
+
+  # CodeQL records the language in `category` as "/language:ruby". `environment`
+  # carries it too, but as an embedded JSON string, so category is the cheaper
+  # and more stable read. Analyses from other tools may have neither, and they
+  # group under their analysis_key rather than being silently merged.
+  def analysis_language(analysis)
+    cat = analysis['category'].to_s
+    return cat.sub(%r{\A/?language:}, '') if cat.include?('language:')
+    key = analysis['analysis_key'].to_s
+    key.empty? ? 'unknown' : key
   end
 
   def headers(accept: 'application/vnd.github+json')

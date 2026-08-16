@@ -123,6 +123,46 @@ class GithubSecurity < Inspec.resource(1)
     @repo ? "GitHub Security '#{@repo}'" : "GitHub Security org '#{@org}'"
   end
 
+  # ---- Authentication state -------------------------------------------------
+  # The denominator is only trustworthy if the enumeration was authenticated.
+  # GET /orgs/{org}/repos answers 200 either way and simply omits every private
+  # repository for a caller that cannot see them — so an unauthenticated sweep
+  # produces a SHORTER list, not an error. Reconciliation then compares a
+  # truncated reality against a complete declaration and reports the missing
+  # repositories as stale declarations: a confident false finding that looks
+  # entirely legitimate.
+  #
+  # Measured on this organisation: 21 repositories authenticated, 16 without.
+  # Nothing in the 16-repo answer says it is short.
+  def token_present?
+    !@token.to_s.strip.empty?
+  end
+
+  # nil when no token was supplied, otherwise the login the token resolves to.
+  # A token that is present but rejected returns nil here too, which is the
+  # distinction `authenticated?` cannot make on its own.
+  def viewer_login
+    return nil unless token_present?
+    @cache[:viewer] ||= begin
+      resp = get('/user')
+      resp[:code] == 200 ? (resp[:body] || {})['login'] : nil
+    end
+  end
+
+  def authenticated?
+    !viewer_login.nil?
+  end
+
+  # Why the enumeration cannot be trusted, phrased for a control message.
+  def enumeration_trust
+    return 'no token supplied — private repositories are invisible and the ' \
+           'repository list is silently short' unless token_present?
+    login = viewer_login
+    return 'token was supplied but rejected — the repository list reflects ' \
+           'anonymous access only' if login.nil?
+    "authenticated as #{login}"
+  end
+
   # ---- Enablement ----------------------------------------------------------
   # :enabled | :disabled | :error — never a bare boolean, because "off" and
   # "could not tell" must not collapse into the same answer.

@@ -76,6 +76,21 @@ control 'devsecops-inventory-reconciliation' do
     it { should be_nil }
   end
 
+  # Then assert it was AUTHENTICATED, which reachability does not imply. The
+  # org endpoint answers 200 for an anonymous caller and simply omits every
+  # private repository, so an unauthenticated sweep returns a short list with
+  # nothing marking it as short. Reconciliation then compares that truncated
+  # reality against a complete declaration and reports the invisible
+  # repositories as STALE — accusing the declaration of being wrong when the
+  # credential was the problem.
+  #
+  # Asserted before the stale check, and the stale check is gated on it, so the
+  # run reports the real fault instead of a plausible one derived from it.
+  describe 'organisation enumeration is authenticated' do
+    subject { gs.enumeration_trust }
+    it { should match(/\Aauthenticated as /) }
+  end
+
   describe "repositories found in the organisation (#{rec[:counts][:actual]})" do
     subject { rec[:counts][:actual] }
     it { should be > 0 }
@@ -86,8 +101,16 @@ control 'devsecops-inventory-reconciliation' do
     it { should be_empty }
   end
 
+  # Gated on authentication. Unauthenticated, this assertion does not mean what
+  # it says: every private repository is missing from `actual`, so each one
+  # reads as a declaration for something that no longer exists. Reporting the
+  # credential fault once beats reporting five fabricated stale declarations
+  # that each look worth investigating.
   describe 'declared repositories that no longer exist in the organisation' do
-    subject { rec[:stale] }
+    subject do
+      next rec[:stale] if gs.authenticated?
+      ["not assessed — #{gs.enumeration_trust}"]
+    end
     it { should be_empty }
   end
 

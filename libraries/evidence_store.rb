@@ -39,7 +39,24 @@
 # real question, deliberately not answered here.
 # =============================================================================
 
+require 'json'
 require 'time'
+
+# aws-sdk-s3 is required at the top rather than lazily inside the client, so the
+# convention rule is satisfied — but inside a rescue, which is the part that
+# matters. This profile gets VENDORED into other runtimes, and a bare top-level
+# require would take the whole profile down in any runtime lacking the gem,
+# including the fourteen artifact controls that never touch S3. A missing gem is
+# a problem for one surface, not for the profile.
+#
+# (sparc-validate's document_attestation keeps the lazy form and marks the rule
+# accepted; hoisting-with-rescue reaches the same place without a suppression.)
+begin
+  require 'aws-sdk-s3'
+  AWS_SDK_S3_AVAILABLE = true
+rescue LoadError
+  AWS_SDK_S3_AVAILABLE = false
+end
 
 class EvidenceStore < Inspec.resource(1)
   name 'evidence_store'
@@ -288,15 +305,12 @@ class EvidenceStore < Inspec.resource(1)
   end
 
   def s3
-    @s3 ||= begin
-      # Lazy-require: aws-sdk-s3 is heavy and only this surface needs it, so a
-      # token-only run never pays for it. Same pattern as document_attestation.
-      require 'aws-sdk-s3'
-      Aws::S3::Client.new
-    rescue LoadError => e
+    unless AWS_SDK_S3_AVAILABLE
       raise Inspec::Exceptions::ResourceFailed,
-            "aws-sdk-s3 is unavailable in this runtime: #{e.message}"
+            'aws-sdk-s3 is unavailable in this runtime, so the evidence store ' \
+            'cannot be read. Every other surface is unaffected.'
     end
+    @s3 ||= Aws::S3::Client.new
   end
 
   def head(key)
@@ -321,23 +335,25 @@ class EvidenceStore < Inspec.resource(1)
           "(#{e.class.name.split('::').last}): #{e.message}"
   end
 
+  # LAZY on purpose. Each step is an S3 request, and the walk stops at the first
+  # hit — an eager filter_map would probe the whole window every time, turning
+  # one request into `lookback_days` requests per repository per source for no
+  # additional information.
   def scan_dated_slots
     today = Time.now.utc.to_date
-    (0..@lookback_days).each do |back|
+    (0..@lookback_days).lazy.filter_map { |back|
       slot = (today - back).strftime('%Y-%m-%d')
-      obj = head(key_for(slot))
+      obj  = head(key_for(slot))
       next if obj.nil?
-      return { slot: slot, key: key_for(slot), last_modified: obj.last_modified,
-               size: obj.content_length, via: :dated }
-    end
-    nil
+      { slot: slot, key: key_for(slot), last_modified: obj.last_modified,
+        size: obj.content_length, via: :dated }
+    }.first
   end
 
   # Parses a JSON document, or the first record of a JSONL stream. TruffleHog
   # emits JSONL, so a whole-file parse fails on exactly the evidence this
   # surface most needs to read.
   def parse_permissive(raw)
-    require 'json'
     JSON.parse(raw)
   rescue JSON::ParserError
     first = raw.to_s.each_line.find { |l| !l.strip.empty? }

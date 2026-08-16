@@ -43,6 +43,7 @@
 
 require 'json'
 require 'net/http'
+require 'yaml'
 require 'set'
 require 'uri'
 
@@ -467,7 +468,6 @@ class GithubSecurity < Inspec.resource(1)
     body = file_contents(path)
     return false if body.nil?
     doc = begin
-      require 'yaml'
       YAML.safe_load(body, aliases: true)
     rescue StandardError
       nil

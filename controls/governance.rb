@@ -72,7 +72,30 @@ declared_tools = lambda do |repo|
                     .map { |t| t[:name] }.uniq
 end
 
-GOV_MODES = %w[control-plane both].freeze
+GOV_MODES       = %w[control-plane both].freeze
+GOV_ONLY_IF     = 'Governance checks need control-plane access'.freeze
+GOV_EXEMPT_DESC = 'is exempt'.freeze
+GOV_OK          = 'ok'.freeze
+
+# Shared per-repository body, emitted once and invoked with instance_exec so
+# `describe` binds to the calling control. Six copies of the exemption block and
+# describe shape is duplication whether or not it is short: it makes every
+# future change six edits and buries the one line that differs.
+per_repo = lambda do |control_key, label, probe|
+  targets.each do |repo|
+    why = exempt.call(repo, control_key)
+    if why
+      describe "#{repo} — #{label}" do
+        it(GOV_EXEMPT_DESC) { skip "Declared exemption: #{why}" }
+      end
+    else
+      describe "#{repo} — #{label}" do
+        subject { probe.call(repo) }
+        it { should cmp GOV_OK }
+      end
+    end
+  end
+end
 
 # =============================================================================
 control 'devsecops-governance-required-reviews' do
@@ -86,24 +109,15 @@ control 'devsecops-governance-required-reviews' do
   DESC
   tag nist: ['CM-3', 'SA-11(4)', 'AC-6']
   tag layer: 'governance'
-  only_if('Governance checks need control-plane access') { GOV_MODES.include?(run_mode) }
+  only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }
 
-  targets.each do |repo|
-    if (why = exempt.call(repo, 'required-reviews'))
-      describe "#{repo} — required reviews" do
-        it('is exempt') { skip "Declared exemption: #{why}" }
-      end
-      next
-    end
-    describe "#{repo} — required reviews on #{branch}" do
-      subject do
-        g = gh.call(repo)
-        n = g.effective_required_reviews(branch)
-        n >= min_reviews ? 'ok' : "#{n} required, minimum #{min_reviews} (via #{g.governance_sources(branch).join(' + ')})"
-      end
-      it { should cmp 'ok' }
-    end
-  end
+  instance_exec('required-reviews', "required reviews on #{branch}",
+                lambda { |repo|
+    g = gh.call(repo)
+    n = g.effective_required_reviews(branch)
+    n >= min_reviews ? GOV_OK : "#{n} required, minimum #{min_reviews} (via #{g.governance_sources(branch).join(' + ')})"
+  },
+                &per_repo)
 end
 
 # =============================================================================
@@ -120,37 +134,22 @@ control 'devsecops-governance-required-checks' do
   DESC
   tag nist: ['CM-3', 'SA-10', 'SA-11']
   tag layer: 'governance'
-  only_if('Governance checks need control-plane access') { GOV_MODES.include?(run_mode) }
+  only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }
 
-  targets.each do |repo|
-    if (why = exempt.call(repo, 'required-checks'))
-      describe "#{repo} — security check required" do
-        it('is exempt') { skip "Declared exemption: #{why}" }
-      end
-      next
+  instance_exec('required-checks', 'a declared security tool is a required check',
+                lambda { |repo|
+    contexts = gh.call(repo).effective_required_checks(branch)
+    tools = declared_tools.call(repo)
+    matched = contexts.select do |ctx|
+      c = ctx.to_s.downcase.tr('_ -', '')
+      tools.any? { |t| ([t] + Array(alias_map[t])).any? { |n| c.include?(n.to_s.downcase.tr('_ -', '')) } }
     end
-    describe "#{repo} — a declared security tool is a required check" do
-      subject do
-        g = gh.call(repo)
-        contexts = g.effective_required_checks(branch)
-        tools = declared_tools.call(repo)
-        matched = contexts.select do |ctx|
-          c = ctx.to_s.downcase.tr('_ -', '')
-          tools.any? do |t|
-            ([t] + Array(alias_map[t])).any? { |n| c.include?(n.to_s.downcase.tr('_ -', '')) }
-          end
-        end
-        if matched.any?
-          'ok'
-        elsif contexts.empty?
-          'no required status checks at all'
-        else
-          "#{contexts.size} required check(s), none naming a declared security tool: #{contexts.join(', ')}"
-        end
-      end
-      it { should cmp 'ok' }
+    if matched.any? then GOV_OK
+    elsif contexts.empty? then 'no required status checks at all'
+    else "#{contexts.size} required check(s), none naming a declared security tool: #{contexts.join(', ')}"
     end
-  end
+  },
+                &per_repo)
 end
 
 # =============================================================================
@@ -165,23 +164,14 @@ control 'devsecops-governance-rulesets-enforced' do
   DESC
   tag nist: ['CM-2', 'CM-6']
   tag layer: 'governance'
-  only_if('Governance checks need control-plane access') { GOV_MODES.include?(run_mode) }
+  only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }
 
-  targets.each do |repo|
-    if (why = exempt.call(repo, 'rulesets-enforced'))
-      describe "#{repo} — ruleset enforcement" do
-        it('is exempt') { skip "Declared exemption: #{why}" }
-      end
-      next
-    end
-    describe "#{repo} — rulesets in evaluate mode" do
-      subject do
-        names = gh.call(repo).evaluate_mode_ruleset_names
-        names.empty? ? 'ok' : "evaluating, not enforcing: #{names.join(', ')}"
-      end
-      it { should cmp 'ok' }
-    end
-  end
+  instance_exec('rulesets-enforced', 'rulesets in evaluate mode',
+                lambda { |repo|
+    names = gh.call(repo).evaluate_mode_ruleset_names
+    names.empty? ? GOV_OK : "evaluating, not enforcing: #{names.join(', ')}"
+  },
+                &per_repo)
 end
 
 # =============================================================================
@@ -200,18 +190,11 @@ control 'devsecops-governance-signed-commits' do
     GOV_MODES.include?(run_mode) && want_signing
   end
 
-  targets.each do |repo|
-    if (why = exempt.call(repo, 'signed-commits'))
-      describe "#{repo} — signed commits" do
-        it('is exempt') { skip "Declared exemption: #{why}" }
-      end
-      next
-    end
-    describe "#{repo} — signed commits required on #{branch}" do
-      subject { gh.call(repo).signed_commits_required?(branch) ? 'ok' : 'not required' }
-      it { should cmp 'ok' }
-    end
-  end
+  instance_exec('signed-commits', "signed commits required on #{branch}",
+                lambda { |repo|
+    gh.call(repo).signed_commits_required?(branch) ? GOV_OK : 'not required'
+  },
+                &per_repo)
 end
 
 # =============================================================================
@@ -225,29 +208,20 @@ control 'devsecops-governance-codeowners' do
   DESC
   tag nist: ['SA-15(7)', 'CM-3']
   tag layer: 'governance'
-  only_if('Governance checks need control-plane access') { GOV_MODES.include?(run_mode) }
+  only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }
 
-  targets.each do |repo|
-    if (why = exempt.call(repo, 'codeowners'))
-      describe "#{repo} — CODEOWNERS" do
-        it('is exempt') { skip "Declared exemption: #{why}" }
-      end
-      next
+  instance_exec('codeowners', 'CODEOWNERS present and enforced',
+                lambda { |repo|
+    g = gh.call(repo)
+    present  = g.codeowners?
+    enforced = g.code_owner_review_required?(branch)
+    if present && enforced then GOV_OK
+    elsif !present && !enforced then 'no CODEOWNERS file, and owner review not required'
+    elsif !present then 'owner review is required but there is no CODEOWNERS file'
+    else "CODEOWNERS covers #{g.codeowners_paths.join(' ')} but owner review is not required"
     end
-    describe "#{repo} — CODEOWNERS present and enforced" do
-      subject do
-        g = gh.call(repo)
-        present = g.codeowners?
-        enforced = g.code_owner_review_required?(branch)
-        if present && enforced then 'ok'
-        elsif !present && !enforced then 'no CODEOWNERS file, and owner review not required'
-        elsif !present then 'owner review is required but there is no CODEOWNERS file'
-        else "CODEOWNERS covers #{g.codeowners_paths.join(' ')} but owner review is not required"
-        end
-      end
-      it { should cmp 'ok' }
-    end
-  end
+  },
+                &per_repo)
 end
 
 # =============================================================================
@@ -268,22 +242,12 @@ control 'devsecops-governance-shift-left' do
   DESC
   tag nist: ['SA-11(1)', 'SA-15(5)']
   tag layer: 'governance'
-  only_if('Governance checks need control-plane access') { GOV_MODES.include?(run_mode) }
+  only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }
 
-  targets.each do |repo|
-    if (why = exempt.call(repo, 'shift-left'))
-      describe "#{repo} — shift-left" do
-        it('is exempt') { skip "Declared exemption: #{why}" }
-      end
-      next
-    end
-    describe "#{repo} — declared scanners gate pull requests" do
-      subject do
-        tools = declared_tools.call(repo)
-        gaps = gh.call(repo).tools_not_gating_pull_requests(tools, branch, alias_map)
-        gaps.empty? ? 'ok' : "runs only post-merge: #{gaps.join(', ')}"
-      end
-      it { should cmp 'ok' }
-    end
-  end
+  instance_exec('shift-left', 'declared scanners gate pull requests',
+                lambda { |repo|
+    gaps = gh.call(repo).tools_not_gating_pull_requests(declared_tools.call(repo), branch, alias_map)
+    gaps.empty? ? GOV_OK : "runs only post-merge: #{gaps.join(', ')}"
+  },
+                &per_repo)
 end

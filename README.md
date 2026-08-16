@@ -221,6 +221,25 @@ Placeholders are `{boundary}` `{slot}` `{repo}` `{source}`. `{slot}` is required
 every lookback candidate would resolve to the same key and stale evidence would
 read as current.
 
+### Credentials for reading the store
+
+The profile does **not** assume a role. Like every other AWS-touching InSpec
+profile, it uses whatever credentials the runner already holds — so the caller
+assumes the read role before InSpec starts, typically with
+`aws-actions/configure-aws-credentials`.
+
+Reads are deliberately asymmetric to writes. Writers are per-repository
+(`{REPO}_EMIT_ARN`) so a compromised repository can only write its own prefix.
+Readers are a short explicit list — one ARN each for the two repositories that
+consume the bucket — so *who can see the estate's evidence* stays auditable.
+
+The read role needs `s3:GetObject` **and `kms:Decrypt`** on the bucket CMK.
+`GetObject` alone on an encrypted bucket fails as an `AccessDenied` that looks
+exactly like a missing object, which would report a scanned repository as
+unevidenced. `evidence_store` raises on that rather than reporting absence, so
+it surfaces as a control error — but granting both together avoids debugging it
+at all.
+
 ### What shape is the evidence in?
 
 Both are supported, because insisting on converted HDF would make this surface

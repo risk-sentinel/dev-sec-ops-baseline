@@ -445,6 +445,7 @@ tools:
 
   sonarqube:
     name: SonarQube
+    aliases: [sonar, sonarcloud]   # check-context / workflow spellings
     scan_types: [sast]
     surfaces:
       artifact:
@@ -524,6 +525,7 @@ tools:
 
   platform_secret_scanning:
     name: Forge-native secret scanning
+    aliases: [secret scanning, secret-scanning]   # check-context / workflow spellings
     scan_types: [secrets]
     # Forge-native: nothing lands on the runner, so there is no artifact surface.
     # GitHub calls this "secret scanning"; GitLab calls it "Secret Detection".
@@ -743,6 +745,7 @@ tools:
 
   aws_config:
     name: AWS Config
+    aliases: [aws config, aws-config]   # check-context / workflow spellings
     scan_types: [runtime]
     surfaces:
       artifact:

@@ -94,6 +94,37 @@ A platform API reports whatever it last analysed; an artifact was produced by th
 progress. Results are labelled `run-scoped` or `point-in-time`, and API evidence is bounded
 by `evidence_freshness_days` so a year-old analysis cannot satisfy a coverage control.
 
+## Phase 3 controls — delivery governance
+
+| Control | What it validates | NIST 800-53r5 | Rationale |
+|---|---|---|---|
+| `devsecops-governance-required-reviews` | Effective approving-review count on the protected branch | CM-3, SA-11 (4), AC-6 | Combines classic protection and active rulesets; reports which supplied it |
+| `devsecops-governance-required-checks` | A *declared security tool* is among the required checks | CM-3, SA-10, SA-11 | Requiring checks is not requiring security checks |
+| `devsecops-governance-rulesets-enforced` | Rulesets are active, not evaluating | CM-2, CM-6 | An evaluate-mode ruleset reports its name and blocks nothing |
+| `devsecops-governance-signed-commits` | Commit signing enforced where policy demands | SI-7, SR-4 | Off by default — a deliberate choice, not a universal baseline |
+| `devsecops-governance-codeowners` | CODEOWNERS exists *and* owner review is required | SA-15 (7), CM-3 | Either half alone is hollow |
+| `devsecops-governance-shift-left` | Declared scanners gate pull requests | SA-11 (1), SA-15 (5) | A scanner that runs only post-merge finds problems already on the branch |
+
+### Effective governance, not one mechanism
+
+GitHub evaluates classic branch protection and rulesets together, most
+restrictive winning. Reading one produces a confident false finding: five of
+seven repositories surveyed had no classic protection at all, and the two that
+did reported **zero** required reviews while their rulesets required one. A
+classic-only reading calls the entire estate unprotected.
+
+Org-level rulesets are included automatically and reported distinctly — a rule
+the repository owner cannot weaken is a stronger guarantee than the same rule
+set locally.
+
+### Known limitation, stated rather than hidden
+
+`required-checks` matches a context against the tool names a repository
+declares. A check that is genuinely a security gate but whose name does not
+mention a tool — "Fixture detection (proves scanner works)" — will not match.
+The failure therefore lists every required context so a human can judge, rather
+than asserting the repository has no security gate.
+
 ## Notes
 
 - **Presence + validity, not the finding itself:** each control proves the *artifact* was produced

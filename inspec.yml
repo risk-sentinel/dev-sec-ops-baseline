@@ -158,6 +158,29 @@ inputs:
       explicitly. A label that CONTRADICTS the path always fails regardless —
       absent and contradicted are different findings.
 
+  # ---- Governance (phase 3) ---------------------------------------------------
+  - name: min_required_reviews
+    type: numeric
+    value: 1
+    description: 'Minimum effective approving reviews on the protected branch, across classic protection and rulesets combined.'
+
+  - name: require_signed_commits
+    type: boolean
+    value: false
+    description: >-
+      Whether commit signing must be enforced. Off by default: it is a
+      deliberate organisational choice rather than a universal baseline, and
+      failing every repository for a policy nobody adopted trains people to
+      ignore the output.
+
+  - name: governance_exemptions
+    type: array
+    value: []
+    description: >-
+      Declared exemptions, each { repo, control, reason }. Produces a skip
+      carrying the reason. Same rule as scan types and repository exclusions —
+      an exception is written down, never inferred and never a silent pass.
+
   - name: protected_branch
     type: string
     value: 'main'

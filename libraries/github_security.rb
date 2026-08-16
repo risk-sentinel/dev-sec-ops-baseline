@@ -194,6 +194,195 @@ class GithubSecurity < Inspec.resource(1)
     rulesets.select { |r| r['enforcement'] == 'active' }.map { |r| r['name'] }
   end
 
+  # A ruleset in `evaluate` mode reports its name and blocks nothing. Asserting
+  # on presence rather than enforcement is the same error as counting controls
+  # without checking whether any carried attribution.
+  def evaluate_mode_ruleset_names
+    rulesets.reject { |r| r['enforcement'] == 'active' }.map { |r| r['name'] }
+  end
+
+  def ruleset_detail(id)
+    @cache[[:ruleset, id]] ||= begin
+      resp = get("/repos/#{@repo}/rulesets/#{id}")
+      resp[:code] == 200 ? resp[:body] : nil
+    end
+  end
+
+  def default_branch
+    @cache[:default_branch] ||= begin
+      resp = get("/repos/#{@repo}")
+      resp[:code] == 200 ? resp[:body].to_h['default_branch'] : nil
+    end
+  end
+
+  # Active rulesets whose ref conditions actually cover this branch. A ruleset
+  # scoped to ~DEFAULT_BRANCH says nothing about a release branch, and counting
+  # it would report protection the branch does not have.
+  def active_rulesets_for(branch)
+    @cache[[:rs_for, branch]] ||= rulesets
+      .select { |r| r['enforcement'] == 'active' }
+      .filter_map { |r| ruleset_detail(r['id']) }
+      .select { |d| ruleset_covers?(d, branch) }
+  end
+
+  def rules_of_type(branch, type)
+    active_rulesets_for(branch).flat_map { |d| Array(d['rules']) }
+                               .select { |r| r['type'] == type }
+  end
+
+  # ---- Effective governance -------------------------------------------------
+  #
+  # GitHub evaluates classic branch protection AND rulesets together, and the
+  # most restrictive wins. Reading only one is how you get a confident false
+  # finding: five of seven repositories here have NO classic protection at all,
+  # and the two that do report zero required reviews while their rulesets
+  # require one. A classic-only reading calls the whole estate unprotected.
+  def effective_required_reviews(branch = 'main')
+    from_classic = branch_protection(branch)
+                   &.dig('required_pull_request_reviews', 'required_approving_review_count').to_i
+    from_rules = rules_of_type(branch, 'pull_request')
+                 .map { |r| r.dig('parameters', 'required_approving_review_count').to_i }
+    ([from_classic] + from_rules).compact.max.to_i
+  end
+
+  def effective_required_checks(branch = 'main')
+    classic = Array(branch_protection(branch)&.dig('required_status_checks', 'contexts'))
+    ruled = rules_of_type(branch, 'required_status_checks').flat_map do |r|
+      Array(r.dig('parameters', 'required_status_checks')).map { |c| c['context'] }
+    end
+    (classic + ruled).compact.uniq.sort
+  end
+
+  def signed_commits_required?(branch = 'main')
+    classic = branch_protection(branch)&.dig('required_signatures', 'enabled')
+    return true if classic
+    rules_of_type(branch, 'required_signatures').any?
+  end
+
+  def stale_reviews_dismissed?(branch = 'main')
+    classic = branch_protection(branch)&.dig('required_pull_request_reviews', 'dismiss_stale_reviews')
+    return true if classic
+    rules_of_type(branch, 'pull_request')
+      .any? { |r| r.dig('parameters', 'dismiss_stale_reviews_on_push') }
+  end
+
+  def code_owner_review_required?(branch = 'main')
+    classic = branch_protection(branch)&.dig('required_pull_request_reviews', 'require_code_owner_reviews')
+    return true if classic
+    rules_of_type(branch, 'pull_request')
+      .any? { |r| r.dig('parameters', 'require_code_owner_review') }
+  end
+
+  # Which mechanism actually supplied the protection. Carried into the result
+  # so a passing control says HOW the repository is protected, not merely that
+  # it is — the two mechanisms have different owners and different blast radius.
+  def governance_sources(branch = 'main')
+    src = []
+    src << 'classic branch protection' unless branch_protection(branch).nil?
+    active_rulesets_for(branch).each do |d|
+      # Repository vs Organization matters: an org-level ruleset cannot be
+      # weakened by the repository owner, which is a materially stronger
+      # guarantee than the same rule set locally. The repo endpoint returns
+      # parent rulesets by default, so org rules are already included here.
+      scope = d['source_type'] == 'Organization' ? 'org ruleset' : 'repo ruleset'
+      src << "#{scope} '#{d['name']}'"
+    end
+    src.empty? ? ['none'] : src
+  end
+
+  # ---- Workflow inventory (repo_contents surface) ---------------------------
+  def workflow_paths
+    @cache[:wf_paths] ||= begin
+      resp = get("/repos/#{@repo}/contents/.github/workflows")
+      return [] unless resp[:code] == 200
+      Array(resp[:body]).map { |f| f['path'] }
+                        .select { |p| p.end_with?('.yml', '.yaml') }
+    end
+  end
+
+  # Workflows that actually run one of the named scanners. Passing the tool list
+  # in rather than hardcoding it keeps the registry the single source of truth
+  # for what counts as a security tool.
+  def security_workflows(tool_names)
+    @cache[[:sec_wf, tool_names]] ||= workflow_paths.select do |path|
+      body = file_contents(path).to_s.downcase
+      tool_names.any? { |t| body.include?(t.to_s.downcase) }
+    end
+  end
+
+  # Shift-left, asked PER TOOL rather than per workflow.
+  #
+  # "This workflow mentions a scanner and does not run on a pull request" is the
+  # wrong question: deploy.yml legitimately mentions cosign, and an HDF emit
+  # workflow legitimately runs only after merge because it FETCHES results.
+  # Flagging those produces noise that trains people to ignore the control.
+  #
+  # The question that matters is whether a given scanner runs on a pull request
+  # ANYWHERE. If every workflow that runs it fires only post-merge, then that
+  # scanner finds problems already on the default branch — which is the thing
+  # shift-left means, and which no security endpoint reports because it is a
+  # fact about a YAML file.
+  # Two ways a tool can gate a pull request, and BOTH must count:
+  #
+  #   1. a workflow that runs it fires on `pull_request`
+  #   2. it appears as a REQUIRED STATUS CHECK context
+  #
+  # The second is not a technicality. SonarCloud analysis is triggered by the
+  # GitHub App rather than by any workflow, so no file mentions it with a
+  # pull_request trigger — yet "SonarCloud Code Analysis" is a required check
+  # and genuinely blocks merges. Judging by triggers alone reports the estate's
+  # most consistently-enforced scanner as not gating anything.
+  #
+  # A required check is also the STRONGER signal: a trigger means it runs, a
+  # required check means it must pass.
+  # `names` carries the tool key plus any registry aliases: a tool's identity and
+  # the string a CI system reports it under are frequently different. SonarQube
+  # reports as "SonarCloud Code Analysis", so matching the key alone declares
+  # the estate's most consistently-enforced scanner ungated.
+  def tool_runs_on_pull_request?(tool, branch = 'main', names = nil)
+    needles = Array(names).unshift(tool).compact
+                          .map { |n| n.to_s.downcase.tr('_ -', '') }.uniq
+    @cache[[:tool_pr, tool, branch]] ||= begin
+      gated_by_check = effective_required_checks(branch).any? do |ctx|
+        c = ctx.to_s.downcase.tr('_ -', '')
+        needles.any? { |n| c.include?(n) }
+      end
+      gated_by_check || workflow_paths.any? do |path|
+        body = file_contents(path).to_s
+        next false unless body.downcase.include?(tool.to_s.downcase)
+        scans_on_pull_request?(path)
+      end
+    end
+  end
+
+  # tool_names may be plain keys or [key, [aliases...]] pairs.
+  def tools_not_gating_pull_requests(tool_names, branch = 'main', alias_map = {})
+    Array(tool_names).reject do |t|
+      tool_runs_on_pull_request?(t, branch, alias_map[t.to_s])
+    end
+  end
+
+  def codeowners
+    @cache[:codeowners] ||= ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS']
+                            .filter_map { |p| file_contents(p) }.first
+  end
+
+  def codeowners?
+    !codeowners.nil?
+  end
+
+  # Paths named in CODEOWNERS, ignoring comments and blank lines. Presence of
+  # the file is not coverage: a CODEOWNERS listing only docs/ leaves every
+  # security-relevant path unowned while looking configured.
+  def codeowners_paths
+    return [] if codeowners.nil?
+    codeowners.each_line.filter_map do |line|
+      l = line.strip
+      next if l.empty? || l.start_with?('#')
+      l.split(/\s+/).first
+    end
+  end
+
   # ---- Repository contents (the OTHER half of the MR/PR question) ----------
   # Whether a scan fires on a pull request is a fact about a YAML file, not
   # platform state. Different surface, different access requirement.
@@ -233,6 +422,28 @@ class GithubSecurity < Inspec.resource(1)
   end
 
   private
+
+  # ~ALL covers everything; ~DEFAULT_BRANCH resolves against the repo's default;
+  # anything else is a ref pattern. Exclusions win over inclusions, which is how
+  # GitHub evaluates them.
+  def ruleset_covers?(detail, branch)
+    cond = detail.to_h.dig('conditions', 'ref_name') || {}
+    inc = Array(cond['include'])
+    exc = Array(cond['exclude'])
+    return false if exc.any? { |p| ref_matches?(p, branch) }
+    return true if inc.empty?
+    inc.any? { |p| ref_matches?(p, branch) }
+  end
+
+  def ref_matches?(pattern, branch)
+    case pattern
+    when '~ALL' then true
+    when '~DEFAULT_BRANCH' then branch == default_branch
+    else
+      ref = pattern.sub(%r{\Arefs/heads/}, '')
+      File.fnmatch?(ref, branch)
+    end
+  end
 
   def repo_scoped?
     return true if @repo

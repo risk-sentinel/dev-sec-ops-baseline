@@ -49,7 +49,9 @@ module AlertSarif
     'low'      => 'note'
   }.freeze
 
-  module_function
+  # `extend self` rather than `module_function`: these are pure functions with
+  # no instance state, and the module is never included anywhere.
+  extend self
 
   # ---- Secret scanning -------------------------------------------------------
   # `locations` is a hash of alert number => the array returned by

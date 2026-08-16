@@ -35,6 +35,10 @@ branch    = input('protected_branch')
 max_age   = input('evidence_freshness_days').to_i
 
 control_plane = %w[control-plane both].include?(run_mode)
+# Hoisted because it is asserted by every control in this file. The
+# `tag layer:` literal below is NOT hoisted: tag values must be literals
+# or the AST tag collector crashes `cinc-auditor check`.
+needs_cp = 'Dashboard evidence needs control-plane access'.freeze
 repo_names    = targets.map { |t| t.to_h['repo'] }.compact.reject(&:empty?)
 ref           = "refs/heads/#{branch}"
 
@@ -67,7 +71,7 @@ control 'devsecops-code-scanning-executed' do
   DESC
   tag nist: ['RA-5', 'RA-5(2)', 'SA-11', 'SA-11(1)', 'SI-2']
   tag layer: 'dashboard-evidence'
-  only_if('Dashboard evidence needs control-plane access') do
+  only_if(needs_cp) do
     control_plane && !org_name.to_s.empty? && !repo_names.empty?
   end
 
@@ -129,7 +133,7 @@ control 'devsecops-dashboard-open-findings' do
   DESC
   tag nist: ['RA-5', 'SI-2', 'SI-3', 'IA-5(7)']
   tag layer: 'dashboard-evidence'
-  only_if('Dashboard evidence needs control-plane access') do
+  only_if(needs_cp) do
     control_plane && !org_name.to_s.empty? && !repo_names.empty?
   end
 
@@ -177,7 +181,7 @@ control 'devsecops-dismissals-accountable' do
   DESC
   tag nist: ['RA-5(5)', 'CA-5', 'PM-4', 'SA-11']
   tag layer: 'dashboard-evidence'
-  only_if('Dashboard evidence needs control-plane access') do
+  only_if(needs_cp) do
     control_plane && !org_name.to_s.empty? && !repo_names.empty?
   end
 
@@ -219,7 +223,7 @@ control 'devsecops-push-protection-bypasses' do
   DESC
   tag nist: ['IA-5(7)', 'AC-6', 'AU-2', 'SI-4']
   tag layer: 'dashboard-evidence'
-  only_if('Dashboard evidence needs control-plane access') do
+  only_if(needs_cp) do
     control_plane && !org_name.to_s.empty? && !repo_names.empty?
   end
 

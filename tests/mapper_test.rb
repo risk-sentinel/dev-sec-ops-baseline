@@ -13,6 +13,7 @@ require 'json'
 require 'fileutils'
 require_relative '../libraries/alert_sarif'
 
+REPO = 'risk-sentinel/example'.freeze
 FAILURES = []
 
 def check(label)
@@ -32,8 +33,8 @@ secret_alerts = JSON.parse(File.read(File.join(fixtures, 'secret_scanning_alerts
 locations     = JSON.parse(File.read(File.join(fixtures, 'secret_scanning_locations.json')))
 dep_alerts    = JSON.parse(File.read(File.join(fixtures, 'dependabot_alerts.json')))
 
-secret_sarif = AlertSarif.from_secret_scanning(secret_alerts, repo: 'risk-sentinel/example', locations: locations)
-dep_sarif    = AlertSarif.from_dependabot(dep_alerts, repo: 'risk-sentinel/example')
+secret_sarif = AlertSarif.from_secret_scanning(secret_alerts, repo: REPO, locations: locations)
+dep_sarif    = AlertSarif.from_dependabot(dep_alerts, repo: REPO)
 
 puts 'secret scanning -> SARIF'
 run = secret_sarif['runs'].first
@@ -98,7 +99,7 @@ check('tagged sca') do
 end
 
 puts 'empty input'
-empty = AlertSarif.from_dependabot([], repo: 'risk-sentinel/example')
+empty = AlertSarif.from_dependabot([], repo: REPO)
 check('no alerts yields a valid SARIF document with zero results') do
   empty['version'] == '2.1.0' && empty['runs'].first['results'] == []
 end
@@ -119,7 +120,7 @@ if outdir
   exportable = secret_alerts.map { |a| a.reject { |k, _| k == 'secret' } }
   File.write(File.join(outdir, 'secret-scanning.sarif'),
              JSON.pretty_generate(AlertSarif.from_secret_scanning(
-                                    exportable, repo: 'risk-sentinel/example', locations: locations
+                                    exportable, repo: REPO, locations: locations
                                   )))
   File.write(File.join(outdir, 'dependabot.sarif'), JSON.pretty_generate(dep_sarif))
   File.write(File.join(outdir, 'empty.sarif'),      JSON.pretty_generate(empty))

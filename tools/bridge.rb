@@ -31,20 +31,10 @@
 require 'json'
 require 'fileutils'
 require 'optparse'
-
-module Inspec
-  class FakeBase
-    def self.name(*); end
-    def self.supports(*); end
-    def self.desc(*); end
-    def self.example(*); end
-  end
-  def self.resource(_version) = FakeBase
-end
-
-lib = File.expand_path('../libraries', __dir__)
-require File.join(lib, 'github_security')
-require File.join(lib, 'alert_sarif')
+# Must precede the library requires below: they subclass Inspec.resource.
+require_relative 'inspec_stub'
+require_relative '../libraries/github_security'
+require_relative '../libraries/alert_sarif'
 
 options = { ref: 'refs/heads/main' }
 OptionParser.new do |o|
@@ -142,15 +132,16 @@ if ss_status == :enabled
   sarif  = AlertSarif.from_secret_scanning(bundle['alerts'],
                                            repo: options[:repo],
                                            locations: bundle['locations'])
-  File.write(File.join(options[:out], 'secret-scanning.sarif'), JSON.pretty_generate(sarif))
-  written << 'secret-scanning.sarif'
+  filename = 'secret-scanning.sarif'
+  File.write(File.join(options[:out], filename), JSON.pretty_generate(sarif))
+  written << filename
 
   bypasses = gh.push_protection_bypasses || []
   provenance['sources']['secret_scanning'] = source_record(
     status: :enabled,
     'openAlerts' => bundle['alerts'].size,
     'pushProtectionBypasses' => bypasses.size,
-    'sarifFile' => 'secret-scanning.sarif'
+    'sarifFile' => filename
   )
   warn "WARN  #{bypasses.size} push-protection bypass(es) recorded" unless bypasses.empty?
 else
@@ -164,11 +155,12 @@ db_status = gh.capability_status(:dependabot_alerts)
 if db_status == :enabled
   alerts = gh.open_alerts(:dependabot_alerts) || []
   sarif  = AlertSarif.from_dependabot(alerts, repo: options[:repo])
-  File.write(File.join(options[:out], 'dependabot.sarif'), JSON.pretty_generate(sarif))
-  written << 'dependabot.sarif'
+  filename = 'dependabot.sarif'
+  File.write(File.join(options[:out], filename), JSON.pretty_generate(sarif))
+  written << filename
   provenance['sources']['dependabot'] = source_record(
     status: :enabled, 'openAlerts' => alerts.size,
-    'scanType' => 'sca', 'sarifFile' => 'dependabot.sarif'
+    'scanType' => 'sca', 'sarifFile' => filename
   )
 else
   provenance['sources']['dependabot'] =

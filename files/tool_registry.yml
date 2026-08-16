@@ -100,14 +100,23 @@ surfaces:
     role: configuration
     title: A file in the repository
     access: A clone, or the contents API
+  evidence_store:
+    role: execution
+    title: Converted HDF in the evidence bucket
+    access: AWS credentials with s3:GetObject on the evidence bucket
 
 # ---- Run modes --------------------------------------------------------------
 # Which surfaces are reachable in each mode. A scan type can only be shown
 # covered by a surface the current mode can actually read.
+#
+# evidence_store is in control-plane deliberately. It is the only surface that
+# can see a tool with no API from OUTSIDE its pipeline — TruffleHog is the
+# standing case — so without it a control-plane sweep reports "not reachable
+# from this run mode" for most of the estate however well the pipelines run.
 run_modes:
   pipeline:      [artifact]
-  control-plane: [platform_api, repo_contents]
-  both:          [artifact, platform_api, repo_contents]
+  control-plane: [platform_api, repo_contents, evidence_store]
+  both:          [artifact, platform_api, repo_contents, evidence_store]
 
 # ---- Evidence sources -------------------------------------------------------
 # A forge hosts code AND enforces merge rules. An evidence source has an API
@@ -454,6 +463,10 @@ tools:
         sources: [github, gitlab]
         evidence: config_file
         match: sonar-project.properties
+      evidence_store:
+        status: implemented
+        source: sonarqube          # the <source> path segment
+        note: sonarqube-hdf-emit.yml, four repos
 
   bandit:
     name: Bandit
@@ -488,6 +501,10 @@ tools:
         sources: [github, gitlab]
         evidence: workflow_uses
         match: trufflehog
+      evidence_store:
+        status: implemented
+        source: trufflehog          # the <source> path segment
+        note: secret-scan-hdf-emit.yml, landed in this repo (#13)
 
   gitleaks:
     name: Gitleaks
@@ -534,6 +551,10 @@ tools:
         sources: [github, gitlab]
         evidence: workflow_uses
         match: anchore/scan-action
+      evidence_store:
+        status: implemented
+        source: grype          # the <source> path segment
+        note: sca-emit-images.yml in container-build-sign
 
   trivy:
     name: Trivy
@@ -682,6 +703,10 @@ tools:
         marker: profiles
         patterns:
           - '*burp*.json'
+      evidence_store:
+        status: planned
+        source: burpsuite          # the <source> path segment
+        note: sparc-dast#8 open — dast.yml does not convert yet
 
   zap:
     name: OWASP ZAP
@@ -731,6 +756,10 @@ tools:
         status: planned
         sources: [aws]
         capability: config_compliance
+      evidence_store:
+        status: implemented
+        source: aws-config          # the <source> path segment
+        note: fetch-aws-config.yml, emitted by its caller
 
   aws_security_hub:
     name: AWS Security Hub

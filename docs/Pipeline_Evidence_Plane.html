@@ -436,8 +436,8 @@ cis-*-baseline   &rarr; all respond, 0 alerts (public, free tier)</code></pre>
 
   <!-- ============================ SURFACES ============================ -->
   <section>
-    <h2>Three surfaces, not two</h2>
-    <p class="lede">The coverage table above splits the world into &ldquo;files on a runner&rdquo; and &ldquo;control plane&rdquo;. Building phase&nbsp;1 showed that collapses two genuinely different things, and the distinction decides whether a given check can run at all.</p>
+    <h2>Four surfaces, not two</h2>
+    <p class="lede">The coverage table above splits the world into &ldquo;files on a runner&rdquo; and &ldquo;control plane&rdquo;. Building phase&nbsp;1 showed that collapses genuinely different things, and the distinction decides whether a given check can run at all. Phase&nbsp;1.5 added a fourth.</p>
 
     <div class="scroller">
       <table>
@@ -449,8 +449,16 @@ cis-*-baseline   &rarr; all respond, 0 alerts (public, free tier)</code></pre>
           <tr><td><strong>Artifact</strong></td><td>A report file on disk</td><td>In-pipeline execution, after the scanner stage</td><td>No</td></tr>
           <tr><td><strong>Platform API</strong></td><td>Forge or evidence-source state</td><td>A token</td><td>Yes</td></tr>
           <tr><td><strong>Repo contents</strong></td><td>A file in the repository &mdash; workflow triggers, CODEOWNERS, scanner config</td><td>A clone, or the contents API</td><td>Yes</td></tr>
+          <tr><td><strong>Evidence store</strong></td><td>Converted HDF in the S3 evidence bucket</td><td>AWS credentials with <code>s3:GetObject</code></td><td>Yes</td></tr>
         </tbody>
       </table>
+    </div>
+
+    <div class="callout">
+      <h3>The fourth surface is what makes a standalone sweep useful</h3>
+      <p>A tool with no API cannot be seen from outside its pipeline. TruffleHog is the standing case, and before this surface existed a control-plane sweep reported <em>&ldquo;enabled but not reachable from this run mode&rdquo;</em> for most of the estate &mdash; accurate, and not much use.</p>
+      <p>Reading the converted HDF out of the evidence bucket closes that: coverage in control-plane mode went from 20 satisfied cells to 44. It is also the surface that only exists because the conversion sweep put the evidence there in the first place.</p>
+      <p><strong>Credential failures raise rather than fail.</strong> A missing AWS credential says nothing about whether a scan ran; failing would assert something untrue and skipping would read as not-applicable. The exception makes InSpec emit failed-with-backtrace, which Heimdall renders as Profile Error &mdash; no credit, and visibly not an assessment. That is deliberately inconsistent with the other resources, which capture and fail.</p>
     </div>
 
     <div class="callout">

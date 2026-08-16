@@ -106,6 +106,58 @@ inputs:
       results are point-in-time and may be stale; without a bound, an analysis
       from last year would satisfy a coverage control.
 
+  # ---- Evidence store (the fourth surface, #10) ------------------------------
+  - name: evidence_bucket
+    type: string
+    value: ''
+    description: >-
+      S3 bucket holding converted HDF evidence. Unset while the run mode
+      includes evidence_store produces a control ERROR, not a pass or a fail —
+      an unconfigured reader has assessed nothing, and saying so is more honest
+      than reporting repositories as unevidenced.
+
+  - name: evidence_boundary
+    type: string
+    value: 'sparc'
+    description: 'Top path segment of the canonical layout <boundary>/<date|latest>/<repo>/<source>/.'
+
+  - name: evidence_lookback_days
+    type: numeric
+    value: 7
+    description: >-
+      How recent HDF evidence must be to count for an assessment, and how far
+      back to walk the dated slots when the `latest` pointer is missing.
+
+  - name: evidence_key_template
+    type: string
+    value: '{boundary}/{slot}/{repo}/{source}/{source}-hdf.json'
+    description: >-
+      Object key layout in the evidence store. Placeholders: {boundary} {slot}
+      {repo} {source}. Defaults to our canonical layout; override it to point at
+      an existing aggregation rather than asking a team to re-file evidence they
+      already collect. {slot} is required — it is what separates the `latest`
+      pointer from a dated object.
+
+  - name: evidence_format
+    type: string
+    value: 'auto'
+    description: >-
+      Shape of the evidence in the store: hdf | native | auto. Mature teams
+      aggregate converted HDF; less mature ones aggregate whatever their
+      scanners emit. `auto` accepts either. Native files are identified by the
+      same structural marker the registry uses for the artifact surface, so the
+      two cannot disagree about what a valid Trivy or Grype file looks like.
+
+  - name: evidence_require_labels
+    type: boolean
+    value: false
+    description: >-
+      Whether attribution must be corroborated by labels inside the evidence.
+      Default false: a foreign store has no labels because we did not write it,
+      and attribution then rests on the key path, which the result records
+      explicitly. A label that CONTRADICTS the path always fails regardless —
+      absent and contradicted are different findings.
+
   - name: protected_branch
     type: string
     value: 'main'

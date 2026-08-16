@@ -350,7 +350,7 @@ class GithubSecurity < Inspec.resource(1)
       gated_by_check || workflow_paths.any? do |path|
         body = file_contents(path).to_s
         next false unless body.downcase.include?(tool.to_s.downcase)
-        scans_on_pull_request?(path)
+        workflow_pre_merge?(path)
       end
     end
   end
@@ -392,6 +392,21 @@ class GithubSecurity < Inspec.resource(1)
                  accept: 'application/vnd.github.raw')
       resp[:code] == 200 ? resp[:raw] : nil
     end
+  end
+
+  # Does this workflow run BEFORE a merge — i.e. do its checks appear on a pull
+  # request and become requirable?
+  #
+  # Not the same as "has a pull_request trigger", and getting that wrong
+  # over-reports badly. A workflow triggered on `push` with no branch filter
+  # runs on the PR branch, and GitHub attaches those check runs to the head
+  # commit, where the PR displays them and required checks can match them.
+  # Verified against a real PR: sparc-iac's compliance.yml is push-only and its
+  # Checkov checks report on pull requests as SUCCESS.
+  def workflow_pre_merge?(path)
+    key = [:premerge, path]
+    return @cache[key] if @cache.key?(key)
+    @cache[key] = compute_pre_merge(path)
   end
 
   def workflow_triggers(path)
@@ -443,6 +458,43 @@ class GithubSecurity < Inspec.resource(1)
       ref = pattern.sub(%r{\Arefs/heads/}, '')
       File.fnmatch?(ref, branch)
     end
+  end
+
+  # `on:` is parsed from YAML rather than grepped, because YAML 1.1 turns the
+  # key `on` into the boolean `true` — a detail that silently breaks the
+  # obvious doc['on'] lookup and would make every workflow look triggerless.
+  def compute_pre_merge(path)
+    body = file_contents(path)
+    return false if body.nil?
+    doc = begin
+      require 'yaml'
+      YAML.safe_load(body, aliases: true)
+    rescue StandardError
+      nil
+    end
+    return scans_on_pull_request?(path) if doc.nil?
+
+    trig = doc['on'] || doc[true]
+    case trig
+    when String then %w[pull_request push].include?(trig)
+    when Array  then (trig & %w[pull_request push]).any?
+    when Hash   then push_or_pr_covers_branches?(trig)
+    else false
+    end
+  end
+
+  def push_or_pr_covers_branches?(trig)
+    return true if trig.key?('pull_request')
+    return false unless trig.key?('push')
+    push = trig['push']
+    # `push:` with no constraints covers every branch, so it runs pre-merge.
+    return true if push.nil? || !push.is_a?(Hash)
+    # branches-ignore excludes a few and covers the rest.
+    return true if push.key?('branches-ignore')
+    branches = Array(push['branches'])
+    # Restricted to the default branch only => post-merge exclusively.
+    return false if branches.any? && (branches - [default_branch.to_s, 'main', 'master']).empty?
+    true
   end
 
   def repo_scoped?

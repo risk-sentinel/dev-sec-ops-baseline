@@ -35,9 +35,18 @@ branch    = input('protected_branch')
 max_age   = input('evidence_freshness_days').to_i
 
 control_plane = %w[control-plane both].include?(run_mode)
-# Hoisted because it is asserted by every control in this file. The
-# `tag layer:` literal below is NOT hoisted: tag values must be literals
-# or the AST tag collector crashes `cinc-auditor check`.
+# Hoisted because it is asserted by every control in this file.
+#
+# The `tag layer:` literals below are deliberately NOT hoisted, and Sonar's
+# duplicate-literal rule cannot be satisfied for them. InSpec's TagCollector
+# walks the AST before anything is evaluated, so a tag value must be a literal
+# node. Both alternatives crash `cinc-auditor check` outright:
+#
+#   tag layer: LAYER      -> undefined method 'value' for RuboCop::AST::VarNode
+#   tag layer: layer_for  -> undefined method 'value' for RuboCop::AST::SendNode
+#
+# Verified against the pinned image rather than assumed. Hoisting them would
+# trade a code smell for a profile that will not load.
 needs_cp = 'Dashboard evidence needs control-plane access'.freeze
 repo_names    = targets.map { |t| t.to_h['repo'] }.compact.reject(&:empty?)
 ref           = "refs/heads/#{branch}"
@@ -70,7 +79,7 @@ control 'devsecops-code-scanning-executed' do
     reported as unverifiable rather than as a pass.
   DESC
   tag nist: ['RA-5', 'RA-5(2)', 'SA-11', 'SA-11(1)', 'SI-2']
-  tag layer: 'dashboard-evidence'
+  tag layer: 'dashboard-evidence' # NOSONAR - tag values must be AST literals
   only_if(needs_cp) do
     control_plane && !org_name.to_s.empty? && !repo_names.empty?
   end
@@ -132,7 +141,7 @@ control 'devsecops-dashboard-open-findings' do
     "nothing found" and "nobody looked" never collapse into the same number.
   DESC
   tag nist: ['RA-5', 'SI-2', 'SI-3', 'IA-5(7)']
-  tag layer: 'dashboard-evidence'
+  tag layer: 'dashboard-evidence' # NOSONAR - tag values must be AST literals
   only_if(needs_cp) do
     control_plane && !org_name.to_s.empty? && !repo_names.empty?
   end
@@ -180,7 +189,7 @@ control 'devsecops-dismissals-accountable' do
     acceptance remains auditable instead of disappearing.
   DESC
   tag nist: ['RA-5(5)', 'CA-5', 'PM-4', 'SA-11']
-  tag layer: 'dashboard-evidence'
+  tag layer: 'dashboard-evidence' # NOSONAR - tag values must be AST literals
   only_if(needs_cp) do
     control_plane && !org_name.to_s.empty? && !repo_names.empty?
   end
@@ -222,7 +231,7 @@ control 'devsecops-push-protection-bypasses' do
     specific events rather than a count.
   DESC
   tag nist: ['IA-5(7)', 'AC-6', 'AU-2', 'SI-4']
-  tag layer: 'dashboard-evidence'
+  tag layer: 'dashboard-evidence' # NOSONAR - tag values must be AST literals
   only_if(needs_cp) do
     control_plane && !org_name.to_s.empty? && !repo_names.empty?
   end

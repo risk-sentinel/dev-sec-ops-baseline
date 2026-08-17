@@ -80,13 +80,14 @@ cinc-auditor exec . -t local:// \
 > flag with several pairs, or a second `--input-file`.
 
 **Produce evidence from GitHub's dashboards.** A reusable workflow converts code
-scanning, secret scanning and Dependabot to HDF. Callers add ~12 lines; pin
-`<release-tag>` to a published release rather than `main`.
+scanning, secret scanning and Dependabot to HDF. Callers add ~12 lines, pinned to
+the **full commit SHA** of a published release with the tag as a trailing comment
+— a tag can be moved, a SHA cannot.
 
 ```yaml
 jobs:
   bridge:
-    uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/dashboard-hdf-emit.yml@<release-tag>
+    uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/dashboard-hdf-emit.yml@<commit-sha>  # <release-tag>
     permissions:
       contents: read
       security-events: read      # without this every capability reads as disabled

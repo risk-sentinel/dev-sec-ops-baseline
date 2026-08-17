@@ -10,7 +10,7 @@ name: Dashboard HDF emit
 #
 #   jobs:
 #     bridge:
-#       uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/dashboard-hdf-emit.yml@<release-tag>
+#       uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/dashboard-hdf-emit.yml@<commit-sha>  # <release-tag>
 #       permissions:
 #         contents: read
 #         security-events: read

@@ -139,7 +139,7 @@ publishing a zero.
 ```yaml
 jobs:
   emit:
-    uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/secret-scan-hdf.yml@<release-tag>
+    uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/secret-scan-hdf.yml@<commit-sha>  # <release-tag>
     permissions:
       contents: read
       id-token: write

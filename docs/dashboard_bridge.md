@@ -130,7 +130,7 @@ permissions:
 
 jobs:
   bridge:
-    uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/dashboard-hdf-emit.yml@<release-tag>
+    uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/dashboard-hdf-emit.yml@<commit-sha>  # <release-tag>
     with:
       boundary: ${{ vars.EVIDENCE_BOUNDARY || 'sparc' }}
     secrets:
@@ -143,10 +143,14 @@ jobs:
 
 Four things that will bite you if changed:
 
-- **Pin `<release-tag>` to a published release**, not to `main`. Tracking a
-  branch means the bridge changes under you between runs, and evidence whose
-  producer moved without a version is hard to argue for after the fact. The
-  releases page lists the current tag and what changed in it.
+- **Pin the full commit SHA of a published release**, with the tag as a
+  trailing comment — `@<sha>  # v0.4.0`. Not `main`, and not the tag alone.
+  Tracking a branch means the bridge changes under you between runs, and
+  evidence whose producer moved without a version is hard to argue for
+  afterwards. A tag is better but still mutable: whoever controls the
+  repository can move it to different code, so it is a name, not a fingerprint.
+  This is also what the rest of the estate does, and what
+  `githubactions:S7637` enforces.
 - **`security-events: read`** is required. Without it the alert endpoints answer
   403 and every capability reads as disabled.
 - **Do not add a job-level `environment:`.** It flips the OIDC subject to

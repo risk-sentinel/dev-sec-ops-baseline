@@ -40,13 +40,16 @@ control_plane = %w[control-plane both].include?(run_mode)
 # The `tag layer:` literals below are deliberately NOT hoisted, and Sonar's
 # duplicate-literal rule cannot be satisfied for them. InSpec's TagCollector
 # walks the AST before anything is evaluated, so a tag value must be a literal
-# node. Both alternatives crash `cinc-auditor check` outright:
+# node. Every alternative crashes `cinc-auditor check` outright:
 #
-#   tag layer: LAYER      -> undefined method 'value' for RuboCop::AST::VarNode
+#   tag layer: LAYER      -> undefined method 'value' for RuboCop::AST::ConstNode
+#   tag layer: layer_tag  -> undefined method 'value' for RuboCop::AST::VarNode
 #   tag layer: layer_for  -> undefined method 'value' for RuboCop::AST::SendNode
 #
-# Verified against the pinned image rather than assumed. Hoisting them would
-# trade a code smell for a profile that will not load.
+# The constant is the form the rule actually asks for, so it is the one that
+# had to be tested — a local variable failing proves nothing about it. All
+# three were run against the pinned image rather than assumed. Hoisting these
+# would trade a code smell for a profile that will not load.
 needs_cp = 'Dashboard evidence needs control-plane access'.freeze
 repo_names    = targets.map { |t| t.to_h['repo'] }.compact.reject(&:empty?)
 ref           = "refs/heads/#{branch}"

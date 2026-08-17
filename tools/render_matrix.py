@@ -31,11 +31,16 @@ README = ROOT / "README.md"
 BEGIN = "<!-- BEGIN GENERATED: coverage-matrix -->"
 END = "<!-- END GENERATED: coverage-matrix -->"
 
-SURFACES = ["artifact", "platform_api", "repo_contents"]
+# Order matches the surfaces block in the registry. evidence_store was added
+# to the registry in #15 but never to this list, so every rendered table has
+# been understating coverage of the fourth surface — including for the tools
+# that already implemented it. Corrected in #22.
+SURFACES = ["artifact", "platform_api", "repo_contents", "evidence_store"]
 SURFACE_LABEL = {
     "artifact": "Artifact",
     "platform_api": "Platform API",
     "repo_contents": "Repo contents",
+    "evidence_store": "Evidence store",
 }
 
 MARK = {
@@ -69,7 +74,10 @@ def render_scan_types(reg: dict) -> list[str]:
         "| Scan type | SDLC stage | Tools | "
         + " | ".join(SURFACE_LABEL[s] for s in SURFACES)
         + " | NIST 800-53r5 |",
-        "|---|---|---|---|---|---|---|",
+        # Derived from the column count, not hardcoded: a literal separator
+        # silently desynchronises the moment a surface is added, and a table
+        # whose separator is short of its header renders wrong.
+        "|" + "---|" * (4 + len(SURFACES)),
     ]
     stages = reg.get("sdlc_stages") or {}
     for key, meta in (reg.get("scan_types") or {}).items():
@@ -119,7 +127,7 @@ def render_tools(reg: dict) -> list[str]:
         "| Tool | Scan types | "
         + " | ".join(SURFACE_LABEL[s] for s in SURFACES)
         + " |",
-        "|---|---|---|---|---|",
+        "|" + "---|" * (2 + len(SURFACES)),
     ]
     # sort by display name, not key — the table shows names
     for _, tool in sorted(

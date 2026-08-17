@@ -97,49 +97,49 @@ Merge-request rules straddle the split. *Whether reviews are required* is platfo
 
 ### Coverage by scan type
 
-| Scan type | SDLC stage | Tools | Artifact | Platform API | Repo contents | NIST 800-53r5 |
-|---|---|---|---|---|---|---|
-| **sast** &mdash; Static Application Security Testing | [Code](docs/sdlc/code.md) | Bandit, CodeQL, Semgrep, SonarQube | **yes** | **yes** | planned | `SA-11(1)` |
-| **secrets** &mdash; Secrets Detection | [Code](docs/sdlc/code.md) | Gitleaks, Forge-native secret scanning, Trivy, TruffleHog | **yes** | **yes** | planned | `IA-5(7)`, `SA-11` |
-| **iac** &mdash; Infrastructure as Code Scanning | [Code](docs/sdlc/code.md) | Checkov, Semgrep, tfsec, Trivy | **yes** | **yes** | planned | `CM-2`, `CM-6`, `RA-5` |
-| **sca** &mdash; Software Composition Analysis | [Build](docs/sdlc/build.md) | Dependabot, GitLab Dependency Scanning, Grype, Snyk, Sonatype, Trivy | **yes** | **yes** | planned | `RA-5`, `SA-11(1)`, `SR-3` |
-| **sbom** &mdash; Software Bill of Materials | [Build](docs/sdlc/build.md) | Syft | **yes** | &mdash; | planned | `SR-3`, `SR-4` |
-| **container** &mdash; Container Image Scanning | [Build](docs/sdlc/build.md) | Anchore, Cosign, Grype, Trivy | **yes** | &mdash; | planned | `RA-5`, `CM-6`, `SR-3` |
-| **licensing** &mdash; Software Licensing Review | [Build](docs/sdlc/build.md) | Snyk, Sonatype, Trivy | **yes** | &mdash; | planned | `SR-3`, `SA-4` |
-| **dast** &mdash; Dynamic Application Security Testing | [Test](docs/sdlc/test.md) | Burp Suite, OWASP ZAP | **yes** | &mdash; | &mdash; | `SA-11(8)`, `RA-5`, `CA-8` |
-| **runtime** &mdash; Post-Deployment Validation | [Operate](docs/sdlc/operate.md) | AWS Config, AWS Security Hub, InSpec / CINC baselines, Prowler | **yes** | planned | &mdash; | `CA-2(2)`, `CA-7`, `CM-6`, `RA-5` |
-| **iast** &mdash; Interactive Application Security Testing | [Test](docs/sdlc/test.md) | _none_ | &mdash; | &mdash; | &mdash; | `SA-11(9)` |
+| Scan type | SDLC stage | Tools | Artifact | Platform API | Repo contents | Evidence store | NIST 800-53r5 |
+|---|---|---|---|---|---|---|---|
+| **sast** &mdash; Static Application Security Testing | [Code](docs/sdlc/code.md) | Bandit, CodeQL, Semgrep, SonarQube | **yes** | **yes** | planned | **yes** | `SA-11(1)` |
+| **secrets** &mdash; Secrets Detection | [Code](docs/sdlc/code.md) | Gitleaks, Forge-native secret scanning, Trivy, TruffleHog | **yes** | **yes** | planned | **yes** | `IA-5(7)`, `SA-11` |
+| **iac** &mdash; Infrastructure as Code Scanning | [Code](docs/sdlc/code.md) | Checkov, Semgrep, tfsec, Trivy | **yes** | **yes** | planned | &mdash; | `CM-2`, `CM-6`, `RA-5` |
+| **sca** &mdash; Software Composition Analysis | [Build](docs/sdlc/build.md) | Dependabot, GitLab Dependency Scanning, Grype, Snyk, Sonatype, Trivy | **yes** | **yes** | planned | **yes** | `RA-5`, `SA-11(1)`, `SR-3` |
+| **sbom** &mdash; Software Bill of Materials | [Build](docs/sdlc/build.md) | Syft | **yes** | &mdash; | planned | &mdash; | `SR-3`, `SR-4` |
+| **container** &mdash; Container Image Scanning | [Build](docs/sdlc/build.md) | Anchore, Cosign, Grype, Trivy | **yes** | &mdash; | planned | **yes** | `RA-5`, `CM-6`, `SR-3` |
+| **licensing** &mdash; Software Licensing Review | [Build](docs/sdlc/build.md) | Snyk, Sonatype, Trivy | **yes** | &mdash; | planned | &mdash; | `SR-3`, `SA-4` |
+| **dast** &mdash; Dynamic Application Security Testing | [Test](docs/sdlc/test.md) | Burp Suite, OWASP ZAP | **yes** | &mdash; | &mdash; | planned | `SA-11(8)`, `RA-5`, `CA-8` |
+| **runtime** &mdash; Post-Deployment Validation | [Operate](docs/sdlc/operate.md) | AWS Config, AWS Security Hub, InSpec / CINC baselines, Prowler | **yes** | planned | &mdash; | **yes** | `CA-2(2)`, `CA-7`, `CM-6`, `RA-5` |
+| **iast** &mdash; Interactive Application Security Testing | [Test](docs/sdlc/test.md) | _none_ | &mdash; | &mdash; | &mdash; | &mdash; | `SA-11(9)` |
 
 > **No tooling anywhere in the organisation for `iast`.** The row is kept deliberately. Dropping it would imply the scan type does not apply; keeping it empty states that nobody performs it.
 
 ### Coverage by tool
 
-| Tool | Scan types | Artifact | Platform API | Repo contents |
-|---|---|---|---|---|
-| Anchore | `container` | **yes** | &mdash; | &mdash; |
-| AWS Config | `runtime` | **yes** | planned | &mdash; |
-| AWS Security Hub | `runtime` | **yes** | planned | &mdash; |
-| Bandit | `sast` | **yes** | &mdash; | planned |
-| Burp Suite | `dast` | **yes** | &mdash; | &mdash; |
-| Checkov | `iac` | **yes** | &mdash; | planned |
-| CodeQL | `sast` | **yes** | **yes** | planned |
-| Cosign | `container` | **yes** | &mdash; | &mdash; |
-| Dependabot | `sca` | &mdash; | **yes** | planned |
-| Forge-native secret scanning | `secrets` | &mdash; | **yes** | &mdash; |
-| GitLab Dependency Scanning | `sca` | &mdash; | planned | planned |
-| Gitleaks | `secrets` | **yes** | &mdash; | planned |
-| Grype | `sca`, `container` | **yes** | &mdash; | planned |
-| InSpec / CINC baselines | `runtime` | **yes** | &mdash; | &mdash; |
-| OWASP ZAP | `dast` | **yes** | &mdash; | &mdash; |
-| Prowler | `runtime` | **yes** | &mdash; | &mdash; |
-| Semgrep | `sast`, `iac` | **yes** | **yes** | planned |
-| Snyk | `sca`, `licensing` | **yes** | &mdash; | planned |
-| SonarQube | `sast` | **yes** | **yes** | planned |
-| Sonatype | `sca`, `licensing` | **yes** | &mdash; | &mdash; |
-| Syft | `sbom` | **yes** | &mdash; | planned |
-| tfsec | `iac` | **yes** | &mdash; | &mdash; |
-| Trivy | `sca`, `container`, `iac`, `secrets`, `licensing` | **yes** | &mdash; | planned |
-| TruffleHog | `secrets` | **yes** | &mdash; | planned |
+| Tool | Scan types | Artifact | Platform API | Repo contents | Evidence store |
+|---|---|---|---|---|---|
+| Anchore | `container` | **yes** | &mdash; | &mdash; | &mdash; |
+| AWS Config | `runtime` | **yes** | planned | &mdash; | **yes** |
+| AWS Security Hub | `runtime` | **yes** | planned | &mdash; | &mdash; |
+| Bandit | `sast` | **yes** | &mdash; | planned | &mdash; |
+| Burp Suite | `dast` | **yes** | &mdash; | &mdash; | planned |
+| Checkov | `iac` | **yes** | &mdash; | planned | &mdash; |
+| CodeQL | `sast` | **yes** | **yes** | planned | **yes** |
+| Cosign | `container` | **yes** | &mdash; | &mdash; | &mdash; |
+| Dependabot | `sca` | &mdash; | **yes** | planned | **yes** |
+| Forge-native secret scanning | `secrets` | &mdash; | **yes** | &mdash; | **yes** |
+| GitLab Dependency Scanning | `sca` | &mdash; | planned | planned | &mdash; |
+| Gitleaks | `secrets` | **yes** | &mdash; | planned | &mdash; |
+| Grype | `sca`, `container` | **yes** | &mdash; | planned | **yes** |
+| InSpec / CINC baselines | `runtime` | **yes** | &mdash; | &mdash; | &mdash; |
+| OWASP ZAP | `dast` | **yes** | &mdash; | &mdash; | &mdash; |
+| Prowler | `runtime` | **yes** | &mdash; | &mdash; | &mdash; |
+| Semgrep | `sast`, `iac` | **yes** | **yes** | planned | &mdash; |
+| Snyk | `sca`, `licensing` | **yes** | &mdash; | planned | &mdash; |
+| SonarQube | `sast` | **yes** | **yes** | planned | **yes** |
+| Sonatype | `sca`, `licensing` | **yes** | &mdash; | &mdash; | &mdash; |
+| Syft | `sbom` | **yes** | &mdash; | planned | &mdash; |
+| tfsec | `iac` | **yes** | &mdash; | &mdash; | &mdash; |
+| Trivy | `sca`, `container`, `iac`, `secrets`, `licensing` | **yes** | &mdash; | planned | &mdash; |
+| TruffleHog | `secrets` | **yes** | &mdash; | planned | **yes** |
 
 ### What each check reads, and where it is documented
 
@@ -272,6 +272,69 @@ repository is worse than absent, because it credits the wrong thing. Only the
 treatment of *absent* labels is configurable, via `evidence_require_labels`
 (default `false`).
 
+---
+
+## Producing evidence: the dashboard bridge
+
+The sections above are about *reading* evidence. This one produces it, for teams
+whose findings currently live only in GitHub's Security tab.
+
+A reusable workflow fetches code scanning, secret scanning and Dependabot,
+converts all three to HDF, and files them in the evidence store. Add a caller —
+**do not copy the workflow**; a copy needs one PR per repository to fix:
+
+```yaml
+jobs:
+  bridge:
+    uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/dashboard-hdf-emit.yml@<release-tag>
+    permissions:
+      contents: read
+      security-events: read      # without this every capability reads as disabled
+      id-token: write
+    secrets:
+      S3_EMIT_ROLE_ARN: ${{ secrets.MY_REPO_EMIT_ARN }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+```
+
+Pin `<release-tag>` to a published release rather than to `main` — see the
+releases page for the current one.
+
+**Full setup, control reference and troubleshooting:
+[docs/dashboard_bridge.md](docs/dashboard_bridge.md).**
+
+### Two things it does that are not obvious
+
+**A clean scan is a pass, not an absence.** `sarif2hdf` emits one control per
+*finding*, so a repository with nothing wrong converts to a profile with zero
+controls and renders as `compliance: 0` — a team doing everything right
+publishes a zero. Skipping the emit is worse: then a clean scan and a broken
+bridge leave the same empty prefix. So the findings HDF is emitted only when
+there are findings, and every run writes a `provenance.json` that
+`devsecops-code-scanning-executed` turns into a passing control. The profile
+asserts what the platform reported; it never invents a scanner result.
+
+**A dismissed finding is a decision, not a failure.** An analysis's SARIF still
+contains findings already triaged, so converting it alone republishes closed
+dismissals as live failures on every run. SARIF's `suppressions` array exists
+for this and the converter ignores it, so `tools/apply_dispositions.py` applies
+the disposition afterwards — dismissed becomes Not Applicable carrying who,
+when and why; fixed becomes passed; unmatched is reported rather than dropped.
+
+### The dashboard controls
+
+| Control | Passes when | NIST |
+|---|---|---|
+| `devsecops-code-scanning-executed` | Every enabled repository has a recent analysis on its protected branch, **per language** | `RA-5`, `SA-11(1)`, `SI-2` |
+| `devsecops-dashboard-open-findings` | No open alerts across the three dashboards | `RA-5`, `SI-2`, `IA-5(7)` |
+| `devsecops-dismissals-accountable` | Every dismissal records who dismissed it and why | `RA-5(5)`, `CA-5`, `PM-4` |
+| `devsecops-push-protection-bypasses` | Nobody overrode a push-protection block | `IA-5(7)`, `AC-6`, `AU-2` |
+
+Dependabot alerts are typed `sca`: they are vulnerability findings against
+declared dependencies, the same assertion Grype and Trivy make from elsewhere.
+An SBOM is inventory and does not satisfy that scan type. They are also a **free
+toggle even on private repositories**, unlike code scanning and secret scanning,
+which need Code Security licensing.
+
 ## Usage
 
 ```bash
@@ -331,9 +394,23 @@ cinc-auditor exec . -t local:// --input-file inputs/risk-sentinel-org.yml \
 | Surface | GitHub | GitLab | SonarQube |
 |---|---|---|---|
 | Enablement + findings | `security_events` (or `repo` on private) | `read_api` | `Execute Analysis` / read |
+| Dashboard bridge (analyses, SARIF, alert locations) | `security_events` | &mdash; | &mdash; |
 | Branch protection, rulesets | `repo` | `read_api` | &mdash; |
 | Repo contents | `contents:read` | `read_repository` | &mdash; |
 | Organisation enumeration | `read:org` | `read_api` | &mdash; |
+
+Inside a workflow the equivalent is `permissions: security-events: read`. Omit
+it and every capability reads as *disabled* rather than as a permission problem,
+because that is genuinely what GitHub returns.
+
+**`read:org` is load-bearing and fails quietly if missing.** `GET /orgs/{org}/repos`
+answers `200` for a caller that cannot see private repositories — it just returns
+a shorter list, with nothing marking it as short. On this organisation that is 16
+repositories instead of 21. Reconciliation would then compare a truncated reality
+against a complete declaration and report the invisible repositories as *stale
+declarations*, blaming the declaration for a credential fault. So
+`devsecops-inventory-reconciliation` asserts that the enumeration was
+authenticated, before and separately from asserting anything about its contents.
 
 **A missing token is not the same finding as a disabled feature**, and this profile keeps
 them apart. GitHub returns `403`/`404` with its own message for a switched-off capability

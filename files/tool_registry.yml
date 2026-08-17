@@ -420,6 +420,14 @@ tools:
         sources: [github, gitlab]
         evidence: workflow_uses
         match: github/codeql-action
+      evidence_store:
+        status: implemented
+        source: code-scanning        # the <source> path segment
+        format: sarif
+        # The API serves SARIF directly under content negotiation, so the
+        # tool's own output reaches HDF unmodified. Dispositions are applied
+        # after conversion — see tools/apply_dispositions.py (#22).
+        note: dashboard-hdf-bridge.yml (#22)
 
   semgrep:
     name: Semgrep
@@ -536,6 +544,14 @@ tools:
         sources: [github, gitlab]
         capability: secret_scanning
         also: [push_protection]
+      evidence_store:
+        status: implemented
+        source: secret-scanning
+        format: sarif
+        # No native SARIF and no saf-cli converter; alerts are mapped by
+        # libraries/alert_sarif.rb. Mapped to SARIF rather than to TruffleHog's
+        # shape so the finding stays attributed to GitHub (#22).
+        note: dashboard-hdf-bridge.yml (#22)
 
   # -- SCA --------------------------------------------------------------------
   grype:
@@ -604,6 +620,14 @@ tools:
         sources: [github]
         evidence: config_file
         match: .github/dependabot.yml
+      evidence_store:
+        status: implemented
+        source: dependabot
+        format: sarif
+        # Vulnerability findings against declared dependencies — the same
+        # assertion Grype and Trivy make from a different vantage point. An
+        # SBOM is inventory and does NOT satisfy this scan type (#22).
+        note: dashboard-hdf-bridge.yml (#22)
 
   gitlab_dependency_scanning:
     name: GitLab Dependency Scanning

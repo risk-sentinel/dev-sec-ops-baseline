@@ -31,6 +31,31 @@ Snyk brings commercial database depth; Sonatype does policy governance — appro
 deny — rather than detection alone. Running more than one is a defensible choice, not
 redundancy, and the profile records which ran rather than assuming one implies another.
 
+## An SBOM is inventory; it does not satisfy `sca`
+
+The two are filed near each other and answer different questions. An SBOM says
+*what is in the build*. SCA says *which of it is vulnerable*. A prefix holding
+only a CycloneDX document is evidence that inventory was produced, not that
+anything was assessed — and treating it as SCA coverage overclaims.
+
+This matters in practice because emitting the SBOM is the easy half, and the
+scanner output is the half that tends to expire in a build artifact.
+
+## Dependabot is an SCA source
+
+Dependabot alerts are vulnerability findings against declared dependencies — the
+same assertion Grype and Trivy make, from the platform rather than the pipeline.
+The registry types it `sca` for that reason, and the dashboard bridge converts
+those alerts to HDF so they land in the evidence store alongside scanner output.
+See [the dashboard bridge](../dashboard_bridge.md).
+
+Two practical notes. Dependabot alerts are a **free toggle even on private
+repositories**, unlike code scanning and secret scanning, so there is rarely a
+reason not to enable them. And repositories that test their own scanners pin
+deliberately vulnerable fixtures, which raise alerts indistinguishable from real
+ones — dismiss those in the platform with a reason rather than excluding the
+paths in profile inputs, so the decision keeps an owner.
+
 ## Licensing is governance, not scanning
 
 The useful question is not "which licences are present" but "who approved them, and

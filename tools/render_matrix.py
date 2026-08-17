@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Render the README coverage matrix from files/tool_registry.yml.
+"""Render the coverage matrix in docs/coverage.md from files/tool_registry.yml.
 
 The registry is the single source of truth for what this profile can detect.
 Hand-maintaining the same information in prose guarantees the two drift, and a
-README that overstates coverage is worse than one that says nothing — so the
+document that overstates coverage is worse than one that says nothing — so the
 tables between the generated markers are written by this script and nothing
 else.
 
 Usage:
-    python3 tools/render_matrix.py            # rewrite README.md in place
-    python3 tools/render_matrix.py --check    # exit 1 if README is stale
+    python3 tools/render_matrix.py            # rewrite docs/coverage.md in place
+    python3 tools/render_matrix.py --check    # exit 1 if it is stale
 
 --check is the drift gate. It is intentionally NOT wired into CI here;
 modifying workflows needs explicit approval, so wiring it is a separate change.
@@ -20,13 +20,16 @@ from __future__ import annotations
 import argparse
 import pathlib
 import re
+import os
 import sys
 
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "files" / "tool_registry.yml"
-README = ROOT / "README.md"
+# The tables live in docs/coverage.md, not the README. The README is a quick
+# reference and links out; a generated 90-line block does not belong in it.
+TARGET = ROOT / "docs" / "coverage.md"
 
 BEGIN = "<!-- BEGIN GENERATED: coverage-matrix -->"
 END = "<!-- END GENERATED: coverage-matrix -->"
@@ -66,6 +69,17 @@ def tools_for(reg: dict, scan_type: str) -> list[str]:
     )
 
 
+def doc_link(path: str) -> str:
+    """Rewrite a repo-root-relative doc path to be relative to the render target.
+
+    The registry stores paths from the repository root, which is the only stable
+    way to express them. This file is rendered into docs/, so emitting them
+    verbatim produced docs/docs/sdlc/... — sixteen broken links the moment the
+    tables moved out of the README.
+    """
+    return os.path.relpath(ROOT / path, TARGET.parent)
+
+
 def render_scan_types(reg: dict) -> list[str]:
     """Scan type x surface. A row with no tools is a declared gap, not an omission."""
     out = [
@@ -85,7 +99,7 @@ def render_scan_types(reg: dict) -> list[str]:
         stage_key = meta.get("sdlc_stage", "")
         stage = stages.get(stage_key, {})
         stage_cell = (
-            f"[{stage.get('title', stage_key)}]({stage.get('doc')})"
+            f"[{stage.get('title', stage_key)}]({doc_link(stage['doc'])})"
             if stage.get("doc")
             else stage_key
         )
@@ -269,7 +283,7 @@ def splice(readme: str, block: str) -> str:
     )
     if not pattern.search(readme):
         raise SystemExit(
-            f"README.md is missing the {BEGIN} / {END} markers; add them first."
+            f"{TARGET.name} is missing the {BEGIN} / {END} markers; add them first."
         )
     return pattern.sub(lambda _: block, readme)
 
@@ -279,31 +293,31 @@ def main(argv: list[str]) -> int:
     ap.add_argument(
         "--check",
         action="store_true",
-        help="exit 1 if README.md does not match the registry",
+        help="exit 1 if docs/coverage.md does not match the registry",
     )
     args = ap.parse_args(argv)
 
     reg = load_registry()
-    current = README.read_text(encoding="utf-8")
+    current = TARGET.read_text(encoding="utf-8")
     updated = splice(current, render(reg))
 
     if args.check:
         if current != updated:
             print(
-                "README.md coverage matrix is stale.\n"
+                "docs/coverage.md is stale.\n"
                 "Run: python3 tools/render_matrix.py",
                 file=sys.stderr,
             )
             return 1
-        print("README.md coverage matrix is in sync with the registry.")
+        print("docs/coverage.md is in sync with the registry.")
         return 0
 
     if current == updated:
-        print("README.md already in sync; nothing written.")
+        print("docs/coverage.md already in sync; nothing written.")
         return 0
 
-    README.write_text(updated, encoding="utf-8")
-    print(f"Rendered coverage matrix into {README.relative_to(ROOT)}")
+    TARGET.write_text(updated, encoding="utf-8")
+    print(f"Rendered coverage matrix into {TARGET.relative_to(ROOT)}")
     return 0
 
 

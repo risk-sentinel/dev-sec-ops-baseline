@@ -4,284 +4,84 @@ An InSpec profile that verifies a **DevSecOps pipeline is actually in place** �
 the expected scans run, that the platform's security controls are switched on, and
 that merge protection is enforced.
 
-It runs two ways:
+Quick reference. Every section links to the detail.
 
-| Mode | Needs | Evaluates |
+| Mode | Needs | Answers |
 |---|---|---|
-| **Bolt-on** — inside a pipeline | To run on the runner, after the scanner stages, with reports on disk | Whether each scan ran and emitted a valid artifact |
-| **Standalone** — against the control plane | A platform token. No pipeline, no runner, no artifacts | Whether scanning is enabled, whether merge rules are enforced, what the vulnerability dashboard holds |
-
-Architecture and roadmap: [`docs/Pipeline_Evidence_Plane.html`](docs/Pipeline_Evidence_Plane.html).
+| **Standalone** — against the control plane | A platform token. No pipeline, no runner | Is scanning enabled, are merge rules enforced, what does the vulnerability dashboard hold |
+| **Bolt-on** — inside a pipeline | To run after the scanner stages, reports on disk | Did each scan run, and did it emit a valid artifact |
 
 ---
 
-## How it decides what to check
+## How it works
 
-Two files, doing two different jobs. Controls evaluate the **intersection**.
+```mermaid
+flowchart TD
+    subgraph decide["1 · Decide what to check"]
+        REG["files/tool_registry.yml<br/><i>what this profile can detect</i>"]
+        DEC["inputs/&lt;org&gt;.yml<br/><i>what your organisation runs</i>"]
+        REG --> INT{{"intersection"}}
+        DEC --> INT
+    end
 
-| | [`files/tool_registry.yml`](files/tool_registry.yml) | [`inputs/*.yml`](inputs/) |
-|---|---|---|
-| Answers | What *can* this profile detect, and where? | What does *my* organisation run? |
-| Owned by | The profile | You |
-| Changes when | We add detection capability | A team adopts a tool |
+    subgraph read["2 · Read the evidence"]
+        ART["<b>artifact</b><br/>reports on the runner"]
+        API["<b>platform_api</b><br/>GitHub · SonarCloud"]
+        STORE["<b>evidence_store</b><br/>HDF in S3"]
+        CONF["<b>repo_contents</b><br/>triggers · CODEOWNERS"]
+    end
 
-### The rule that makes the results trustworthy
+    INT ==> CTRL
+    ART ==> CTRL
+    API ==> CTRL
+    STORE ==> CTRL
+    CONF -.->|governance only| CTRL
 
-**Every scan type is declared for every repository — `enabled: true` or `enabled: false`.
-There is no "leave it out" option.**
+    CTRL["3 · Controls<br/><i>pass · fail · named skip</i>"] ==> HDF["HDF"]
+    HDF --> HEIM["Heimdall"]
+    HDF --> SAR["OSCAL SAR → FedRAMP"]
+```
 
-Omitting a scan type would render as *Not Applicable*, which reads as "does not apply
-here" rather than "nobody has looked." In an assessment that is a false maturity
-signal. An explicit `enabled: false` instead produces a **skip** carrying
-*"not enabled and must be manually verified and attested to"* — which the SAF
-attestation flow can satisfy with a real, signed rationale.
+Three things that diagram is making a point about:
 
-That gives three outcomes, and they are deliberately distinguishable in HDF:
-
-| Declaration | Registry | Result |
-|---|---|---|
-| `enabled: true` | detectable today | **Real check** — pass or fail |
-| `enabled: false` | — | **Skip**, attestation candidate. A statement about *your repository* |
-| `enabled: true` | not built yet | **Skip**, coverage gap. A statement about *this profile* — an attestation must not paper over it |
-
-The same principle governs the repository list. See [the denominator](#the-denominator-trust-but-verify).
-
----
-
-## The denominator (trust, but verify)
-
-A declaration file cannot be the evidence that it is complete. If `targets` were both
-the claim and the scope, a repository nobody added would be invisible.
-
-So reconciliation enumerates the organisation **through the forge API** and compares
-it against what the file declares:
-
-| Condition | Result |
-|---|---|
-| In the organisation, neither declared nor excluded | **Fail** — undeclared repository |
-| Declared, no longer in the organisation | **Fail** — stale declaration |
-| Excluded with no written reason | **Fail** — undocumented exclusion |
-
-Archived, fork, and template repositories are **not** auto-excluded. Churn in the input
-file when a repository is archived is the intended cost of never silently dropping
-something out of the denominator.
+- **The intersection is the whole design.** A scan type is checked when the profile
+  can detect it *and* you declared it. Neither file alone decides.
+- **`repo_contents` is a dashed line.** A workflow naming a scanner proves someone
+  wired it up, not that it ran, so it can answer governance questions and can never
+  satisfy a scan type. The other three are execution evidence.
+- **Every control lands on pass, fail, or a *named* skip.** There is no "not
+  declared" state, because an omission renders as Not Applicable — which reads as
+  "does not apply here" rather than "nobody looked".
 
 ---
 
-<!-- BEGIN GENERATED: coverage-matrix -->
-<!-- Generated by tools/render_matrix.py from files/tool_registry.yml.
-     Do not edit by hand: edit the registry and re-render. -->
+## Quick start
 
-### The detection surfaces
+**Standalone.** Reads the control plane; no pipeline required.
 
-Every check resolves to exactly one surface. They differ by access requirement and, critically, by **role**: only *execution* evidence may satisfy a scan type.
+```bash
+export GITHUB_TOKEN=...
+cinc-auditor exec . -t local:// \
+  --input-file inputs/risk-sentinel-org.yml \
+  --reporter cli json:hdf.json
+```
 
-| Surface | What it reads | Access required | Role |
-|---|---|---|---|
-| `artifact` | Report file on disk | In-pipeline execution, after the scanner stage | **execution** |
-| `platform_api` | Forge or evidence-source state | A token | **execution** |
-| `repo_contents` | A file in the repository | A clone, or the contents API | configuration |
-| `evidence_store` | Converted HDF in the evidence bucket | AWS credentials with s3:GetObject on the evidence bucket | **execution** |
-
-**A workflow file naming a scanner proves somebody wired it up — not that it ran.** So `repo_contents` is configuration evidence and can never satisfy a scan type. It still answers questions nothing else can: whether the scan fires on a merge request (shift-left), and whether CODEOWNERS covers the security paths (governance). Those are governance controls, never coverage controls.
-
-Merge-request rules straddle the split. *Whether reviews are required* is platform state a token reads; *whether the security scan runs on the merge request at all* is a fact about a YAML file.
-
-### What each run mode can read
-
-| Run mode | Surfaces readable | Can satisfy a scan type |
-|---|---|---|
-| `pipeline` | `artifact` | `artifact` |
-| `control-plane` | `platform_api`, `repo_contents`, `evidence_store` | `platform_api`, `evidence_store` |
-| `both` | `artifact`, `platform_api`, `repo_contents`, `evidence_store` | `artifact`, `platform_api`, `evidence_store` |
-
-### Coverage by scan type
-
-| Scan type | SDLC stage | Tools | Artifact | Platform API | Repo contents | Evidence store | NIST 800-53r5 |
-|---|---|---|---|---|---|---|---|
-| **sast** &mdash; Static Application Security Testing | [Code](docs/sdlc/code.md) | Bandit, CodeQL, Semgrep, SonarQube | **yes** | **yes** | planned | **yes** | `SA-11(1)` |
-| **secrets** &mdash; Secrets Detection | [Code](docs/sdlc/code.md) | Gitleaks, Forge-native secret scanning, Trivy, TruffleHog | **yes** | **yes** | planned | **yes** | `IA-5(7)`, `SA-11` |
-| **iac** &mdash; Infrastructure as Code Scanning | [Code](docs/sdlc/code.md) | Checkov, Semgrep, tfsec, Trivy | **yes** | **yes** | planned | &mdash; | `CM-2`, `CM-6`, `RA-5` |
-| **sca** &mdash; Software Composition Analysis | [Build](docs/sdlc/build.md) | Dependabot, GitLab Dependency Scanning, Grype, Snyk, Sonatype, Trivy | **yes** | **yes** | planned | **yes** | `RA-5`, `SA-11(1)`, `SR-3` |
-| **sbom** &mdash; Software Bill of Materials | [Build](docs/sdlc/build.md) | Syft | **yes** | &mdash; | planned | &mdash; | `SR-3`, `SR-4` |
-| **container** &mdash; Container Image Scanning | [Build](docs/sdlc/build.md) | Anchore, Cosign, Grype, Trivy | **yes** | &mdash; | planned | **yes** | `RA-5`, `CM-6`, `SR-3` |
-| **licensing** &mdash; Software Licensing Review | [Build](docs/sdlc/build.md) | Snyk, Sonatype, Trivy | **yes** | &mdash; | planned | &mdash; | `SR-3`, `SA-4` |
-| **dast** &mdash; Dynamic Application Security Testing | [Test](docs/sdlc/test.md) | Burp Suite, OWASP ZAP | **yes** | &mdash; | &mdash; | planned | `SA-11(8)`, `RA-5`, `CA-8` |
-| **runtime** &mdash; Post-Deployment Validation | [Operate](docs/sdlc/operate.md) | AWS Config, AWS Security Hub, InSpec / CINC baselines, Prowler | **yes** | planned | &mdash; | **yes** | `CA-2(2)`, `CA-7`, `CM-6`, `RA-5` |
-| **iast** &mdash; Interactive Application Security Testing | [Test](docs/sdlc/test.md) | _none_ | &mdash; | &mdash; | &mdash; | &mdash; | `SA-11(9)` |
-
-> **No tooling anywhere in the organisation for `iast`.** The row is kept deliberately. Dropping it would imply the scan type does not apply; keeping it empty states that nobody performs it.
-
-### Coverage by tool
-
-| Tool | Scan types | Artifact | Platform API | Repo contents | Evidence store |
-|---|---|---|---|---|---|
-| Anchore | `container` | **yes** | &mdash; | &mdash; | &mdash; |
-| AWS Config | `runtime` | **yes** | planned | &mdash; | **yes** |
-| AWS Security Hub | `runtime` | **yes** | planned | &mdash; | &mdash; |
-| Bandit | `sast` | **yes** | &mdash; | planned | &mdash; |
-| Burp Suite | `dast` | **yes** | &mdash; | &mdash; | planned |
-| Checkov | `iac` | **yes** | &mdash; | planned | &mdash; |
-| CodeQL | `sast` | **yes** | **yes** | planned | **yes** |
-| Cosign | `container` | **yes** | &mdash; | &mdash; | &mdash; |
-| Dependabot | `sca` | &mdash; | **yes** | planned | **yes** |
-| Forge-native secret scanning | `secrets` | &mdash; | **yes** | &mdash; | **yes** |
-| GitLab Dependency Scanning | `sca` | &mdash; | planned | planned | &mdash; |
-| Gitleaks | `secrets` | **yes** | &mdash; | planned | &mdash; |
-| Grype | `sca`, `container` | **yes** | &mdash; | planned | **yes** |
-| InSpec / CINC baselines | `runtime` | **yes** | &mdash; | &mdash; | &mdash; |
-| OWASP ZAP | `dast` | **yes** | &mdash; | &mdash; | &mdash; |
-| Prowler | `runtime` | **yes** | &mdash; | &mdash; | &mdash; |
-| Semgrep | `sast`, `iac` | **yes** | **yes** | planned | &mdash; |
-| Snyk | `sca`, `licensing` | **yes** | &mdash; | planned | &mdash; |
-| SonarQube | `sast` | **yes** | **yes** | planned | **yes** |
-| Sonatype | `sca`, `licensing` | **yes** | &mdash; | &mdash; | &mdash; |
-| Syft | `sbom` | **yes** | &mdash; | planned | &mdash; |
-| tfsec | `iac` | **yes** | &mdash; | &mdash; | &mdash; |
-| Trivy | `sca`, `container`, `iac`, `secrets`, `licensing` | **yes** | &mdash; | planned | &mdash; |
-| TruffleHog | `secrets` | **yes** | &mdash; | planned | **yes** |
-
-### What each check reads, and where it is documented
-
-| Capability | GitHub | GitLab | AWS |
-|---|---|---|---|
-| **repo_enumeration**<br>Repository enumeration — the denominator | `GET /orgs/{org}/repos`<br>[docs](https://docs.github.com/en/rest/repos/repos) | `GET /groups/{id}/projects`<br>[docs](https://docs.gitlab.com/api/groups/) | &mdash; |
-| **code_scanning**<br>Static analysis findings | `GET /repos/{owner}/{repo}/code-scanning/alerts`<br>[docs](https://docs.github.com/en/rest/code-scanning/code-scanning) | `GET /projects/{id}/vulnerability_findings?report_type=sast`<br>[docs](https://docs.gitlab.com/api/vulnerability_findings/) | &mdash; |
-| **secret_scanning**<br>Secrets findings and push protection | `GET /repos/{owner}/{repo}/secret-scanning/alerts`<br>[docs](https://docs.github.com/en/rest/secret-scanning/secret-scanning) | `GET /projects/{id}/vulnerability_findings?report_type=secret_detection`<br>[docs](https://docs.gitlab.com/api/vulnerability_findings/) | &mdash; |
-| **dependabot_alerts**<br>Dependency vulnerability findings | `GET /repos/{owner}/{repo}/dependabot/alerts`<br>[docs](https://docs.github.com/en/rest/dependabot/alerts) | `GET /projects/{id}/dependencies`<br>[docs](https://docs.gitlab.com/api/dependencies/) | &mdash; |
-| **sbom_export**<br>Platform-generated SBOM | `GET /repos/{owner}/{repo}/dependency-graph/sbom`<br>[docs](https://docs.github.com/en/rest/dependency-graph/sboms) | `GET /projects/{id}/dependencies`<br>[docs](https://docs.gitlab.com/api/dependencies/) | &mdash; |
-| **branch_protection**<br>Protected-branch rules | `GET /repos/{owner}/{repo}/branches/{branch}/protection`<br>[docs](https://docs.github.com/en/rest/branches/branch-protection) | `GET /projects/{id}/protected_branches`<br>[docs](https://docs.gitlab.com/api/protected_branches/) | &mdash; |
-| **required_reviews**<br>Merge-request review requirements | `GET /repos/{owner}/{repo}/branches/{branch}/protection`<br>[docs](https://docs.github.com/en/rest/branches/branch-protection) | `GET /projects/{id}/approval_rules`<br>[docs](https://docs.gitlab.com/api/merge_request_approvals/) | &mdash; |
-| **rulesets**<br>Repository rulesets and push rules | `GET /repos/{owner}/{repo}/rulesets`<br>[docs](https://docs.github.com/en/rest/repos/rules) | `GET /projects/{id} (push_rules)`<br>[docs](https://docs.gitlab.com/api/projects/) | &mdash; |
-| **config_compliance**<br>Post-deployment configuration compliance | &mdash; | &mdash; | `DescribeComplianceByConfigRule`<br>[docs](https://docs.aws.amazon.com/config/latest/APIReference/API_DescribeComplianceByConfigRule.html) |
-| **runtime_findings**<br>Aggregated post-deployment security findings | &mdash; | &mdash; | `GetFindings (Security Hub)`<br>[docs](https://docs.aws.amazon.com/securityhub/1.0/APIReference/API_GetFindings.html) |
-| **repo_contents**<br>File contents — workflow triggers, CODEOWNERS, scanner config | `GET /repos/{owner}/{repo}/contents/{path}`<br>[docs](https://docs.github.com/en/rest/repos/contents) | `GET /projects/{id}/repository/files/{path}`<br>[docs](https://docs.gitlab.com/api/repository_files/) | &mdash; |
-
-Full API references: [GitHub](https://docs.github.com/en/rest), [GitLab](https://docs.gitlab.com/api/), [SonarQube / SonarCloud](https://sonarcloud.io/web_api), [AWS](https://docs.aws.amazon.com/).
-
-<!-- END GENERATED: coverage-matrix -->
-
----
-
-## SDLC stage reference
-
-What is expected at each stage, and which controls verify it:
-
-| Stage | Reference |
-|---|---|
-| Plan and Design | [`docs/sdlc/plan.md`](docs/sdlc/plan.md) |
-| Code | [`docs/sdlc/code.md`](docs/sdlc/code.md) |
-| Build | [`docs/sdlc/build.md`](docs/sdlc/build.md) |
-| Test | [`docs/sdlc/test.md`](docs/sdlc/test.md) |
-| Deploy | [`docs/sdlc/deploy.md`](docs/sdlc/deploy.md) |
-| Operate | [`docs/sdlc/operate.md`](docs/sdlc/operate.md) |
-
----
-
-## Meeting a team where they are
-
-Evidence reaches this profile three ways. A team adopts whichever matches how
-they already work — none of them requires changing their pipeline first.
-
-| Their situation | Mode | What they set |
-|---|---|---|
-| Scans run in CI; reports land on the runner | `pipeline` | `artifact_dir` — the directory their scanners write to |
-| They already aggregate evidence to a store | `control-plane` | `evidence_bucket` + `evidence_key_template` |
-| They rely on platform features (code scanning, SonarCloud) | `control-plane` | tokens |
-| All of the above | `both` | all of the above |
-
-### In-pipeline: point at the directory
-
-Add the profile as a dependency and `include_controls` it, then pass the
-directory the scanners already write to. Filenames are matched by **glob**, so
-timestamped and target-tagged names work as-is:
+**Bolt-on.** Last step of a pipeline, with `reports/` populated. Filenames are
+matched by glob, so timestamped names work as-is.
 
 ```bash
 cinc-auditor exec . -t local:// \
-  --input-file inputs/<your-declaration>.yml \
-  --input run_mode=pipeline artifact_dir=./reports
+  --input-file inputs/full-pipeline.yml \
+  --input run_mode=pipeline artifact_dir=./reports \
+  --reporter cli json:hdf.json
 ```
 
-`trivy-2026-08-15.json`, `grype-20260815T1000.json` and `sast-codeql.sarif` all
-match without anyone renaming anything.
+> Repeated `--input` flags are **silently dropped** — only the last survives. Use one
+> flag with several pairs, or a second `--input-file`.
 
-### Already aggregating: point at the storage
-
-A team with an existing evidence store should not have to re-file it. Override
-the key layout instead:
-
-```yaml
-evidence_bucket: their-security-evidence
-evidence_key_template: 'security-evidence/{repo}/{source}/{slot}.hdf.json'
-evidence_lookback_days: 7
-```
-
-Placeholders are `{boundary}` `{slot}` `{repo}` `{source}`. `{slot}` is required
-— it is what separates the current pointer from a dated object, and without it
-every lookback candidate would resolve to the same key and stale evidence would
-read as current.
-
-### Credentials for reading the store
-
-The profile does **not** assume a role. Like every other AWS-touching InSpec
-profile, it uses whatever credentials the runner already holds — so the caller
-assumes the read role before InSpec starts, typically with
-`aws-actions/configure-aws-credentials`.
-
-Reads are deliberately asymmetric to writes. Writers are per-repository
-(`{REPO}_EMIT_ARN`) so a compromised repository can only write its own prefix.
-Readers are a short explicit list — one ARN each for the two repositories that
-consume the bucket — so *who can see the estate's evidence* stays auditable.
-
-The read role needs `s3:GetObject` **and `kms:Decrypt`** on the bucket CMK.
-`GetObject` alone on an encrypted bucket fails as an `AccessDenied` that looks
-exactly like a missing object, which would report a scanned repository as
-unevidenced. `evidence_store` raises on that rather than reporting absence, so
-it surfaces as a control error — but granting both together avoids debugging it
-at all.
-
-### What shape is the evidence in?
-
-Both are supported, because insisting on converted HDF would make this surface
-useful only to the teams who least need it.
-
-| `evidence_format` | Expects | Who |
-|---|---|---|
-| `hdf` | Converted HDF — `baselines[]` or `profiles[]` | Teams already running the conversion |
-| `native` | Raw scanner output, identified by the same structural marker the artifact surface uses | Teams aggregating what their scanners emit |
-| `auto` *(default)* | Either | Mixed estates |
-
-Native TruffleHog output is JSONL rather than a JSON document; it is detected by
-parsing the first record, so a whole-file parse failing is not treated as
-corrupt evidence.
-
-### Attribution, and what happens without our labels
-
-Evidence we emit carries `repo`, `commit`, `ref` and `run_id` labels, so the
-file corroborates the key path it was filed under. Evidence from **your** store
-will not — we did not write it. That is expected, not a failure:
-
-| State | Meaning | Result |
-|---|---|---|
-| Corroborated | Labels present and agree with the path | Pass |
-| Path-only | No labels; attribution rests on the key path convention | **Pass**, and the result says so |
-| Contradicted | Labels name a *different* repository | **Fail, always** |
-
-A contradiction fails regardless of policy. Evidence filed under the wrong
-repository is worse than absent, because it credits the wrong thing. Only the
-treatment of *absent* labels is configurable, via `evidence_require_labels`
-(default `false`).
-
----
-
-## Producing evidence: the dashboard bridge
-
-The sections above are about *reading* evidence. This one produces it, for teams
-whose findings currently live only in GitHub's Security tab.
-
-A reusable workflow fetches code scanning, secret scanning and Dependabot,
-converts all three to HDF, and files them in the evidence store. Add a caller —
-**do not copy the workflow**; a copy needs one PR per repository to fix:
+**Produce evidence from GitHub's dashboards.** A reusable workflow converts code
+scanning, secret scanning and Dependabot to HDF. Callers add ~12 lines; pin
+`<release-tag>` to a published release rather than `main`.
 
 ```yaml
 jobs:
@@ -296,131 +96,36 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
 ```
 
-Pin `<release-tag>` to a published release rather than to `main` — see the
-releases page for the current one.
-
-**Full setup, control reference and troubleshooting:
-[docs/dashboard_bridge.md](docs/dashboard_bridge.md).**
-
-### Two things it does that are not obvious
-
-**A clean scan is a pass, not an absence.** `sarif2hdf` emits one control per
-*finding*, so a repository with nothing wrong converts to a profile with zero
-controls and renders as `compliance: 0` — a team doing everything right
-publishes a zero. Skipping the emit is worse: then a clean scan and a broken
-bridge leave the same empty prefix. So the findings HDF is emitted only when
-there are findings, and every run writes a `provenance.json` that
-`devsecops-code-scanning-executed` turns into a passing control. The profile
-asserts what the platform reported; it never invents a scanner result.
-
-**A dismissed finding is a decision, not a failure.** An analysis's SARIF still
-contains findings already triaged, so converting it alone republishes closed
-dismissals as live failures on every run. SARIF's `suppressions` array exists
-for this and the converter ignores it, so `tools/apply_dispositions.py` applies
-the disposition afterwards — dismissed becomes Not Applicable carrying who,
-when and why; fixed becomes passed; unmatched is reported rather than dropped.
-
-### The dashboard controls
-
-| Control | Passes when | NIST |
-|---|---|---|
-| `devsecops-code-scanning-executed` | Every enabled repository has a recent analysis on its protected branch, **per language** | `RA-5`, `SA-11(1)`, `SI-2` |
-| `devsecops-dashboard-open-findings` | No open alerts across the three dashboards | `RA-5`, `SI-2`, `IA-5(7)` |
-| `devsecops-dismissals-accountable` | Every dismissal records who dismissed it and why | `RA-5(5)`, `CA-5`, `PM-4` |
-| `devsecops-push-protection-bypasses` | Nobody overrode a push-protection block | `IA-5(7)`, `AC-6`, `AU-2` |
-
-Dependabot alerts are typed `sca`: they are vulnerability findings against
-declared dependencies, the same assertion Grype and Trivy make from elsewhere.
-An SBOM is inventory and does not satisfy that scan type. They are also a **free
-toggle even on private repositories**, unlike code scanning and secret scanning,
-which need Code Security licensing.
-
-## Usage
-
-```bash
-# Standalone — read the control plane, no pipeline required
-export GITHUB_TOKEN=...            # or pass token: through the control body
-cinc-auditor exec . -t local:// \
-  --input-file inputs/risk-sentinel-org.yml \
-  --reporter cli json:hdf.json
-
-# Bolt-on — last step of a pipeline, with reports/ populated
-cinc-auditor exec . -t local:// \
-  --input-file inputs/full-pipeline.yml \
-  --input run_mode=pipeline \
-  --reporter cli json:hdf.json
-```
-
-Repeated `--input` flags are **silently dropped** — only the last survives. Use one
-flag with several pairs, or a second `--input-file`.
-
-### Regenerating the coverage matrix
-
-The tables above are generated. Edit the registry, never the table:
-
-```bash
-python3 tools/render_matrix.py           # rewrite README.md
-python3 tools/render_matrix.py --check   # exit 1 if stale
-```
+There is a matching reusable for secret scanning,
+[`secret-scan-hdf.yml`](.github/workflows/secret-scan-hdf.yml), which emits an
+execution record even when the scan is clean — see
+[evidence_sources.md](docs/evidence_sources.md#a-clean-scan-still-produces-evidence).
 
 ---
 
-## Tokens
+## Documentation
 
-Every credential can be supplied **either** as an InSpec input **or** as a conventional
-environment variable. The environment fallback means an organisation- or group-level CI
-secret works with no input plumbing at all.
+| Topic | Read this |
+|---|---|
+| Architecture and roadmap | [`docs/Pipeline_Evidence_Plane.html`](docs/Pipeline_Evidence_Plane.html) |
+| How checks are selected, and the denominator | [`docs/detection_model.md`](docs/detection_model.md) |
+| What is covered, by scan type and by tool | [`docs/coverage.md`](docs/coverage.md) |
+| Pointing the profile at your evidence | [`docs/evidence_sources.md`](docs/evidence_sources.md) |
+| The GitHub dashboard bridge | [`docs/dashboard_bridge.md`](docs/dashboard_bridge.md) |
+| Tokens, scopes, and what fails quietly | [`docs/tokens.md`](docs/tokens.md) |
+| What is expected at each SDLC stage | [`docs/sdlc/`](docs/sdlc/) |
 
-| Credential | Input | Environment variable | Needed for |
-|---|---|---|---|
-| GitHub | `github_token` | `GITHUB_TOKEN`, then `GH_TOKEN` | Enablement, alerts, branch protection, org enumeration |
-| SonarQube | `sonar_token` | `SONAR_TOKEN`, then `SONARQUBE_TOKEN` | Project existence, analysis freshness, issues |
-| GitLab | `gitlab_token` | `GITLAB_TOKEN` | Portability only; not exec-validated |
+**Credentials at a glance** — each can be an InSpec input *or* the conventional
+environment variable, so an org-level CI secret needs no input plumbing:
 
-```bash
-# Environment — the usual CI shape, nothing passed as an input
-export GITHUB_TOKEN=$GH_ORG_TOKEN
-export SONAR_TOKEN=$SONAR_ORG_TOKEN
-cinc-auditor exec . -t local:// --input-file inputs/risk-sentinel-org.yml
+| Credential | Input | Environment |
+|---|---|---|
+| GitHub | `github_token` | `GITHUB_TOKEN`, then `GH_TOKEN` |
+| SonarQube | `sonar_token` | `SONAR_TOKEN`, then `SONARQUBE_TOKEN` |
+| GitLab | `gitlab_token` | `GITLAB_TOKEN` |
 
-# Or explicitly. NOTE: repeated --input flags are silently dropped — only the
-# last survives. One flag, many pairs.
-cinc-auditor exec . -t local:// --input-file inputs/risk-sentinel-org.yml \
-  --input github_token="$GH_ORG_TOKEN" sonar_token="$SONAR_ORG_TOKEN"
-```
-
-### Scopes
-
-| Surface | GitHub | GitLab | SonarQube |
-|---|---|---|---|
-| Enablement + findings | `security_events` (or `repo` on private) | `read_api` | `Execute Analysis` / read |
-| Dashboard bridge (analyses, SARIF, alert locations) | `security_events` | &mdash; | &mdash; |
-| Branch protection, rulesets | `repo` | `read_api` | &mdash; |
-| Repo contents | `contents:read` | `read_repository` | &mdash; |
-| Organisation enumeration | `read:org` | `read_api` | &mdash; |
-
-Inside a workflow the equivalent is `permissions: security-events: read`. Omit
-it and every capability reads as *disabled* rather than as a permission problem,
-because that is genuinely what GitHub returns.
-
-**`read:org` is load-bearing and fails quietly if missing.** `GET /orgs/{org}/repos`
-answers `200` for a caller that cannot see private repositories — it just returns
-a shorter list, with nothing marking it as short. On this organisation that is 16
-repositories instead of 21. Reconciliation would then compare a truncated reality
-against a complete declaration and report the invisible repositories as *stale
-declarations*, blaming the declaration for a credential fault. So
-`devsecops-inventory-reconciliation` asserts that the enumeration was
-authenticated, before and separately from asserting anything about its contents.
-
-**A missing token is not the same finding as a disabled feature**, and this profile keeps
-them apart. GitHub returns `403`/`404` with its own message for a switched-off capability
-and `401 Bad credentials` for a bad token; both fail, with different text, because they
-have different owners.
-
-SonarQube needs particular care: it returns **404 for a private project the caller cannot
-see**, deliberately not leaking existence. So without a token, "absent" and "private" are
-the same response — the profile reports that as *indeterminate* rather than claiming the
-project is missing.
+`read:org` is load-bearing and fails *quietly* — see
+[tokens.md](docs/tokens.md).
 
 ---
 

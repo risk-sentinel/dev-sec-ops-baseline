@@ -30,3 +30,24 @@ in its own right rather than being folded into the platform API.
 A repository with detection but not push protection is materially weaker than one with
 both, so the profile records them separately rather than collapsing them into
 "secret scanning: on".
+
+A **bypass** is a third thing again, and it is not a scanner result: it is a person
+who was shown a block and continued, so the credential reached the repository with a
+human decision behind it. `devsecops-push-protection-bypasses` reports those on their
+own rather than among the findings, where they would read as one more alert.
+
+## What happens to a finding after it is raised
+
+A dismissed alert is a decision that was made, not a risk that was missed. Failing on
+it would have the evidence package re-litigate settled triage on every run, which is
+how a report stops being read.
+
+So dismissals are asserted on a different axis: not *are there any*, but *does each one
+record who accepted the risk and why*. An accepted risk with a name attached is a
+decision; one without either is indistinguishable from a finding quietly closed, and it
+is the first thing an assessor asks about. That is `devsecops-dismissals-accountable`.
+
+The evidence keeps them rather than filtering them out — rendered Not Applicable,
+carrying the dismisser, the date and the reason. See
+[the dashboard bridge](../dashboard_bridge.md) for how the disposition is applied, and
+why it has to happen after conversion rather than in the SARIF.

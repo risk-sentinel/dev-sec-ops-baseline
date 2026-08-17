@@ -3,7 +3,7 @@
 
     scan_receipt.py --scanner trufflehog --repo owner/name --sha abc123 \
                     --ref refs/heads/main --run-id 42 --findings 0 \
-                    --out receipt-hdf.json
+                    --out receipt-hdf.json [--base DIR]
 
 Why this exists
 ---------------
@@ -43,6 +43,24 @@ import argparse
 import hashlib
 import json
 import sys
+from pathlib import Path
+
+# The output path is a CLI argument a workflow assembles, and this tool WRITES
+# to it, so a "../.." would let an earlier step choose which file gets
+# overwritten. Confined to a base directory — the working directory by default,
+# which is what CI wants since the workflow runs from the checkout. `--base`
+# widens it deliberately, so working outside the tree is a choice at the call
+# site rather than something the guard quietly permits.
+#
+# Same treatment as tools/apply_dispositions.py; the two behave identically.
+
+
+def safe_path(value, base):
+    """Resolve `value` and refuse anything outside `base`."""
+    p = Path(value).resolve()
+    if not p.is_relative_to(base):
+        raise ValueError(f"path escapes {base}: {value}")
+    return p
 
 # Secrets detection maps to these regardless of which scanner produced it.
 SCANNER_TAGS = {
@@ -146,6 +164,8 @@ def main():
                     help="ISO-8601 UTC. Passed in rather than read from the clock "
                          "so the record matches the run it describes.")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--base", default=".",
+                    help="directory the output must stay inside (default: cwd)")
     args = ap.parse_args()
 
     if args.findings != 0:
@@ -153,13 +173,19 @@ def main():
               "scanner's own output when there are findings", file=sys.stderr)
         return 2
 
+    try:
+        out = safe_path(args.out, Path(args.base).resolve())
+    except ValueError as exc:
+        print(f"::error::{exc}", file=sys.stderr)
+        return 2
+
     doc = build(args.scanner, args.repo, args.sha, args.ref, args.run_id,
                 args.findings, args.scanner_version, args.mode, args.timestamp)
 
-    with open(args.out, "w") as f:
+    with open(out, "w") as f:
         json.dump(doc, f, indent=2)
 
-    print(f"wrote {args.out}: 1 passing control recording a clean "
+    print(f"wrote {out}: 1 passing control recording a clean "
           f"{args.scanner} run over {args.repo}@{args.sha or 'unknown'}")
     return 0
 

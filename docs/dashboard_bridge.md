@@ -130,7 +130,7 @@ permissions:
 
 jobs:
   bridge:
-    uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/dashboard-hdf-emit.yml@v0.3.0
+    uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/dashboard-hdf-emit.yml@<release-tag>
     with:
       boundary: ${{ vars.EVIDENCE_BOUNDARY || 'sparc' }}
     secrets:
@@ -141,8 +141,12 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 ```
 
-Three things that will bite you if changed:
+Four things that will bite you if changed:
 
+- **Pin `<release-tag>` to a published release**, not to `main`. Tracking a
+  branch means the bridge changes under you between runs, and evidence whose
+  producer moved without a version is hard to argue for after the fact. The
+  releases page lists the current tag and what changed in it.
 - **`security-events: read`** is required. Without it the alert endpoints answer
   403 and every capability reads as disabled.
 - **Do not add a job-level `environment:`.** It flips the OIDC subject to
@@ -254,16 +258,19 @@ the fixture paths, or Dependabot will keep proposing to fix the fixtures.
 ## Running the bridge by hand
 
 ```bash
+# The auditor image is pinned in .github/workflows/profile-lint.yml. Read it
+# from there rather than copying a version into your shell history, so this
+# stays correct across image bumps.
+AUDITOR=$(grep -m1 'AUDITOR_IMAGE:' .github/workflows/profile-lint.yml | awk '{print $2}')
+
 # Fetch the dashboards -> SARIF + provenance + dispositions
 docker run --rm -v "$PWD:/work" -w /work -e GITHUB_TOKEN \
   --entrypoint /opt/cinc-workstation/embedded/bin/ruby \
-  risksentinel/sparc-auditor:v0.5.0 \
-  tools/bridge.rb --repo <owner>/<name> --out bridge-out
+  "$AUDITOR" tools/bridge.rb --repo <owner>/<name> --out bridge-out
 
 # Convert, then apply dispositions to the code-scanning output
 docker run --rm -v "$PWD:/work" -w /work --entrypoint saf \
-  risksentinel/sparc-auditor:v0.5.0 \
-  convert sarif2hdf -i bridge-out/code-scanning-ruby.sarif -o out.json
+  "$AUDITOR" convert sarif2hdf -i bridge-out/code-scanning-ruby.sarif -o out.json
 
 python3 tools/apply_dispositions.py \
   --hdf out.json --dispositions bridge-out/dispositions.json

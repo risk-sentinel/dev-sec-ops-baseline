@@ -286,7 +286,7 @@ converts all three to HDF, and files them in the evidence store. Add a caller â€
 ```yaml
 jobs:
   bridge:
-    uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/dashboard-hdf-emit.yml@v0.3.0
+    uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/dashboard-hdf-emit.yml@<release-tag>
     permissions:
       contents: read
       security-events: read      # without this every capability reads as disabled
@@ -295,6 +295,9 @@ jobs:
       S3_EMIT_ROLE_ARN: ${{ secrets.MY_REPO_EMIT_ARN }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
 ```
+
+Pin `<release-tag>` to a published release rather than to `main` â€” see the
+releases page for the current one.
 
 **Full setup, control reference and troubleshooting:
 [docs/dashboard_bridge.md](docs/dashboard_bridge.md).**

@@ -70,7 +70,7 @@ Merge-request rules straddle the split. *Whether reviews are required* is platfo
 | Dependabot | `sca` | &mdash; | **yes** | planned | **yes** |
 | Forge-native secret scanning | `secrets` | &mdash; | **yes** | &mdash; | **yes** |
 | GitLab Dependency Scanning | `sca` | &mdash; | planned | planned | &mdash; |
-| Gitleaks | `secrets` | **yes** | &mdash; | planned | &mdash; |
+| Gitleaks | `secrets` | **yes** | &mdash; | planned | **yes** |
 | Grype | `sca`, `container` | **yes** | &mdash; | planned | **yes** |
 | InSpec / CINC baselines | `runtime` | **yes** | &mdash; | &mdash; | &mdash; |
 | OWASP ZAP | `dast` | **yes** | &mdash; | &mdash; | &mdash; |

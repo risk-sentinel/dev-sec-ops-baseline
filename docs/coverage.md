@@ -51,6 +51,7 @@ Merge-request rules straddle the split. *Whether reviews are required* is platfo
 | **licensing** &mdash; Software Licensing Review | [Build](sdlc/build.md) | Snyk, Sonatype, Trivy | **yes** | &mdash; | planned | &mdash; | `SR-3`, `SA-4` |
 | **dast** &mdash; Dynamic Application Security Testing | [Test](sdlc/test.md) | Burp Suite, OWASP ZAP | **yes** | &mdash; | &mdash; | planned | `SA-11(8)`, `RA-5`, `CA-8` |
 | **runtime** &mdash; Post-Deployment Validation | [Operate](sdlc/operate.md) | AWS Config, AWS Security Hub, InSpec / CINC baselines, Prowler | **yes** | planned | &mdash; | **yes** | `CA-2(2)`, `CA-7`, `CM-6`, `RA-5` |
+| **test_execution** &mdash; Developer Testing Execution | [Test](sdlc/test.md) | JUnit XML test results, SimpleCov | **yes** | &mdash; | &mdash; | **yes** | `SA-11` |
 | **iast** &mdash; Interactive Application Security Testing | [Test](sdlc/test.md) | _none_ | &mdash; | &mdash; | &mdash; | &mdash; | `SA-11(9)` |
 
 > **No tooling anywhere in the organisation for `iast`.** The row is kept deliberately. Dropping it would imply the scan type does not apply; keeping it empty states that nobody performs it.
@@ -73,9 +74,11 @@ Merge-request rules straddle the split. *Whether reviews are required* is platfo
 | Gitleaks | `secrets` | **yes** | &mdash; | planned | **yes** |
 | Grype | `sca`, `container` | **yes** | &mdash; | planned | **yes** |
 | InSpec / CINC baselines | `runtime` | **yes** | &mdash; | &mdash; | &mdash; |
+| JUnit XML test results | `test_execution` | **yes** | &mdash; | &mdash; | **yes** |
 | OWASP ZAP | `dast` | **yes** | &mdash; | &mdash; | &mdash; |
 | Prowler | `runtime` | **yes** | &mdash; | &mdash; | &mdash; |
 | Semgrep | `sast`, `iac` | **yes** | **yes** | planned | &mdash; |
+| SimpleCov | `test_execution` | **yes** | &mdash; | &mdash; | **yes** |
 | Snyk | `sca`, `licensing` | **yes** | &mdash; | planned | &mdash; |
 | SonarQube | `sast` | **yes** | **yes** | planned | **yes** |
 | Sonatype | `sca`, `licensing` | **yes** | &mdash; | &mdash; | &mdash; |

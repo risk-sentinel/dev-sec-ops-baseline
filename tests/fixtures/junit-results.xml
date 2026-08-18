@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="ui-smoke" errors="0" failures="1" skipped="1" tests="4" time="12.481">
+    <testcase classname="test_login" name="test_login_page_renders" time="2.104"/>
+    <testcase classname="test_login" name="test_sso_redirect" time="3.220"/>
+    <testcase classname="test_a11y" name="test_contrast_ratio" time="4.010">
+      <failure message="AssertionError: contrast 3.1:1 below WCAG AA 4.5:1 on .btn-secondary">Traceback...</failure>
+    </testcase>
+    <testcase classname="test_a11y" name="test_keyboard_nav" time="0.000">
+      <skipped type="pytest.skip" message="firefox driver unavailable"/>
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuite name="rspec" errors="0" failures="0" skipped="0" tests="1284" time="412.55">
+  <testcase classname="spec.models.user_spec" name="validates email" time="0.031"/>
+  <testcase classname="spec.models.user_spec" name="normalises email case" time="0.024"/>
+</testsuite>

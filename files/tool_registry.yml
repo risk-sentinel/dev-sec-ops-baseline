@@ -382,6 +382,21 @@ scan_types:
       land. The existing `artifact-inspec-deployed` control belongs to this
       scan type.
 
+  test_execution:
+    title: Developer Testing Execution
+    sdlc_stage: test
+    nist:
+      - SA-11
+    ssdf:
+      - PW.8
+    description: >-
+      Evidence that the developer test suites ran over a commit — counts,
+      outcomes and measured coverage. NOT a security scan and explicitly NOT
+      `iast`: coverage says which lines executed and a test suite says whether
+      behaviour was correct, while IAST means observing untrusted input reach a
+      sink. SA-11 base is what this evidences, and unlike SA-11(9) it is
+      selected in the FedRAMP Moderate baseline.
+
   iast:
     title: Interactive Application Security Testing
     sdlc_stage: test
@@ -567,6 +582,48 @@ tools:
         # libraries/alert_sarif.rb. Mapped to SARIF rather than to TruffleHog's
         # shape so the finding stays attributed to GitHub (#22).
         note: dashboard-hdf-bridge.yml (#22)
+
+  junit:
+    name: JUnit XML test results
+    aliases: [pytest, playwright, jest, rspec]   # producers that emit this shape
+    scan_types: [test_execution]
+    # One format covers most runners: pytest --junitxml, Playwright, Jest,
+    # Maven/Gradle, Go via gotestsum, RSpec via a formatter. No saf converter
+    # exists (requested upstream at mitre/heimdall2#8538), so tools/test_evidence.py
+    # maps it here.
+    surfaces:
+      artifact:
+        status: implemented
+        format: xml
+        marker: null
+        patterns:
+          - '*results*.xml'
+          - 'junit*.xml'
+          - '*test-results*.xml'
+      evidence_store:
+        status: implemented
+        source: test-execution
+        format: hdf
+        note: tools/test_evidence.py (#27)
+
+  simplecov:
+    name: SimpleCov
+    scan_types: [test_execution]
+    # Coverage is recorded as evidence and never gated — a percentage turned
+    # into a control invents a threshold nobody agreed to.
+    surfaces:
+      artifact:
+        status: implemented
+        format: json
+        marker: total
+        patterns:
+          - 'coverage*.json'
+          - '*simplecov*.json'
+      evidence_store:
+        status: implemented
+        source: test-execution
+        format: hdf
+        note: tools/test_evidence.py (#27)
 
   # -- SCA --------------------------------------------------------------------
   grype:

@@ -1,0 +1,187 @@
+name: Test-execution evidence emit (reusable)
+
+# Converts a repository's existing test output — JUnit XML, SimpleCov JSON —
+# into HDF and files it in the evidence store, evidencing NIST SA-11 and
+# SSDF PW.8 (#27).
+#
+# ---- What this is not -------------------------------------------------------
+#
+# It is not a security scan, and it must not be mapped to `iast`. Coverage says
+# which lines executed; a test suite says whether behaviour was correct. IAST
+# means observing untrusted input reach a dangerous sink, and neither of these
+# does that. The `iast` row in the registry stays a declared gap.
+#
+# What this DOES evidence is SA-11 base — which, unlike the SA-11(9) IAST
+# enhancement, is selected in the FedRAMP Moderate baseline. The evidence
+# already exists in every pipeline that runs tests; it simply expires in build
+# artifacts because nothing converts it.
+#
+# ---- Callers supply the paths -----------------------------------------------
+#
+# This workflow does not run your tests. It expects the caller to have produced
+# the reports already — usually in an earlier job, downloaded here as an
+# artifact, or by running this in the same job after the test step.
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: 'Build artifact holding the test reports. Omit if the files are already in the workspace.'
+        type: string
+        required: false
+      junit_paths:
+        description: 'Space-separated JUnit XML paths, globs allowed.'
+        type: string
+        required: false
+        default: ''
+      simplecov_path:
+        description: 'SimpleCov JSON path (coverage/coverage.json).'
+        type: string
+        required: false
+        default: ''
+      boundary:
+        type: string
+        required: false
+        default: sparc
+      profile_ref:
+        description: 'Ref of dev-sec-ops-baseline supplying tools/test_evidence.py.'
+        type: string
+        required: false
+        default: main
+    secrets:
+      S3_EMIT_ROLE_ARN:
+        required: false
+      AWS_REGION:
+        required: false
+      COMPLIANCE_S3_BUCKET:
+        required: false
+      DOCKERHUB_USERNAME:
+        required: false
+      DOCKERHUB_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AUDITOR_IMAGE: risksentinel/sparc-auditor:v0.5.0
+
+jobs:
+  emit:
+    name: Convert + emit test-execution evidence
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the calling repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Checkout the profile (supplies tools/test_evidence.py)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: risk-sentinel/dev-sec-ops-baseline
+          ref: ${{ inputs.profile_ref }}
+          path: .devsecops-profile
+
+      - name: Download test reports
+        if: inputs.artifact_name != ''
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f28c025a5622ab2a264 # v6.0.0
+        with:
+          name: ${{ inputs.artifact_name }}
+
+      - name: Docker Hub login (auditor image pull)
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+      - name: Build the execution record
+        env:
+          JUNIT: ${{ inputs.junit_paths }}
+          COV: ${{ inputs.simplecov_path }}
+          OUT: out/test-execution-hdf.json
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p out
+
+          args=()
+          for pattern in $JUNIT; do
+            for f in $pattern; do args+=(--junit "$f"); done
+          done
+          [ -n "$COV" ] && [ -f "$COV" ] && args+=(--simplecov "$COV")
+
+          # Refuse rather than emit an empty document. A file asserting that
+          # testing happened, produced from no test output, is worse than no
+          # file — it is the exact silence-as-success shape this profile exists
+          # to catch.
+          if [ ${#args[@]} -eq 0 ]; then
+            echo "::error::no JUnit XML or SimpleCov JSON found. Checked junit_paths='${JUNIT}' simplecov_path='${COV}'. Nothing was emitted."
+            exit 1
+          fi
+
+          python3 .devsecops-profile/tools/test_evidence.py \
+            --repo "${GITHUB_REPOSITORY}" \
+            --sha "${GITHUB_SHA}" \
+            --ref "${GITHUB_REF}" \
+            --run-id "${GITHUB_RUN_ID}" \
+            --timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${args[@]}" \
+            --out "$OUT"
+
+      - name: Label and summarise
+        env:
+          OUT: out/test-execution-hdf.json
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD:/w" -w /w --entrypoint hdf "$AUDITOR_IMAGE" \
+            label set "$OUT" \
+              source=test-execution \
+              "target=${GITHUB_REPOSITORY##*/}" \
+              "repo=${GITHUB_REPOSITORY}" \
+              "commit=${GITHUB_SHA}" \
+              "ref=${GITHUB_REF}" \
+              "run_id=${GITHUB_RUN_ID}"
+
+          # In the job log, not only in the artifact: a document holding nothing
+          # and a conversion that silently failed produce identical green checks.
+          echo "::group::saf view summary"
+          docker run --rm -v "$PWD:/w" -w /w --entrypoint saf "$AUDITOR_IMAGE" \
+            view summary -i "$OUT"
+          echo "::endgroup::"
+
+      - name: Upload HDF artifact (evidence even without S3)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-execution-hdf-${{ github.run_id }}
+          path: out/test-execution-hdf.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Configure AWS credentials (OIDC)
+        id: aws
+        continue-on-error: true
+        uses: aws-actions/configure-aws-credentials@517a711dbcd0e402f90c77e7e2f81e849156e31d # v6.2.2
+        with:
+          role-to-assume: ${{ secrets.S3_EMIT_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Emit to the evidence bucket
+        if: steps.aws.outcome == 'success'
+        env:
+          BUCKET: ${{ secrets.COMPLIANCE_S3_BUCKET }}
+          BOUNDARY: ${{ inputs.boundary }}
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY##*/}"
+          d="$(date -u +%Y-%m-%d)"
+          for slot in "$d" latest; do
+            aws s3 cp out/test-execution-hdf.json \
+              "s3://${BUCKET}/${BOUNDARY}/${slot}/${repo}/test-execution/test-execution-hdf.json" \
+              --content-type application/json
+          done
+          echo "Emitted to ${BOUNDARY}/{${d},latest}/${repo}/test-execution/"
+
+      - name: Report a skipped emit
+        if: steps.aws.outcome != 'success'
+        run: |
+          echo "::warning::AWS credentials were not configured, so nothing reached the evidence bucket. The HDF is attached to this run as an artifact. Check the emit-role secret name — a missing secret resolves empty and this step is the only place that says so."

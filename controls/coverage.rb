@@ -393,6 +393,26 @@ control 'devsecops-coverage-runtime' do
   instance_exec('runtime', &coverage_body)
 end
 
+control 'devsecops-coverage-test_execution' do
+  impact 0.7
+  title 'Developer Testing Execution coverage'
+  desc <<~DESC
+    Evidence that the developer test suites ran over a commit — counts, outcomes and measured coverage. NOT a security scan and explicitly NOT `iast`: coverage says which lines executed and a test suite says whether behaviour was correct, while IAST means observing untrusted input reach a sink. SA-11 base is what this evidences, and unlike SA-11(9) it is selected in the FedRAMP Moderate baseline.
+
+    Satisfied by any declared tool on any execution surface this run mode can
+    reach, then VERIFIED against that source. Configuration evidence does not
+    count: a workflow file naming a scanner proves somebody wired it up, not
+    that it ran.
+  DESC
+  tag nist: ['SA-11']
+  tag ssdf: ['PW.8']
+  tag sdlc_stage: 'test'
+  tag scan_type: 'test_execution'
+  tag layer: 'coverage'
+
+  instance_exec('test_execution', &coverage_body)
+end
+
 control 'devsecops-coverage-iast' do
   impact 0.3
   title 'Interactive Application Security Testing coverage'

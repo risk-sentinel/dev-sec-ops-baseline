@@ -40,10 +40,12 @@ this file exists to remove.
 """
 
 import argparse
-import hashlib
 import json
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from hdf_doc import profile_document  # noqa: E402
 
 # The output path is a CLI argument a workflow assembles, and this tool WRITES
 # to it, so a "../.." would let an earlier step choose which file gets
@@ -119,35 +121,13 @@ def build(scanner, repo, sha, ref, run_id, findings, version, mode, timestamp):
     # Drop unset tags rather than emitting nulls an assessor has to interpret.
     control["tags"] = {k: v for k, v in control["tags"].items() if v not in (None, "")}
 
-    profile = {
-        "name": f"{scanner}-execution",
-        "title": f"{scanner} execution record",
-        "version": "1.0.0",
-        "summary": (
-            f"Evidence that {scanner} ran over {repo} and found nothing. "
-            "Produced by dev-sec-ops-baseline tools/scan_receipt.py."
-        ),
-        "supports": [],
-        "attributes": [],
-        "groups": [],
-        # Both are required — saf rejects the document without them, with a
-        # generic "failed to convert" that names neither.
-        "status": "loaded",
-        "controls": [control],
-    }
-    # Digest of the profile's own content, so two receipts for the same run are
-    # identical and a tampered one does not match. A constant here would be a
-    # field that looks like provenance and carries none.
-    profile["sha256"] = hashlib.sha256(
-        json.dumps(profile, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
-
-    return {
-        "platform": {"name": "github-actions", "release": "1"},
-        "version": "1.0.0",
-        "statistics": {},
-        "profiles": [profile],
-    }
+    return profile_document(
+        f"{scanner}-execution",
+        f"{scanner} execution record",
+        (f"Evidence that {scanner} ran over {repo} and found nothing. "
+         "Produced by dev-sec-ops-baseline tools/scan_receipt.py."),
+        [control],
+    )
 
 
 def main():

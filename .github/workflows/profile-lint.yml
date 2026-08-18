@@ -87,3 +87,22 @@ jobs:
         # a resource called in a describe body — it only raises on a real exec
         # against a live target, which this repo cannot run. Hence a linter.
         run: python3 tools/lint_resource_scope.py controls libraries
+
+      - name: Fixture tests — alert to SARIF mapper
+        # Pure, no token and no network. `check` and `json` only LOAD the
+        # libraries; nothing else in CI exercises the mapping itself.
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work \
+            --entrypoint /opt/cinc-workstation/embedded/bin/ruby \
+            "$AUDITOR_IMAGE" tests/mapper_test.rb
+
+      - name: Fixture tests — test-execution evidence
+        run: python3 tests/test_evidence_test.py
+
+      - name: Generated artefacts are in sync with the registry
+        # The tables and the coverage controls are generated. A registry edit
+        # that forgets to re-render leaves the documentation asserting coverage
+        # the profile does not have, which is worse than saying nothing.
+        run: |
+          python3 tools/render_matrix.py --check
+          python3 tools/render_controls.py --check

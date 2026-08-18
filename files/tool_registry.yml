@@ -530,6 +530,21 @@ tools:
         sources: [github, gitlab]
         evidence: workflow_uses
         match: gitleaks
+      evidence_store:
+        status: implemented
+        source: gitleaks
+        format: hdf
+        # Gitleaks emits SARIF natively (`--report-format sarif`), which the
+        # saf/hdf converters detect without a custom mapper — so unlike secret
+        # scanning and Dependabot this needed no work beyond declaring it.
+        #
+        # Producers must file at the canonical key. A team already aggregating
+        # to its own layout can point the profile at it with
+        # `evidence_key_template`, but that input is global, so a repository
+        # emitting gitleaks somewhere else while everything else is canonical
+        # will report as unevidenced. That is a true finding, not a false one
+        # (#28).
+        note: producers convert with `hdf convert <gitleaks>.sarif`
 
   platform_secret_scanning:
     name: Forge-native secret scanning

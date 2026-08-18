@@ -59,6 +59,10 @@ defaults:
     dast:      { enabled: false, tools: [] }
     iast:      { enabled: false, tools: [] }   # no IAST tooling org-wide
     runtime:   { enabled: false, tools: [] }   # post-deployment validation
+    # Off by default: the profile repositories have no developer test suite
+    # emitting JUnit or coverage — the InSpec profile IS the artifact. That
+    # is a stated position requiring attestation, not an oversight.
+    test_execution: { enabled: false, tools: [] }
 
 # ---- Targets ----------------------------------------------------------------
 # The five repositories below were inventoried from their actual workflow
@@ -76,6 +80,7 @@ targets:
     scans:
       sast:      { enabled: true, tools: [codeql, semgrep, sonarqube] }
       secrets:   { enabled: true, tools: [gitleaks] }
+      test_execution: { enabled: true, tools: [junit, simplecov] }
       sca:       { enabled: true, tools: [grype, trivy] }
       sbom:      { enabled: true, tools: [syft] }
       container: { enabled: true, tools: [anchore, trivy, cosign] }

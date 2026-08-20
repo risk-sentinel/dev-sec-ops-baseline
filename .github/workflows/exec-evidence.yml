@@ -1,0 +1,345 @@
+name: Control-plane exec + evidence (reusable)
+
+# Runs this baseline against a target and produces audit-ready HDF evidence.
+#
+# ---- Why every step is inline shell, and not a script in this repo ----------
+#
+# A consumer on GitLab pulls this pattern in with `include:`, which brings YAML
+# and nothing else — a helper script sitting in tools/ would simply not exist on
+# their runner. The same is true of a GitHub caller using `uses:`. Putting the
+# logic in the YAML is what makes the pattern portable between forges and
+# between "include it" and "clone it on the fly"; a script would work for
+# exactly one of those four combinations.
+#
+# It costs some duplication against ci/gitlab/exec-evidence.yml, which carries
+# the same shell. That duplication is deliberate and preferable to a dependency
+# a consumer cannot satisfy.
+#
+# ---- Order matters ---------------------------------------------------------
+#
+#   create passthrough -> execute -> convert (gate) -> apply -> label (gate)
+#   -> validate (gate) -> display
+#
+# The audit record is built BEFORE the scan, because that is when the honest
+# start time and the pipeline provenance are known. Only the facts that cannot
+# exist until afterwards — finish time, the digest of the produced artifact, and
+# the outcome counts — are added at the end.
+
+on:
+  workflow_call:
+    inputs:
+      target:
+        description: 'What is being assessed — account alias, host, resource. Not an ARN.'
+        type: string
+        required: true
+      target_type:
+        description: 'organization for a control-plane sweep; repository for a single repo'
+        type: string
+        default: organization
+      boundary:
+        type: string
+        default: sparc
+      scan_type:
+        type: string
+        default: sast
+      target_uri:
+        description: >-
+          InSpec transport for the scan. `aws://` for cloud APIs, `local://` on a
+          host running the thing being assessed, `ssh://user@host` for a remote one.
+        type: string
+        default: 'local://'
+      scan_mode:
+        description: 'What the scanner was told to do — recorded, self-asserted.'
+        type: string
+        default: 'control-plane, read-only'
+      profile_name:
+        type: string
+        required: true
+      profile_version:
+        type: string
+        required: true
+      benchmark:
+        type: string
+        default: ''
+      benchmark_version:
+        type: string
+        default: ''
+      inputs_file:
+        description: >-
+          The declaration to assess — which repositories exist and what each
+          runs. REQUIRED and deliberately undefaulted: this profile assesses an
+          organisation, and defaulting to ours would silently assess the wrong
+          one while looking like it worked.
+        type: string
+        required: true
+      aws_region:
+        type: string
+        default: us-east-1
+      image:
+        description: 'Pinned auditor image supplying cinc-auditor, hdf, saf and jq.'
+        type: string
+        default: risksentinel/sparc-auditor:v0.5.0
+      run_mode:
+        description: 'control-plane | pipeline | both'
+        type: string
+        default: control-plane
+      evidence_boundary:
+        type: string
+        default: sparc
+    secrets:
+      # NOT the default GITHUB_TOKEN. Measured against this org: an unauthenticated
+      # token enumerates 16 repositories where an authorised one sees 21 — the five
+      # private repos drop out SILENTLY, the denominator shrinks, and reconciliation
+      # then reports five "stale declarations" that do not exist. A confident false
+      # finding, and exactly the failure class this profile exists to catch.
+      FORGE_TOKEN:
+        required: true
+      SONAR_TOKEN:
+        required: false
+      EVIDENCE_READER_ARN:
+        required: false
+      COMPLIANCE_S3_BUCKET:
+        required: false
+      AWS_REGION:
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  exec:
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ inputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Only for the evidence_store surface. Without it those controls report that
+      # they could not look, which is correct — and distinct from reporting that
+      # there was nothing to find.
+      - name: Configure AWS credentials (evidence store)
+        if: ${{ secrets.EVIDENCE_READER_ARN != '' }}
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
+        with:
+          role-to-assume: ${{ secrets.EVIDENCE_READER_ARN }}
+          role-session-name: ${{ inputs.profile_name }}-${{ github.run_id }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 1 — the audit record, built before anything runs.
+      - name: Create the passthrough audit record
+        env:
+          TARGET: ${{ inputs.target }}
+          TARGET_TYPE: ${{ inputs.target_type }}
+          BOUNDARY: ${{ inputs.boundary }}
+          SCAN_TYPE: ${{ inputs.scan_type }}
+          SCAN_MODE: ${{ inputs.scan_mode }}
+          PROFILE: ${{ inputs.profile_name }}
+          PROFILE_VERSION: ${{ inputs.profile_version }}
+          BENCHMARK: ${{ inputs.benchmark }}
+          BENCHMARK_VERSION: ${{ inputs.benchmark_version }}
+        run: |
+          set -euo pipefail
+          echo "STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          jq -n \
+            --arg target "$TARGET" --arg target_type "$TARGET_TYPE" --arg boundary "$BOUNDARY" \
+            --arg scan_type "$SCAN_TYPE" --arg scan_mode "$SCAN_MODE" \
+            --arg started "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg profile "$PROFILE" --arg profile_version "$PROFILE_VERSION" \
+            --arg profile_sha "${GITHUB_SHA:-}" \
+            --arg benchmark "$BENCHMARK" --arg benchmark_version "$BENCHMARK_VERSION" \
+            --arg repo "${GITHUB_REPOSITORY:-}" --arg commit "${GITHUB_SHA:-}" \
+            --arg ref "${GITHUB_REF:-}" --arg workflow "${GITHUB_WORKFLOW:-}" \
+            --arg run_id "${GITHUB_RUN_ID:-}" --arg run_attempt "${GITHUB_RUN_ATTEMPT:-}" \
+            --arg server "${GITHUB_SERVER_URL:-https://github.com}" \
+            --arg actor "${GITHUB_ACTOR:-}" --arg trigger "${GITHUB_EVENT_NAME:-}" \
+            '{
+               schema_version: 1,
+               target:     {id: $target, type: $target_type, boundary: $boundary},
+               scan:       {type: $scan_type, mode: $scan_mode, started_at: $started},
+               assessment: {profile: $profile, profile_version: $profile_version,
+                            profile_sha: $profile_sha, benchmark: $benchmark,
+                            benchmark_version: $benchmark_version},
+               provenance: {forge: "github", repo: $repo, commit: $commit, ref: $ref,
+                            workflow: $workflow, run_id: $run_id, run_attempt: $run_attempt,
+                            run_url: (if ($repo|length>0) and ($run_id|length>0)
+                                      then "\($server)/\($repo)/actions/runs/\($run_id)"
+                                      else null end)},
+               actor:      {triggered_by: $actor, trigger: $trigger},
+               corroborable: ["provenance.run_id","provenance.run_url","provenance.commit",
+                              "conversion.raw_digest","assessment.profile_sha"]
+             }
+             | walk(if type == "object" then with_entries(select(.value != "")) else . end)' \
+            > audit.pre.json
+          echo "Audit record staged for $(jq -r '.target.id' audit.pre.json)"
+
+      # 2 — the scan. A failing control is expected output, not a failed job.
+      - name: Vendor and execute the profile
+        env:
+          GITHUB_TOKEN: ${{ secrets.FORGE_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          EVIDENCE_BUCKET: ${{ secrets.COMPLIANCE_S3_BUCKET }}
+          EVIDENCE_BOUNDARY: ${{ inputs.evidence_boundary }}
+          RUN_MODE: ${{ inputs.run_mode }}
+          INPUTS_FILE: ${{ inputs.inputs_file }}
+          TARGET_URI: ${{ inputs.target_uri }}
+        run: |
+          set -uo pipefail
+          cinc-auditor vendor . --overwrite
+          # One --input flag with several pairs: repeated --input flags are
+          # silently dropped and only the last survives.
+          cinc-auditor exec . -t "$TARGET_URI" --input-file "$INPUTS_FILE" \
+            --input run_mode="$RUN_MODE" \
+                    evidence_bucket="$EVIDENCE_BUCKET" \
+                    evidence_boundary="$EVIDENCE_BOUNDARY" \
+            --reporter cli json:results.json || true
+          echo "FINISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          # An absent or empty artifact means the run never assessed anything.
+          # Without this the job would go green having produced nothing.
+          test -s results.json || { echo "::error::no results.json produced"; exit 1; }
+          COUNT=$(jq '[.profiles[].controls[]?.results[]?] | length' results.json)
+          echo "Executed $COUNT results"
+          [ "$COUNT" -gt 0 ] || { echo "::error::0 results — the profile assessed nothing"; exit 1; }
+          # This profile's own signature failure: with no declaration loaded,
+          # `targets` falls back to its empty default and every coverage control
+          # reports "no declared targets" — a clean-looking run that assessed an
+          # organisation of nobody.
+          if jq -e '[.profiles[].controls[]? | select(.results[]?.skip_message // "" | test("no declared targets"))] | length > 0' results.json >/dev/null 2>&1; then
+            echo "::error::controls report 'no declared targets' — the declaration did not load"; exit 1
+          fi
+
+      # 3 — first gate. Conversion fails loudly rather than writing invalid v3.
+      - name: Convert to HDF v3
+        run: |
+          set -euo pipefail
+          # inspec-aws's aws_iam_password_policy returns the whole policy OBJECT
+          # as its resource_id, where InSpec exec-json requires a string. hdf
+          # convert rejects the entire document over it:
+          #
+          #   cannot unmarshal object into Go struct field
+          #   V1Result.profiles.controls.results.resource_id of type string
+          #
+          # One malformed field therefore blocks all evidence for the run. Coerce
+          # any non-string resource_id to its JSON text: results, statuses and
+          # counts are untouched, only the identifier's encoding changes.
+          # Upstream cause is inspec/inspec-aws; remove this once it is fixed.
+          jq '(.profiles[]?.controls[]?.results[]?.resource_id)
+              |= (if . == null or type == "string" then . else tojson end)' \
+             results.json > results.normalized.json
+          hdf convert results.normalized.json -o results.v3.json
+
+      # 4 — the facts that could not exist until the scan had run.
+      - name: Apply the passthrough audit record
+        env:
+          BOUNDARY: ${{ inputs.boundary }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          DIGEST="sha256:$(sha256sum results.normalized.json | cut -d' ' -f1)"
+          jq --slurpfile a audit.pre.json --arg digest "$DIGEST" \
+             --arg finished "${FINISHED_AT}" --arg raw results.normalized.json \
+             --arg key "${BOUNDARY}/latest/${TARGET}/inspec/results.json" '
+             ([.baselines[]?.requirements[]?.results[]?.status]
+              + [.profiles[]?.controls[]?.results[]?.status]) as $st
+             | .passthrough = ((.passthrough // {}) + {
+                 audit: ($a[0]
+                   + {scan: ($a[0].scan + {finished_at: $finished})}
+                   + {scanner: {name: $a[0].assessment.profile,
+                                version: $a[0].assessment.profile_version}}
+                   + {conversion: {converter: (.generator.name // null),
+                                   converter_version: (.generator.version // null),
+                                   raw_artifact: $raw, raw_digest: $digest}}
+                   + {outcome: (if ($st|length) == 0 then null else {
+                        total: ($st|length),
+                        passed: ($st|map(select(.=="passed"))|length),
+                        failed: ($st|map(select(.=="failed"))|length),
+                        skipped: ($st|map(select(.=="skipped"))|length),
+                        not_applicable: ($st|map(select(.!="passed" and .!="failed"
+                                                  and .!="skipped"))|length)
+                      } end)}
+                   + {evidence_key: $key})
+               })
+             # The first-class HDF `target` element, alongside the audit record.
+             # Heimdall RENDERS this block, so it is where "what was assessed"
+             # belongs. The audit record keeps its own copy so it stays
+             # self-contained; both are written here from one source so they
+             # cannot disagree.
+             | .target = ($a[0].target + {scan_type: $a[0].scan.type})'                results.v3.json > results.audited.json
+          jq -e '.passthrough.audit.outcome.total > 0' results.audited.json >/dev/null \
+            || { echo "::error::audit record carries no outcome counts"; exit 1; }
+
+      # 5 — second gate. `hdf label set` reports success even when it labels
+      #     nothing, so exit status alone proves nothing here.
+      - name: Label the target component
+        env:
+          TARGET: ${{ inputs.target }}
+          SCAN_TYPE: ${{ inputs.scan_type }}
+        run: |
+          set -euo pipefail
+          hdf label set results.audited.json \
+            target="$TARGET" scan_type="$SCAN_TYPE" -o results.final.json
+          hdf label show results.final.json | grep -q '^Component:' \
+            || { echo "::error::hdf label wrote no labels — no components in the document"; exit 1; }
+
+      # 6 — third gate.
+      - name: Validate against the HDF schema
+        run: hdf validate --type results results.final.json
+
+      # 7 — the Heimdall copy.
+      #
+      # Heimdall loads the InSpec exec-json shape (`profiles[]`), which is what
+      # cinc-auditor already wrote in step 2 — so this is a carry-across, not a
+      # conversion. Confirmed by loading both shapes into a live Heimdall.
+      #
+      # Note the version-namespace collision, because it is a trap: in the
+      # Heimdall/SAF world "HDF" means this exec-json shape, but in hdf-libs
+      # 3.4.1 `--to hdf@2` IS the CLI default and emits `baselines[]` — the
+      # schema Heimdall does not take. `--to hdf@1` reaches the right shape but
+      # is a lossy downgrade, measurably dropping resource_class, resource_id,
+      # resource_params, attributes, sha256, depends and waiver_data. Copying
+      # the artifact we already have loses nothing.
+      - name: Produce the Heimdall copy
+        run: |
+          set -euo pipefail
+          # Carry BOTH the audit record and the target element across. Conversion
+          # strips them, so they are applied after every conversion, never before.
+          jq --slurpfile f results.final.json \
+             '.passthrough = ((.passthrough // {}) + {audit: $f[0].passthrough.audit})
+              | .target = $f[0].target' \
+             results.json > results-heimdall.json
+          # An empty document would render in Heimdall as a clean scan.
+          jq -e '[.profiles[]?.controls[]?.results[]?] | length > 0' results-heimdall.json >/dev/null \
+            || { echo "::error::Heimdall copy carries no results"; exit 1; }
+          jq -e '.passthrough.audit != null' results-heimdall.json >/dev/null \
+            || { echo "::error::audit record did not carry into the Heimdall copy"; exit 1; }
+          jq -e '.target.id != null' results-heimdall.json >/dev/null \
+            || { echo "::error::target element did not carry into the Heimdall copy"; exit 1; }
+          echo "Heimdall copy: $(jq '[.profiles[]?.controls[]?.results[]?] | length' results-heimdall.json) results, audit record carried"
+
+      # 8 — make the result readable in the log, not only downloadable.
+      - name: Display results
+        run: |
+          set -euo pipefail
+          {
+            echo '### Compliance summary'
+            echo '```'
+            saf view summary -i results.json 2>&1 || true
+            echo '```'
+            echo '### HDF v3 rollup'
+            echo '```'
+            hdf list results.final.json 2>&1 || true
+            echo '```'
+            echo '### Audit record'
+            echo '```json'
+            jq '.passthrough.audit' results.final.json
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: ${{ inputs.profile_name }}-evidence
+          path: |
+            results.final.json
+            results-heimdall.json
+          retention-days: 90

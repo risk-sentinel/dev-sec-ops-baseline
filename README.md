@@ -135,3 +135,66 @@ environment variable, so an org-level CI secret needs no input plumbing:
 MIT OR Apache-2.0. No ownership claims asserted.
 
 [![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=risk-sentinel_dev-sec-ops-profile)](https://sonarcloud.io/summary/new_code?id=risk-sentinel_dev-sec-ops-profile)
+
+## Producing evidence
+
+A `--reporter cli` run answers the question. It does not produce something an
+assessor can trace back to what was assessed, when, or by whom. For that, use the
+CI templates — the whole pipeline, in YAML with no helper scripts behind it:
+
+**GitHub**
+
+```yaml
+jobs:
+  sweep:
+    uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/exec-evidence.yml@main
+    with:
+      target: my-org
+      profile_name: dev-sec-ops-v1r1
+      profile_version: "1.1.0"
+      inputs_file: inputs/my-org.yml
+    secrets:
+      FORGE_TOKEN: ${{ secrets.DEVSECOPS_SCAN_TOKEN }}
+```
+
+**GitLab**
+
+```yaml
+include:
+  - project: risk-sentinel/dev-sec-ops-baseline
+    file: /ci/gitlab/exec-evidence.yml
+    inputs:
+      target: my-org
+      profile_name: dev-sec-ops-v1r1
+      profile_version: "1.1.0"
+      inputs_file: inputs/my-org.yml
+```
+
+`inputs_file` is **required and deliberately undefaulted**. This profile assesses
+an organisation, and defaulting it to ours would silently assess the wrong one
+while looking like it worked.
+
+`FORGE_TOKEN` must carry org read including private repositories, and must not be
+the default `GITHUB_TOKEN`. Measured against this org: an unauthorised token
+enumerates 16 repositories where an authorised one sees 21. The five private
+repos drop out **silently**, the denominator shrinks, and reconciliation then
+reports five stale declarations that do not exist — a confident false finding, and
+exactly the failure class this profile exists to catch.
+
+### Gates
+
+Beyond the shared three (`hdf convert` without `--no-validate`, `hdf label` plus
+a `label show` check, `hdf validate`), this pipeline fails the job when any
+control reports **"no declared targets"**. That is this profile's own signature
+failure: with no declaration loaded, `targets` falls back to its empty default and
+every coverage control reports clean having assessed an organisation of nobody.
+
+### Two artifacts
+
+`results.final.json` is HDF v3 — the authoritative, schema-validated evidence
+carrying the audit record and the `target` element. `results-heimdall.json` is the
+exec-json copy Heimdall loads. The second is a copy, not a conversion: every
+conversion path drops fields, and `hdf convert` discards `target` and
+`passthrough` outright (mitre/hdf-libs#234), which is why identity is stamped
+after conversion rather than before.
+

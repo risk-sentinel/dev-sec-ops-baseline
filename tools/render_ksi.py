@@ -49,29 +49,51 @@ DOC_END = "<!-- END GENERATED: ksi-coverage -->"
 # Generated elsewhere from the same resolver. See the module docstring.
 GENERATED = {"coverage.rb"}
 
+# The ONLY value in this tool that originates outside the source: a filename
+# read from the directory. Every write destination is rebuilt from module
+# constants plus a name that has matched this, so nothing off the filesystem is
+# ever spliced into a path.
+SAFE_NAME = re.compile(r"[a-z][a-z0-9_]*\.rb")
+
 CONTROL_ID = re.compile(r"^control\s+'([^']+)'\s+do\s*$")
 NIST_LINE = re.compile(r"^(\s*)tag nist:\s*\[(.*)\]\s*$")
 KSI_LINE = re.compile(r"^\s*tag ksi(?:_broader|_unmapped)?:")
 QUOTED = re.compile(r"'([^']+)'")
 
 
-def safe_write(path: pathlib.Path, text: str) -> None:
-    """Write, refusing any destination outside the repository.
+def write_control(name: str, text: str) -> pathlib.Path:
+    """Write one control file, addressed by validated name rather than by path.
 
-    Today every path here comes from a glob under `controls/` or from a module
-    constant, so nothing externally supplied reaches it. The guard is close to
-    free, it mirrors `safe_path` in tools/test_evidence.py so the two tools
-    handle this the same way, and it means a later caller that DOES take a
-    destination from somewhere else cannot quietly turn a documentation
-    generator into an arbitrary-write primitive.
+    `name` is matched against SAFE_NAME and then joined to a module constant, so
+    the destination is built entirely from values in this file. Passing the
+    globbed `Path` straight through would mean a directory entry chose where the
+    write landed; that is fine today and is not a property worth relying on in a
+    tool whose whole job is to rewrite source files in place.
+
+    The containment assertion stays as a second line of defence — cheap, and it
+    mirrors `safe_path` in tools/test_evidence.py so both tools behave alike.
     """
-    resolved = path.resolve()
-    if not resolved.is_relative_to(ROOT):
-        raise SystemExit(f"refusing to write outside the repository: {path}")
-    resolved.write_text(text)
+    if not SAFE_NAME.fullmatch(name):
+        raise SystemExit(f"refusing to write unexpected control filename: {name!r}")
+    target = (CONTROLS / name).resolve()
+    if not target.is_relative_to(ROOT):
+        raise SystemExit(f"refusing to write outside the repository: {name!r}")
+    target.write_text(text)
+    return target
 
 
-def rewrite(text: str, catalog: KsiCatalog, path: pathlib.Path) -> str:
+def write_doc(text: str) -> pathlib.Path:
+    """Write the generated coverage document. Destination is a constant."""
+    DOC.resolve().write_text(text)
+    return DOC
+
+
+def rewrite(text: str, catalog: KsiCatalog, where: str) -> str:
+    """Return `text` with its `tag ksi*:` lines regenerated.
+
+    `where` is a label for error messages only — never a path that gets opened,
+    so a malformed control file cannot influence where anything is written.
+    """
     out: list[str] = []
     lines = text.splitlines()
     i = 0
@@ -87,7 +109,7 @@ def rewrite(text: str, catalog: KsiCatalog, path: pathlib.Path) -> str:
         indent, body = match.groups()
         tags = QUOTED.findall(body)
         if not tags:
-            raise SystemExit(f"{path}: `tag nist:` with no control ids on line {i}")
+            raise SystemExit(f"{where}: `tag nist:` with no control ids on line {i}")
 
         # Drop whatever KSI tags are currently there; they are regenerated
         # below. Done by consuming the following lines rather than by editing
@@ -98,7 +120,7 @@ def rewrite(text: str, catalog: KsiCatalog, path: pathlib.Path) -> str:
         try:
             resolution = catalog.resolve(tags)
         except ValueError as exc:
-            raise SystemExit(f"{path}: {exc}") from exc
+            raise SystemExit(f"{where}: {exc}") from exc
         out.extend(tag_lines(resolution, indent))
 
     return "\n".join(out) + "\n"
@@ -249,15 +271,23 @@ def splice(current: str, block: str) -> str:
     return current[:start] + block + current[end + len(DOC_END):]
 
 
-def _targets() -> list[pathlib.Path]:
-    return sorted(p for p in CONTROLS.glob("*.rb") if p.name not in GENERATED)
+def _targets() -> list[str]:
+    """Hand-written control-file NAMES, each validated on the way out."""
+    names = []
+    for entry in sorted(CONTROLS.glob("*.rb")):
+        if entry.name in GENERATED:
+            continue
+        if not SAFE_NAME.fullmatch(entry.name):
+            raise SystemExit(f"unexpected control filename: {entry.name!r}")
+        names.append(entry.name)
+    return names
 
 
-def _report_stale(stale: list[pathlib.Path], doc_stale: bool) -> int:
+def _report_stale(stale: list[str], doc_stale: bool) -> int:
     """Print what is out of date, as annotations, and return the exit code."""
-    for path in stale:
+    for name in stale:
         print(
-            f"::error file={path.relative_to(ROOT)}::KSI tags are stale — "
+            f"::error file=controls/{name}::KSI tags are stale — "
             "run `python3 tools/render_ksi.py`",
             file=sys.stderr,
         )
@@ -286,8 +316,12 @@ def main() -> int:
         print("::error::no hand-written control files found", file=sys.stderr)
         return 1
 
-    pending = [(path, rewrite(path.read_text(), catalog, path)) for path in targets]
-    pending = [(path, text) for path, text in pending if text != path.read_text()]
+    pending = []
+    for name in targets:
+        current = (CONTROLS / name).read_text()
+        updated = rewrite(current, catalog, name)
+        if updated != current:
+            pending.append((name, updated))
 
     # The document is rendered from the SAME resolution the tags came from, and
     # checked alongside them, so a stale document is as loud as a stale tag —
@@ -297,22 +331,22 @@ def main() -> int:
     doc_stale = doc_updated != doc_current
 
     if args.check:
-        rc = _report_stale([path for path, _ in pending], doc_stale)
+        rc = _report_stale([name for name, _ in pending], doc_stale)
         if rc == 0:
             print(f"KSI tags and coverage table in sync across {len(targets)} "
                   f"control files "
                   f"({catalog.source['name']} {catalog.source['version']}).")
         return rc
 
-    changed = [path for path, _ in pending]
-    for path, text in pending:
-        safe_write(path, text)
+    changed = [f"controls/{name}" for name, _ in pending]
+    for name, text in pending:
+        write_control(name, text)
     if doc_stale:
-        safe_write(DOC, doc_updated)
-        changed.append(DOC)
+        write_doc(doc_updated)
+        changed.append(str(DOC.relative_to(ROOT)))
 
-    for path in changed:
-        print(f"rewrote {path.relative_to(ROOT)}")
+    for label in changed:
+        print(f"rewrote {label}")
     print(f"{len(changed)} file(s) changed.")
     return 0
 

@@ -21,7 +21,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
 from ksi_resolver import KsiCatalog, normalise, tag_lines  # noqa: E402
-from render_ksi import safe_write  # noqa: E402
+from render_ksi import write_control  # noqa: E402
 
 FAILURES = []
 
@@ -142,14 +142,18 @@ for path in sorted((ROOT / "controls").glob("*.rb")):
 check("the profile is not silently untagged", tagged > 0)
 
 print("writes stay inside the repository")
-try:
-    safe_write(pathlib.Path("/tmp/ksi-escape-probe"), "nope")
-    check("safe_write refuses a destination outside the repository", False)
-except SystemExit as exc:
-    check("safe_write refuses a destination outside the repository",
-          "refusing to write" in str(exc))
-check("...and did not create the file",
-      not pathlib.Path("/tmp/ksi-escape-probe").exists())
+# Destinations are rebuilt from module constants plus a name matched against a
+# strict allow-list, so a traversal attempt cannot reach the filesystem at all.
+for probe in ("../../../tmp/escape.rb", "/tmp/absolute.rb", "Weird Name.rb",
+              "no_extension"):
+    try:
+        write_control(probe, "nope")
+        check(f"refuses {probe!r}", False)
+    except SystemExit as exc:
+        check(f"refuses {probe!r}", "refusing to write" in str(exc))
+check("...and created nothing outside the repository",
+      not pathlib.Path("/tmp/escape.rb").exists()
+      and not pathlib.Path("/tmp/absolute.rb").exists())
 
 print("renderers are idempotent")
 for tool in ("render_ksi.py", "render_controls.py"):

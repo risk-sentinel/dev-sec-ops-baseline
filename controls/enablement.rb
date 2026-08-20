@@ -37,7 +37,18 @@ run_mode = input('run_mode')
 
 gh_token = input('github_token')
 gh_api   = input('github_api_base')
+gl_token = input('gitlab_token')
+gl_api   = input('gitlab_api_base')
 org_name = input('organization').to_h['name']
+
+# Both forges' credentials; ForgeSecurity picks by declaration. `forge:` has
+# been declared on every target since the schema was written and was read by
+# nothing — a GitLab target was probed against api.github.com and reported as
+# entirely unprotected.
+forge_creds = {
+  'github' => { token: gh_token, api_base: gh_api },
+  'gitlab' => { token: gl_token, api_base: gl_api }
+}
 
 # =============================================================================
 # The denominator.
@@ -67,7 +78,27 @@ control 'devsecops-inventory-reconciliation' do
     %w[control-plane both].include?(run_mode) && !org_name.to_s.empty?
   end
 
-  gs     = github_security(org: org_name, token: gh_token, api_base: gh_api)
+  # Resolved without raising. `organisation_forge` raises by design, and a raise
+  # in a control BODY aborts the whole control — an undeclared forge would take
+  # the entire reconciliation down rather than reporting itself. The problem
+  # becomes a failing example below instead.
+  org_forge = ::ForgeSecurity.declared_forge(declaration)
+
+  if org_forge.nil?
+    describe 'organisation forge' do
+      subject do
+        raise ::Inspec::Exceptions::ResourceFailed,
+              "organisation '#{org_name}' declares no usable `forge:`. " \
+              'Reconciliation cannot enumerate a platform it was not told ' \
+              'about, and guessing would compare this declaration against the ' \
+              'wrong estate.'
+      end
+      it { should be_nil }
+    end
+    next
+  end
+
+  gs     = ::ForgeSecurity.org_handle(org_name, forge: org_forge, creds: forge_creds)
   actual = gs.repo_names
   rec    = ::CapabilityMatrix.reconcile(declaration, actual)
 
@@ -165,8 +196,25 @@ control 'devsecops-native-capability-enablement' do
     end
   else
     required.each do |repo, caps|
+      forge = ::ForgeSecurity.for_target(declaration, repo)
       caps.each do |cap|
-        gs = github_security("#{org_name}/#{repo}", token: gh_token, api_base: gh_api)
+        # Forge-native capability state is read on GitHub only. GitHub exposes a
+        # separate endpoint per capability with its own enablement state and its
+        # own failure code; GitLab funnels the equivalents through one
+        # vulnerability-findings endpoint with a different shape. Running the
+        # GitHub reader against a GitLab project would 404 and report every
+        # capability disabled — a confident false finding.
+        unless ::ForgeSecurity.supported?(forge, 'capabilities')
+          describe "#{repo} — #{cap[:capability]} (required by #{cap[:tool]})" do
+            it('is not readable on this forge') do
+              skip ::ForgeSecurity.unsupported_reason(forge, 'capabilities')
+            end
+          end
+          next
+        end
+
+        gs = ::ForgeSecurity.handle("#{org_name}/#{repo}", forge: forge,
+                                    org: org_name, creds: forge_creds)
         status = gs.capability_status(cap[:capability])
         describe "#{repo} — #{cap[:capability]} (required by #{cap[:tool]}: #{cap[:reason]})" do
           subject { "#{status}#{status == :enabled ? '' : " — #{gs.capability_reason(cap[:capability])}"}" }

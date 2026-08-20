@@ -250,6 +250,39 @@ capabilities:
         endpoint: GET /projects/{id}/approval_rules
         docs: https://docs.gitlab.com/api/merge_request_approvals/
 
+  group_governance:
+    title: Group-inherited merge rules
+    why: >-
+      GitLab does NOT fold group rules into the project response, unlike
+      GitHub's repo endpoint which returns parent rulesets by default. A
+      project can look entirely unconfigured while being fully governed from
+      above, so this layer is fetched and merged deliberately. Reading the
+      project alone reports the estate unprotected — the same defect shape that
+      classic-branch-protection-only reading produced on GitHub.
+    bindings:
+      gitlab:
+        endpoint: GET /groups/{id}/protected_branches
+        docs: https://docs.gitlab.com/api/group_protected_branches/
+      github:
+        endpoint: GET /repos/{owner}/{repo}/rulesets (parent rulesets included)
+        docs: https://docs.github.com/en/rest/repos/rules
+
+  security_policy_project:
+    title: Merge rules held in a separate policy project
+    why: >-
+      GitLab merge-request approval policies and scan execution policies are
+      authored as YAML in a LINKED project and applied to the target. The rules
+      governing project A live in project B, and reading A tells you nothing.
+      A rule set this way cannot be weakened by the project maintainer, which
+      is a materially stronger guarantee than the same rule set locally — so
+      the layer is reported distinctly rather than merged into one number.
+
+      The link itself is GraphQL-only; no REST endpoint exposes it.
+    bindings:
+      gitlab:
+        endpoint: GraphQL project.securityPolicyProject, then GET /projects/{policy_id}/repository/files/.gitlab%2Fsecurity-policies%2Fpolicy.yml/raw
+        docs: https://docs.gitlab.com/user/application_security/policies/merge_request_approval_policies/
+
   rulesets:
     title: Repository rulesets and push rules
     bindings:

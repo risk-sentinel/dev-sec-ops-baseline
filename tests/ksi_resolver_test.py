@@ -21,6 +21,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
 from ksi_resolver import KsiCatalog, normalise, tag_lines  # noqa: E402
+from render_ksi import safe_write  # noqa: E402
 
 FAILURES = []
 
@@ -87,6 +88,22 @@ check("a KSI reached soundly is not also listed as broader",
       "KSI-SCR-MIT" not in r.broader)
 check("the gap is still reported", r.unmapped == ["sr-3"])
 
+print("order independence (regression)")
+# The first version deduplicated `narrower` links against KSIs already reached
+# by an EARLIER tag. RA-5 reached KSI-SCR-MON exactly; RA-5(2)'s narrower link
+# to the same KSI was then dropped, leaving no links, which fired the `broader`
+# fallback and claimed three KSIs citing ra-5.5 — a SIBLING enhancement, not the
+# base-of-a-cited-enhancement case `broader` is defined as.
+r = catalog.resolve(["RA-5", "RA-5(2)"])
+check("a base plus one of its own enhancements claims no sibling-enhancement KSIs",
+      r.broader == [])
+check("...and the sound link still holds", r.ksi == ["KSI-SCR-MON"])
+check("resolution does not depend on tag order",
+      catalog.resolve(["RA-5", "RA-5(2)"]) == catalog.resolve(["RA-5(2)", "RA-5"]))
+check("the broader fallback still fires for its real case (base, cited enhancement)",
+      catalog.resolve(["SA-15"]).broader == ["KSI-SCR-MIT"])
+
+print()
 print("no baseline filter (#40)")
 # ca-2.1 is cited by a KSI and carries an enhancement of the kind #40 reports as
 # unresolvable against the FedRAMP High catalog we publish. It must resolve here
@@ -123,6 +140,16 @@ for path in sorted((ROOT / "controls").glob("*.rb")):
     check(f"{path.name}: every tag nist: has a tag ksi: ({nist})", nist == ksi)
     tagged += ksi
 check("the profile is not silently untagged", tagged > 0)
+
+print("writes stay inside the repository")
+try:
+    safe_write(pathlib.Path("/tmp/ksi-escape-probe"), "nope")
+    check("safe_write refuses a destination outside the repository", False)
+except SystemExit as exc:
+    check("safe_write refuses a destination outside the repository",
+          "refusing to write" in str(exc))
+check("...and did not create the file",
+      not pathlib.Path("/tmp/ksi-escape-probe").exists())
 
 print("renderers are idempotent")
 for tool in ("render_ksi.py", "render_controls.py"):

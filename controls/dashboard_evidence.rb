@@ -83,7 +83,6 @@ control 'devsecops-code-scanning-executed' do
   DESC
   tag nist: ['RA-5', 'RA-5(2)', 'SA-11', 'SA-11(1)', 'SI-2']
   tag ksi: ['KSI-CMT-VTD', 'KSI-SCR-MIT', 'KSI-SCR-MON']
-  tag ksi_broader: ['KSI-IAM-JIT', 'KSI-IAM-SNU', 'KSI-PIY-RVD']
   tag layer: 'dashboard-evidence' # NOSONAR - tag values must be AST literals
   only_if(needs_cp) do
     control_plane && !org_name.to_s.empty? && !repo_names.empty?

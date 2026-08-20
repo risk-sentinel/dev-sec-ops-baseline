@@ -102,6 +102,56 @@ class KsiCatalog:
                 self.by_control.setdefault(control, set()).add(ksi_id)
                 self.by_base.setdefault(_base_of(control), set()).add(ksi_id)
 
+    def _links_for(self, control: str) -> list[tuple[str, str]]:
+        """Every KSI one NIST control reaches, with the tier of each link.
+
+        Split out of `resolve` so the tiering rules — the part that decides what
+        a reverse link MEANS — read as one thing rather than as three nested
+        loops inside a loop.
+
+        Deliberately per-control and order-independent, which FIXES A BUG in the
+        first version of this module.
+
+        That version deduplicated `narrower` links against KSIs already reached
+        by an EARLIER tag. When a tag's only link was narrower to an
+        already-reached KSI, `links` came back empty — and empty then fired the
+        `broader` fallback below.
+
+        Worked example, from a control tagged `RA-5` and `RA-5(2)`:
+
+            RA-5     exact    -> KSI-SCR-MON, added to the global reached set
+            RA-5(2)  narrower -> KSI-SCR-MON, DROPPED as already reached
+                     links now empty, so the broader fallback ran over every
+                     KSI citing any `ra-5.x` and claimed KSI-IAM-JIT,
+                     KSI-IAM-SNU and KSI-PIY-RVD, which cite `ra-5.5`
+
+        `ra-5.2` and `ra-5.5` are different enhancements. That is a SIBLING
+        relationship, not the base-of-a-cited-enhancement one that `broader`
+        is defined as, so those three were an overclaim — the exact failure
+        the tiering exists to prevent, produced by the deduplication rather
+        than by the tiers.
+
+        The fallback is unchanged and still correct for its real case: a BASE
+        control whose enhancement is cited, `SA-15` against `sa-15.3`.
+        """
+        links = [(k, "exact") for k in sorted(self.by_control.get(control, ()))]
+        seen = {k for k, _ in links}
+
+        # Our tag is an enhancement and a KSI cites its base control. The
+        # enhancement cannot be satisfied without the base, so the link holds.
+        base = _base_of(control)
+        if base != control:
+            links += [(k, "narrower")
+                      for k in sorted(self.by_control.get(base, ()))
+                      if k not in seen]
+
+        # Our tag is a base control and a KSI cites an enhancement of it. Only
+        # consulted when nothing stronger was found — a weak link is not worth
+        # recording next to a sound one.
+        if not links:
+            links = [(k, "broader") for k in sorted(self.by_base.get(base, ()))]
+        return links
+
     def resolve(self, tags: Iterable[str]) -> Resolution:
         holds: set[str] = set()
         broader: set[str] = set()
@@ -110,31 +160,13 @@ class KsiCatalog:
 
         for tag in tags:
             control = normalise(tag)
-            links: list[tuple[str, str]] = []
-
-            for ksi_id in sorted(self.by_control.get(control, ())):
-                links.append((ksi_id, "exact"))
-                holds.add(ksi_id)
-
-            # Our tag is an enhancement and a KSI cites its base control.
-            base = _base_of(control)
-            if base != control:
-                for ksi_id in sorted(self.by_control.get(base, ())):
-                    if ksi_id not in holds:
-                        links.append((ksi_id, "narrower"))
-                        holds.add(ksi_id)
-
-            # Our tag is a base control and a KSI cites an enhancement of it.
-            # Only consulted when nothing stronger was found for this tag —
-            # a weak link is not worth recording next to a sound one.
-            if not links:
-                for ksi_id in sorted(self.by_base.get(base, ())):
-                    links.append((ksi_id, "broader"))
-                    broader.add(ksi_id)
-
+            links = self._links_for(control)
+            detail[control] = links
             if not links:
                 unmapped.append(control)
-            detail[control] = links
+                continue
+            for ksi_id, tier in links:
+                (broader if tier == "broader" else holds).add(ksi_id)
 
         # A KSI reached soundly by one tag is not also "broader" because a
         # weaker tag on the same control happened to reach it.

@@ -111,6 +111,7 @@ execution record even when the scan is clean — see
 | Architecture and roadmap | [`docs/Pipeline_Evidence_Plane.html`](docs/Pipeline_Evidence_Plane.html) |
 | How checks are selected, and the denominator | [`docs/detection_model.md`](docs/detection_model.md) |
 | What is covered, by scan type and by tool | [`docs/coverage.md`](docs/coverage.md) |
+| Which FedRAMP KSIs the controls reach | [`docs/ksi_coverage.md`](docs/ksi_coverage.md) |
 | Pointing the profile at your evidence | [`docs/evidence_sources.md`](docs/evidence_sources.md) |
 | The GitHub dashboard bridge | [`docs/dashboard_bridge.md`](docs/dashboard_bridge.md) |
 | Tokens, scopes, and what fails quietly | [`docs/tokens.md`](docs/tokens.md) |

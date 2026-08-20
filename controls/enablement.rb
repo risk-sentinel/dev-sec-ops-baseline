@@ -60,6 +60,8 @@ control 'devsecops-inventory-reconciliation' do
     silently shrinking the denominator.
   DESC
   tag nist: ['CM-8', 'CM-8(1)', 'PM-5', 'CA-7']
+  tag ksi: ['KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-PIY-GIV']
+  tag ksi_unmapped: ['pm-5']
   tag layer: 'inventory'
   only_if('Organisation enumeration needs control-plane access') do
     %w[control-plane both].include?(run_mode) && !org_name.to_s.empty?
@@ -143,6 +145,7 @@ control 'devsecops-native-capability-enablement' do
     repository nobody scans as clean.
   DESC
   tag nist: ['RA-5', 'SI-5', 'SA-11']
+  tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag layer: 'platform-enablement'
   only_if('Native capability checks need control-plane access') do
     %w[control-plane both].include?(run_mode)

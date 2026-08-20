@@ -5,7 +5,7 @@ merge-rule resolution is more involved than GitHub's.
 
 > **Not exec-validated.** Every repository in this organisation is on GitHub and
 > there is no GitLab instance to run against. `gitlab_security` ships
-> fixture-tested only — 34 assertions in
+> fixture-tested only — 55 assertions in
 > [`tests/gitlab_security_test.rb`](../tests/gitlab_security_test.rb), run in CI.
 > That label is stated rather than implied: `cinc-auditor check` and `json` only
 > **load** a library, they never call a method on it, and this profile has

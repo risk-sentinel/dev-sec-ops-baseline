@@ -115,6 +115,16 @@ module ForgeSecurity
       when 'gitlab'
         cfg = creds.fetch('gitlab', {})
         ::GitlabSecurityHandle.call(repo, org, cfg[:token], cfg[:api_base])
+      else
+        # Unreachable today: `normalise` raises on anything outside SUPPORTED.
+        # Present because the failure it guards is the quiet kind — add a forge
+        # to SUPPORTED, forget to wire it here, and this returns nil. The caller
+        # then gets a NoMethodError somewhere unrelated, or treats nil as "no
+        # resource" and reports the target as unreadable. Failing here names the
+        # actual mistake.
+        raise ::Inspec::Exceptions::ResourceFailed,
+              "#{forge} is listed in SUPPORTED but no resource is wired for it " \
+              'in ForgeSecurity. Add the branch, or remove it from SUPPORTED.'
       end
     end
 
@@ -130,6 +140,16 @@ module ForgeSecurity
       when 'gitlab'
         cfg = creds.fetch('gitlab', {})
         ::GitlabSecurity.new(nil, group: org, token: cfg[:token], api_base: cfg[:api_base])
+      else
+        # Unreachable today: `normalise` raises on anything outside SUPPORTED.
+        # Present because the failure it guards is the quiet kind — add a forge
+        # to SUPPORTED, forget to wire it here, and this returns nil. The caller
+        # then gets a NoMethodError somewhere unrelated, or treats nil as "no
+        # resource" and reports the target as unreadable. Failing here names the
+        # actual mistake.
+        raise ::Inspec::Exceptions::ResourceFailed,
+              "#{forge} is listed in SUPPORTED but no resource is wired for it " \
+              'in ForgeSecurity. Add the branch, or remove it from SUPPORTED.'
       end
     end
 

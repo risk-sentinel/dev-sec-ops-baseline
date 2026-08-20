@@ -74,7 +74,7 @@ class StubbedGitlab < GitlabSecurity
         : { code: 200, body: body, raw: JSON.dump(body), next_page: nil }
   end
 
-  def post_json(url, _payload)
+  def post_json(url, *)
     @requested << url
     @graphql
   end
@@ -83,6 +83,16 @@ end
 def graphql_reply(path)
   { 'data' => { 'project' => { 'securityPolicyProject' => path.nil? ? nil : { 'fullPath' => path } } } }
 end
+
+# Fixture vocabulary. Hoisted because these are ordinary Ruby literals in a
+# plain test — unlike the `tag ksi:` values in the control files, where a
+# constant is read from the AST at parse time, resolves to nothing, and silently
+# emits nil.
+PROJECT            = 'group/project'.freeze
+APPROVALS_PATH     = '/approvals'.freeze
+POLICY_FILE        = 'policy.yml'.freeze
+POLICY_PROJECT     = 'policy/project'.freeze
+POLICY_PROJECT_GET = '=/projects/policy%2Fproject'.freeze
 
 POLICY_YAML = <<~YAML.freeze
   approval_policy:
@@ -124,10 +134,10 @@ end
 puts
 puts 'layer 1 — the project'
 project_only = StubbedGitlab.new(
-  'group/project',
+  PROJECT,
   routes: {
     'approval_rules' => [{ 'name' => 'Security', 'approvals_required' => 1 }],
-    '/approvals' => { 'approvals_before_merge' => 0, 'merge_requests_author_approval' => false },
+    APPROVALS_PATH => { 'approvals_before_merge' => 0, 'merge_requests_author_approval' => false },
     'protected_branches' => [{ 'name' => 'main', 'code_owner_approval_required' => true }],
     'push_rule' => { 'reject_unsigned_commits' => true }
   },
@@ -140,14 +150,14 @@ check('code-owner approval read from the protected branch') do
 end
 check('author self-approval defaults to ALLOWED when unstated') do
   # Defaulting the other way would report a stricter posture than was verified.
-  StubbedGitlab.new('g/p', routes: { '/approvals' => {} }, graphql: graphql_reply(nil))
+  StubbedGitlab.new('g/p', routes: { APPROVALS_PATH => {} }, graphql: graphql_reply(nil))
                .author_may_self_approve?
 end
 
 puts
 puts 'wildcards'
 wild = StubbedGitlab.new(
-  'group/project',
+  PROJECT,
   routes: { 'protected_branches' => [{ 'name' => 'release/*' }],
             '=/projects/group%2Fproject' => { 'default_branch' => 'main' } },
   graphql: graphql_reply(nil)
@@ -161,12 +171,12 @@ check('...and does not cover a non-matching one') { wild.branch_protected?('deve
 puts
 puts 'layer 2 — the group (invisible in project config)'
 group_governed = StubbedGitlab.new(
-  'group/project',
+  PROJECT,
   routes: {
     '/groups/group/protected_branches' => [{ 'name' => 'main',
                                              'code_owner_approval_required' => true }],
     'approval_rules' => [],
-    '/approvals' => {},
+    APPROVALS_PATH => {},
     'protected_branches' => []
   },
   graphql: graphql_reply(nil)
@@ -186,15 +196,15 @@ end
 puts
 puts 'layer 3 — the security policy project'
 policy_governed = StubbedGitlab.new(
-  'group/project',
+  PROJECT,
   routes: {
     'approval_rules' => [],
-    '/approvals' => {},
+    APPROVALS_PATH => {},
     'protected_branches' => [],
-    'policy.yml' => POLICY_YAML,
-    '=/projects/policy%2Fproject' => { 'default_branch' => 'main' }
+    POLICY_FILE => POLICY_YAML,
+    POLICY_PROJECT_GET => { 'default_branch' => 'main' }
   },
-  graphql: graphql_reply('policy/project')
+  graphql: graphql_reply(POLICY_PROJECT)
 )
 check('a project governed ONLY by a policy project is governed, not unprotected') do
   # The rules for project A live in project B. Reading A tells you nothing.
@@ -207,13 +217,13 @@ check('state is :applies') { policy_governed.policy_project_state == :applies }
 
 puts
 puts 'the four policy-project outcomes stay distinct'
-none = StubbedGitlab.new('group/project', routes: {}, graphql: graphql_reply(nil))
+none = StubbedGitlab.new(PROJECT, routes: {}, graphql: graphql_reply(nil))
 check('no policy project linked -> :none') { none.policy_project_state == :none }
 
 unreadable = StubbedGitlab.new(
-  'group/project',
+  PROJECT,
   routes: { 'projects/' => 403 },   # linked, and we cannot read it
-  graphql: graphql_reply('policy/project')
+  graphql: graphql_reply(POLICY_PROJECT)
 )
 check('linked but unreadable -> :unreadable, NOT absence') do
   # This is the assertion the whole four-state design exists for. A project
@@ -226,9 +236,9 @@ check('unreadable says it is about OUR access, not their governance') do
 end
 
 out_of_scope = StubbedGitlab.new(
-  'group/project',
+  PROJECT,
   routes: {
-    'policy.yml' => <<~YAML,
+    POLICY_FILE => <<~YAML,
       approval_policy:
         - name: Applies elsewhere
           enabled: true
@@ -240,9 +250,9 @@ out_of_scope = StubbedGitlab.new(
             - type: require_approval
               approvals_required: 5
     YAML
-    '=/projects/policy%2Fproject' => { 'default_branch' => 'main' }
+    POLICY_PROJECT_GET => { 'default_branch' => 'main' }
   },
-  graphql: graphql_reply('policy/project')
+  graphql: graphql_reply(POLICY_PROJECT)
 )
 check('readable but scoped elsewhere -> :out_of_scope') do
   out_of_scope.policy_project_state == :out_of_scope
@@ -255,10 +265,10 @@ end
 puts
 puts 'policy scoping'
 def scoped(yaml)
-  StubbedGitlab.new('group/project',
-                    routes: { 'policy.yml' => yaml,
-                              '=/projects/policy%2Fproject' => { 'default_branch' => 'main' } },
-                    graphql: graphql_reply('policy/project'))
+  StubbedGitlab.new(PROJECT,
+                    routes: { POLICY_FILE => yaml,
+                              POLICY_PROJECT_GET => { 'default_branch' => 'main' } },
+                    graphql: graphql_reply(POLICY_PROJECT))
 end
 check('a policy with NO scope block applies here') do
   # An absent scope means "the whole linked group", not "nowhere". Getting this
@@ -289,15 +299,15 @@ end
 puts
 puts 'most restrictive wins across layers'
 combined = StubbedGitlab.new(
-  'group/project',
+  PROJECT,
   routes: {
     'approval_rules' => [{ 'name' => 'Local', 'approvals_required' => 1 }],
-    '/approvals' => { 'approvals_before_merge' => 0 },
+    APPROVALS_PATH => { 'approvals_before_merge' => 0 },
     'protected_branches' => [{ 'name' => 'main' }],
-    'policy.yml' => POLICY_YAML,
-    '=/projects/policy%2Fproject' => { 'default_branch' => 'main' }
+    POLICY_FILE => POLICY_YAML,
+    POLICY_PROJECT_GET => { 'default_branch' => 'main' }
   },
-  graphql: graphql_reply('policy/project')
+  graphql: graphql_reply(POLICY_PROJECT)
 )
 check('the policy project raises the effective requirement above the project rule') do
   combined.effective_required_approvals == 2
@@ -322,7 +332,7 @@ end
 puts
 puts 'CODEOWNERS'
 gitlab_placed = StubbedGitlab.new(
-  'group/project',
+  PROJECT,
   routes: { '.gitlab%2FCODEOWNERS' => "docs/ @team\n",
             '=/projects/group%2Fproject' => { 'default_branch' => 'main' } },
   graphql: graphql_reply(nil)
@@ -339,7 +349,7 @@ puts 'transport failure is captured, never raised'
 class ExplodingGitlab < GitlabSecurity
   private
 
-  def get(_path, raw: false)
+  def get(*, **)
     raise Errno::ECONNREFUSED, 'stubbed'
   rescue StandardError => e
     @connection_error = "GET failed: #{e.class}"
@@ -408,6 +418,35 @@ end
 check('handle returns the GitLab resource for a gitlab target') do
   ForgeSecurity.handle('g/p', forge: 'gitlab', org: 'g',
                        creds: { 'gitlab' => { token: 't' } }).is_a?(GitlabSecurity)
+end
+
+# The guard exists for a mistake that is otherwise silent: add a forge to
+# SUPPORTED, forget the dispatch branch, and `handle` returns nil. The caller
+# then NoMethodErrors somewhere unrelated, or reads nil as "no resource" and
+# reports the target unreadable. Exercised by temporarily widening SUPPORTED,
+# which is the only way to reach a branch that is unreachable by design.
+%i[handle org_handle].each do |method|
+  check("#{method} raises for a SUPPORTED forge with no resource wired") do
+    original = ForgeSecurity::SUPPORTED
+    ForgeSecurity.send(:remove_const, :SUPPORTED)
+    ForgeSecurity.const_set(:SUPPORTED, (original + ['bitbucket']).freeze)
+    begin
+      if method == :handle
+        ForgeSecurity.handle('o/r', forge: 'bitbucket', org: 'o', creds: {})
+      else
+        ForgeSecurity.org_handle('o', forge: 'bitbucket', creds: {})
+      end
+      false
+    rescue Inspec::Exceptions::ResourceFailed => e
+      e.message.include?('no resource is wired')
+    ensure
+      ForgeSecurity.send(:remove_const, :SUPPORTED)
+      ForgeSecurity.const_set(:SUPPORTED, original)
+    end
+  end
+end
+check('SUPPORTED is restored afterwards') do
+  ForgeSecurity::SUPPORTED == %w[github gitlab]
 end
 
 check('GitLab claims required_reviews') { ForgeSecurity.supported?('gitlab', 'required_reviews') }

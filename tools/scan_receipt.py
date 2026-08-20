@@ -45,7 +45,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from hdf_doc import profile_document  # noqa: E402
+from hdf_doc import control as build_control, profile_document  # noqa: E402
 
 # The output path is a CLI argument a workflow assembles, and this tool WRITES
 # to it, so a "../.." would let an earlier step choose which file gets
@@ -81,23 +81,40 @@ def build(scanner, repo, sha, ref, run_id, findings, version, mode, timestamp):
         + f" in {mode} mode and reported {findings} finding(s)."
     )
 
-    control = {
-        "id": f"{scanner}-executed",
-        "title": f"{scanner} executed and reported no findings",
-        "desc": (
+    control = build_control(
+        control_id=f"{scanner}-executed",
+        title=f"{scanner} executed over this commit and reported no findings",
+        desc=(
             f"{detail}\n\n"
             "This records an EXECUTION, not a finding. It is evidence that the "
-            "scan ran over this commit and returned clean — the claim a clean "
-            "repository can otherwise never make, because a scanner that finds "
-            "nothing produces nothing to convert and an empty prefix is "
-            "indistinguishable from a broken pipeline.\n\n"
-            "There is no API that can answer this after the fact the way a code "
-            "scanning dashboard can, so the run is the only witness and the "
-            "record has to be written when it is true."
+            "scan ran over this commit and returned clean."
         ),
-        "impact": 0.5,
-        "refs": [],
-        "tags": {
+        rationale=(
+            "A clean repository can otherwise never make this claim. A scanner "
+            "that finds nothing produces nothing to convert, so an empty "
+            "evidence prefix is indistinguishable from a pipeline that broke — "
+            "the two leave byte-for-byte identical state. Unlike code scanning "
+            "there is no API that can answer this after the fact, so the run is "
+            "the only witness and the record has to be written while it is true."
+        ),
+        check=(
+            f"{scanner}"
+            + (f" {version}" if version else "")
+            + f" ran in {mode} mode over {repo} at commit {sha or 'unknown'}"
+            + (f" ({ref})" if ref else "")
+            + f" and reported {findings} finding(s)."
+            + (f" The run is retrievable as run id {run_id}." if run_id else "")
+        ),
+        fix=(
+            "There is nothing to remediate on this control when it is present. "
+            "The actionable case is its ABSENCE: if no execution record exists "
+            "for a repository, either the scan did not run or its emit failed. "
+            "Check the workflow run for that repository and the evidence prefix "
+            "it should have written to — an empty prefix is the finding, not a "
+            "clean result."
+        ),
+        impact=0.5,
+        tags={
             "nist": SCANNER_TAGS.get(scanner, DEFAULT_TAGS),
             "scanner": scanner,
             "repository": repo,
@@ -107,9 +124,7 @@ def build(scanner, repo, sha, ref, run_id, findings, version, mode, timestamp):
             "scan_mode": mode,
             "findings": findings,
         },
-        "code": "",
-        "source_location": {"ref": f"tools/scan_receipt.py ({scanner})", "line": 0},
-        "results": [
+        results=[
             {
                 "status": "passed",
                 "code_desc": detail,
@@ -117,7 +132,8 @@ def build(scanner, repo, sha, ref, run_id, findings, version, mode, timestamp):
                 "run_time": 0.0,
             }
         ],
-    }
+        source_ref=f"tools/scan_receipt.py ({scanner})",
+    )
     # Drop unset tags rather than emitting nulls an assessor has to interpret.
     control["tags"] = {k: v for k, v in control["tags"].items() if v not in (None, "")}
 

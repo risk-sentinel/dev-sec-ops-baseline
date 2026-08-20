@@ -5,3 +5,12 @@ __pycache__/
 
 # InSpec vendoring output — resolved dependencies, never source.
 vendor/
+
+# Artifacts the evidence pipeline and its quickstart create.
+results.json
+results.*.json
+*.v3.json
+audit.pre.json
+results-heimdall.json
+saf-cli.log
+receipt.json

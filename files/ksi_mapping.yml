@@ -1,0 +1,428 @@
+# =============================================================================
+# KSI mapping — FedRAMP Key Security Indicators, and the NIST controls each one
+# cites.
+#
+# This file is profile-owned DATA, in the same sense as files/tool_registry.yml.
+# It is not user input and it is not fetched at runtime.
+#
+# ---- Why it is committed rather than fetched --------------------------------
+#
+# The obvious alternative was to read the mapping from the SPARC application,
+# which already serves a KSI catalog. That would have made this profile
+# unrunnable by anyone without a SPARC deployment, breaking the clone-to-results
+# property every profile repository in this estate now has. A consumer who
+# clones this repo has no SPARC to ask.
+#
+# ---- Provenance -------------------------------------------------------------
+#
+# Transcribed from the FedRAMP Consolidated Rules for 2026, the authoritative
+# machine-readable publication. Refresh procedure:
+#
+#   curl -sL https://raw.githubusercontent.com/FedRAMP/rules/main/\
+#     fedramp-consolidated-rules.json
+#
+# and re-transcribe the `KSI` object. Update `source.version`,
+# `source.retrieved`, then re-run `python3 tools/render_ksi.py` and commit the
+# resulting tag changes. The drift gate in CI will catch a refresh that skips
+# the re-render.
+#
+# ---- This is NOT the catalog SPARC seeds ------------------------------------
+#
+# SPARC's db/seeds/fedramp_20x_ksi.rb carries an EARLIER release, and the two
+# disagree structurally, not just in detail:
+#
+#   * Family codes differ         CM / IR / POL / REC / EDU  (seed)
+#                                 CMT / INR / PIY / RPL / CED  (current)
+#   * The seed has an AUTH family. The current release has none.
+#   * Indicator IDs are numeric in the seed (ksi-cm-01) and mnemonic in the
+#     current release (KSI-CMT-LMC). No mechanical translation exists.
+#   * The seed maps at FAMILY level (sa-11, ra-5) and is self-labelled
+#     "Representative". The current release cites ENHANCEMENTS (sa-15.3,
+#     ca-2.1, sc-7.3) and is normative.
+#
+# The last of those is the one that matters here. A family-level mapping cannot
+# be joined against this profile's tags, which carry enhancements throughout —
+# the join returns nothing and an empty rollup reads as clean coverage. The
+# normative mapping joins directly.
+#
+# ---- No baseline filter -----------------------------------------------------
+#
+# Nothing here is pruned to what resolves against the FedRAMP High resolved
+# catalog this estate publishes. #40 is open on that question and under peer
+# review; this mapping deliberately does not depend on its outcome, and must not
+# be "cleaned up" to agree with it.
+#
+# ---- What consumes this -----------------------------------------------------
+#
+# tools/ksi_resolver.py builds the reverse index (NIST control -> KSIs) and
+# classifies each link. tools/render_ksi.py and tools/render_controls.py write
+# the resulting `tag ksi:` values into the control files as literals, because
+# InSpec reads tag values from the AST at parse time and raises on a method
+# call.
+#
+# Resolution tiers, and why the weak one is kept separate:
+#
+#   exact      the KSI cites this control id
+#   narrower   we tag an enhancement of a control the KSI cites. Satisfying the
+#              enhancement satisfies the base, so the link holds.
+#   broader    we tag the BASE of an enhancement the KSI cites. SA-15 against a
+#              KSI citing sa-15.3. The implication does NOT hold in this
+#              direction, so these land in `tag ksi_broader:` and never in
+#              `tag ksi:`.
+#   none       no path at all. Recorded in `tag ksi_unmapped:` rather than left
+#              absent, so "we looked and there is none" cannot be mistaken for
+#              "nobody ran the generator".
+#
+# ---- What this profile does NOT do ------------------------------------------
+#
+# It does not decide that a KSI is SATISFIED. Each KSI encapsulates the intent
+# of several NIST controls, so reverse resolution is necessary and not
+# sufficient — evidence from boundaries this profile never sees is also
+# required. The rollup stays SPARC's.
+# =============================================================================
+
+schema_version: 1
+
+source:
+  name: FedRAMP Consolidated Rules for 2026
+  version: '2026.07.14.01'
+  last_updated: '2026-07-14'
+  url: https://github.com/FedRAMP/rules
+  file: fedramp-consolidated-rules.json
+  retrieved: '2026-08-20'
+
+# ---- Families ---------------------------------------------------------------
+families:
+  KSI-CED:
+    name: 'Cybersecurity Education'
+    status: stable
+  KSI-CMT:
+    name: 'Change Management'
+    status: stable
+  KSI-CNA:
+    name: 'Cloud Native Architecture'
+    status: stable
+  KSI-IAM:
+    name: 'Identity and Access Management'
+    status: stable
+  KSI-INR:
+    name: 'Incident Response'
+    status: stable
+  KSI-MLA:
+    name: 'Monitoring, Logging, and Auditing'
+    status: stable
+  KSI-PIY:
+    name: 'Policy and Inventory'
+    status: stable
+  KSI-RPL:
+    name: 'Recovery Planning'
+    status: stable
+  KSI-SCR:
+    name: 'Supply Chain Risk'
+    status: stable
+  KSI-SVC:
+    name: 'Service Configuration'
+    status: stable
+
+# ---- Indicators -------------------------------------------------------------
+# `controls` is verbatim from the source. `varies_by_class` records that the
+# indicator's statement differs by FedRAMP class (an indicator may be optional at
+# one class and required at another); the cited controls do not vary, so
+# resolution is unaffected and the flag is carried for the reader.
+indicators:
+
+  # KSI-CED — Cybersecurity Education
+  KSI-CED-RAT:
+    family: KSI-CED
+    name: 'Reviewing All Training'
+    statement: 'The effectiveness of relevant cybersecurity education and training is persistently reviewed, including at least general training for all employees, role-specific training for employees in high risk roles, training for development and engineering staff on secure software delivery, and training for staff involved with incident response or disaster recovery.'
+    varies_by_class: false
+    controls: [cp-3, ir-2, ps-6, at-2, at-2.2, at-2.3, at-3.5, at-4, ir-2.3, at-3, sr-11.1]
+
+  # KSI-CMT — Change Management
+  KSI-CMT-LMC:
+    family: KSI-CMT
+    name: 'Logging Changes'
+    statement: 'Modifications to the cloud service offering are logged and monitored.'
+    varies_by_class: false
+    controls: [au-2, cm-3, cm-3.2, cm-4.2, cm-6, cm-8.3, ma-2]
+  KSI-CMT-RMV:
+    family: KSI-CMT
+    name: 'Redeploying vs Modifying'
+    statement: 'Changes to machine-based information resources are executed through the redeployment of version controlled resources rather than direct modification wherever reasonable.'
+    varies_by_class: false
+    controls: [cm-2, cm-3, cm-5, cm-6, cm-7, cm-8.1, si-3]
+  KSI-CMT-RVP:
+    family: KSI-CMT
+    name: 'Reviewing Change Procedures'
+    statement: 'The effectiveness of documented change management procedures is persistently reviewed.'
+    varies_by_class: false
+    controls: [cm-3, cm-3.2, cm-3.4, cm-5, cm-7.1, cm-9]
+  KSI-CMT-VTD:
+    family: KSI-CMT
+    name: 'Validating Throughout Deployment'
+    statement: 'Persistent testing and validation of changes throughout deployment is automated.'
+    varies_by_class: false
+    controls: [cm-3, cm-3.2, cm-4.2, si-2]
+
+  # KSI-CNA — Cloud Native Architecture
+  KSI-CNA-DFP:
+    family: KSI-CNA
+    name: 'Defining Functionality and Privileges'
+    statement: 'The functionality and privileges for infrastructure and services are strictly defined.'
+    varies_by_class: false
+    controls: [cm-2, si-3]
+  KSI-CNA-EIS:
+    family: KSI-CNA
+    name: 'Enforcing Intended State'
+    statement: '**Optional:** Automated services are used to persistently assess the security of all machine-based information resources and automatically enforce their intended operational state.'
+    varies_by_class: true
+    controls: [ca-2.1, ca-7.1]
+  KSI-CNA-IBP:
+    family: KSI-CNA
+    name: 'Implementing Best Practices'
+    statement: 'The use and configuration of third-party machine-based information resources is persistently compared against the original provider''s best practices and guidance.'
+    varies_by_class: false
+    controls: [ac-17.3, cm-2, pl-10]
+  KSI-CNA-MAT:
+    family: KSI-CNA
+    name: 'Minimizing Attack Surface'
+    statement: 'Machine-based information resources are persistently reviewed to ensure they have a minimal attack surface and that lateral movement is minimized if compromised.'
+    varies_by_class: false
+    controls: [ac-17.3, ac-18.1, ac-18.3, ac-20.1, ca-9, sc-7.3, sc-7.4, sc-7.5, sc-7.8, sc-8, sc-10, si-10, si-11, si-16]
+  KSI-CNA-OFA:
+    family: KSI-CNA
+    name: 'Optimizing for Availability'
+    statement: 'Machine-based information resources are persistently reviewed to ensure they are appropriately optimized for high availability and rapid recovery.'
+    varies_by_class: false
+    controls: []
+  KSI-CNA-RNT:
+    family: KSI-CNA
+    name: 'Restricting Network Traffic'
+    statement: 'Machine-based information resources are persistently reviewed to ensure they are appropriately configured to limit inbound and outbound network traffic.'
+    varies_by_class: false
+    controls: [ac-17.3, ca-9, cm-7.1, sc-7.5, si-8]
+  KSI-CNA-RVP:
+    family: KSI-CNA
+    name: 'Reviewing Protections'
+    statement: 'The effectiveness of protection against denial of service attacks and other unwanted activity for machine-based information resources is persistently reviewed.'
+    varies_by_class: false
+    controls: [sc-5, si-8, si-8.2]
+  KSI-CNA-ULN:
+    family: KSI-CNA
+    name: 'Using Logical Networking'
+    statement: 'Logical networking and related capabilities are used and persistently reviewed to enforce traffic flow controls.'
+    varies_by_class: false
+    controls: [ac-12, ac-17.3, ca-9, sc-4, sc-7, sc-7.7, sc-8, sc-10]
+
+  # KSI-IAM — Identity and Access Management
+  KSI-IAM-AAM:
+    family: KSI-IAM
+    name: 'Automating Account Management'
+    statement: 'The lifecycle and privileges of all accounts, roles, and groups are securely managed using automation.'
+    varies_by_class: false
+    controls: [ac-2.2, ac-2.3, ac-2.13, ac-6.7, ia-4.4, ia-12, ia-12.2, ia-12.3, ia-12.5]
+  KSI-IAM-APM:
+    family: KSI-IAM
+    name: 'Adopting Passwordless Methods'
+    statement: 'Secure passwordless methods are used for user authentication and authorization when feasible, otherwise strong passwords with phishing-resistant MFA is used.'
+    varies_by_class: false
+    controls: [ac-3, ia-5.1, ia-5.2, ia-5.6, ia-6, ac-2, ia-2, ia-2.1, ia-2.2, ia-2.8, ia-5, ia-8, sc-23]
+  KSI-IAM-ELP:
+    family: KSI-IAM
+    name: 'Ensuring Least Privilege'
+    statement: 'Identity and access management measures are used and persistently reviewed to ensure each user or device can only access the resources they need.'
+    varies_by_class: false
+    controls: [ac-2.5, ac-2.6, ac-3, ac-4, ac-6, ac-12, ac-14, ac-17, ac-17.1, ac-17.2, ac-17.3, ac-20, ac-20.1, cm-2.7, cm-9, ia-2, ia-3, ia-4, ia-4.4, ia-5.2, ia-5.6, ia-11, ps-2, ps-3, ps-4, ps-5, ps-6, sc-4, sc-20, sc-21, sc-22, sc-23, sc-39, si-3]
+  KSI-IAM-JIT:
+    family: KSI-IAM
+    name: 'Authorizing Just-in-Time'
+    statement: 'A least-privileged, role and attribute-based, and just-in-time security authorization model is used and persistently reviewed for all user and non-user accounts and services.'
+    varies_by_class: false
+    controls: [ac-2, ac-2.1, ac-2.2, ac-2.3, ac-2.4, ac-2.6, ac-3, ac-4, ac-5, ac-6, ac-6.1, ac-6.2, ac-6.5, ac-6.7, ac-6.9, ac-6.10, ac-7, ac-20.1, ac-17, au-9.4, cm-5, cm-7, cm-7.2, cm-7.5, cm-9, ia-4, ia-4.4, ia-7, ps-2, ps-3, ps-4, ps-5, ps-6, ps-9, ra-5.5, sc-2, sc-23, sc-39]
+  KSI-IAM-SNU:
+    family: KSI-IAM
+    name: 'Securing Non-User Authentication'
+    statement: 'Appropriately secure authentication methods are used and persistently reviewed for non-user accounts and services.'
+    varies_by_class: false
+    controls: [ac-2, ac-2.2, ac-4, ac-6.5, ia-3, ia-5.2, ra-5.5]
+  KSI-IAM-SUS:
+    family: KSI-IAM
+    name: 'Responding to Suspicious Activity'
+    statement: 'Accounts with privileged access are disabled or otherwise secured in response to suspicious activity.'
+    varies_by_class: false
+    controls: [ac-2, ac-2.1, ac-2.3, ac-2.13, ac-7, ps-4, ps-8]
+
+  # KSI-INR — Incident Response
+  KSI-INR-AAR:
+    family: KSI-INR
+    name: 'Generating After Action Reports'
+    statement: 'Incident after action reports are generated and lessons learned are persistently incorporated.'
+    varies_by_class: false
+    controls: [ir-3, ir-4, ir-4.1, ir-8]
+  KSI-INR-RIR:
+    family: KSI-INR
+    name: 'Reviewing Incident Response Procedures'
+    statement: 'The effectiveness of documented incident response procedures is persistently reviewed.'
+    varies_by_class: false
+    controls: [ir-4, ir-4.1, ir-6, ir-6.1, ir-6.3, ir-7, ir-7.1, ir-8, ir-8.1, si-4.5]
+  KSI-INR-RPI:
+    family: KSI-INR
+    name: 'Reviewing Past Incidents'
+    statement: 'Past incidents are persistently reviewed for patterns or vulnerabilities that were not previously apparent or identified.'
+    varies_by_class: false
+    controls: [ir-3, ir-4, ir-4.1, ir-5, ir-8]
+
+  # KSI-MLA — Monitoring, Logging, and Auditing
+  KSI-MLA-ALA:
+    family: KSI-MLA
+    name: 'Authorizing Log Access'
+    statement: '**Optional:** A least-privileged, role and attribute-based, and just-in-time access authorization model is used and persistently reviewed for access to log data based on organizationally defined data sensitivity.'
+    varies_by_class: true
+    controls: [si-11]
+  KSI-MLA-EVC:
+    family: KSI-MLA
+    name: 'Evaluating Configurations'
+    statement: 'The configuration of machine-based information resources, especially infrastructure as code, is persistently evaluated and tested.'
+    varies_by_class: false
+    controls: [ca-7, cm-2, cm-6, si-7.7]
+  KSI-MLA-LET:
+    family: KSI-MLA
+    name: 'Logging Event Types'
+    statement: 'A list of information resources and event types that will be logged, monitored, and audited is maintained and persistently reviewed to ensure these activities occur.'
+    varies_by_class: false
+    controls: [ac-2.4, ac-6.9, ac-17.1, ac-20.1, au-2, au-7.1, au-12, si-4.4, si-4.5, si-7.7]
+  KSI-MLA-OSM:
+    family: KSI-MLA
+    name: 'Operating SIEM Capability'
+    statement: 'A Security Information and Event Management (SIEM) or similar system(s) is used and persistently reviewed for centralized, tamper-resistant logging of events, activities, and changes.'
+    varies_by_class: false
+    controls: [ac-17.1, ac-20.1, au-2, au-3, au-3.1, au-4, au-5, au-6.1, au-6.3, au-7, au-7.1, au-8, au-9, au-11, ir-4.1, si-4.2, si-4.4, si-7.7]
+  KSI-MLA-RVL:
+    family: KSI-MLA
+    name: 'Reviewing Logs'
+    statement: 'Logs are persistently reviewed and audited.'
+    varies_by_class: false
+    controls: [ac-2.4, ac-6.9, au-2, au-6, au-6.1, si-4, si-4.4]
+
+  # KSI-PIY — Policy and Inventory
+  KSI-PIY-GIV:
+    family: KSI-PIY
+    name: 'Generating Inventories'
+    statement: 'Authoritative sources are used to automatically generate real-time inventories of all information resources when needed.'
+    varies_by_class: false
+    controls: [cm-2.2, cm-7.5, cm-8, cm-8.1, cm-12, cm-12.1, cp-2.8]
+  KSI-PIY-RES:
+    family: KSI-PIY
+    name: 'Reviewing Executive Support'
+    statement: 'Executive support for achieving the provider''s security goals is persistently reviewed and demonstrated.'
+    varies_by_class: false
+    controls: []
+  KSI-PIY-RIS:
+    family: KSI-PIY
+    name: 'Reviewing Investments in Security'
+    statement: 'The effectiveness of the provider''s investments in achieving security goals is persistently reviewed.'
+    varies_by_class: false
+    controls: [ac-5, ca-2, cp-2.1, cp-4.1, ir-3.2, pm-3, sa-2, sa-3, sr-2.1]
+  KSI-PIY-RSD:
+    family: KSI-PIY
+    name: 'Reviewing Security in the SDLC'
+    statement: 'The effectiveness of building security and privacy considerations into the Software Development Lifecycle and aligning with CISA Secure By Design principles is persistently reviewed.'
+    varies_by_class: false
+    controls: [ac-5, au-3.3, cm-3.4, pl-8, pm-7, sa-3, sa-8, sc-4, sc-18, si-10, si-11, si-16]
+  KSI-PIY-RVD:
+    family: KSI-PIY
+    name: 'Reviewing Vulnerability Disclosures'
+    statement: 'The effectiveness of the provider''s vulnerability disclosure program is persistently reviewed.'
+    varies_by_class: false
+    controls: [ra-5.11]
+
+  # KSI-RPL — Recovery Planning
+  KSI-RPL-ABO:
+    family: KSI-RPL
+    name: 'Aligning Backups with Objectives'
+    statement: 'The alignment of machine-based information resource backups with defined recovery objectives is persistently reviewed.'
+    varies_by_class: false
+    controls: [cm-2.3, cp-6, cp-9, cp-10, cp-10.2, si-12]
+  KSI-RPL-ARP:
+    family: KSI-RPL
+    name: 'Aligning Recovery Plan'
+    statement: 'The alignment of recovery plans with defined recovery objectives is persistently reviewed.'
+    varies_by_class: false
+    controls: [cp-2, cp-2.1, cp-2.3, cp-4.1, cp-6, cp-6.1, cp-6.3, cp-7, cp-7.1, cp-7.2, cp-7.3, cp-8, cp-8.1, cp-8.2, cp-10, cp-10.2]
+  KSI-RPL-RRO:
+    family: KSI-RPL
+    name: 'Reviewing Recovery Objectives'
+    statement: 'The desired Recovery Time Objectives (RTO) and Recovery Point Objectives (RPO) are defined and persistently reviewed for alignment with the provider''s business needs and capabilities.'
+    varies_by_class: false
+    controls: [cp-2.3, cp-10]
+  KSI-RPL-TRC:
+    family: KSI-RPL
+    name: 'Testing Recovery Capabilities'
+    statement: 'The capability to recover from incidents and contingencies aligned with defined recovery objectives is persistently tested.'
+    varies_by_class: false
+    controls: [cp-2.1, cp-2.3, cp-4, cp-4.1, cp-6, cp-6.1, cp-9.1, cp-10, ir-3, ir-3.2]
+
+  # KSI-SCR — Supply Chain Risk
+  KSI-SCR-MIT:
+    family: KSI-SCR
+    name: 'Mitigating Supply Chain Risk'
+    statement: 'Persistently identify, review, and mitigate potential supply chain risks.'
+    varies_by_class: false
+    controls: [ac-20, ra-3.1, sa-9, sa-10, sa-11, sa-15.3, sa-22, si-7.1, sr-5, sr-6, ca-7.4, sc-18]
+  KSI-SCR-MON:
+    family: KSI-SCR
+    name: 'Monitoring Supply Chain Risk'
+    statement: 'Third party software information resources are automatically monitored for upstream vulnerabilities using mechanisms that may include contractual notification requirements or active monitoring services.'
+    varies_by_class: false
+    controls: [ac-20, ca-3, ir-6.3, ps-7, ra-5, sa-9, si-5, sr-5, sr-6, sr-8]
+
+  # KSI-SVC — Service Configuration
+  KSI-SVC-ACM:
+    family: KSI-SVC
+    name: 'Automating Configuration Management'
+    statement: 'The configuration of machine-based information resources is managed using automation and persistently reviewed for drift.'
+    varies_by_class: false
+    controls: [ac-2.4, cm-2, cm-2.2, cm-2.3, cm-6, cm-7.1, pl-9, pl-10, sa-5, si-5, sr-10]
+  KSI-SVC-ASM:
+    family: KSI-SVC
+    name: 'Automating Secret Management'
+    statement: 'Management, protection, and regular rotation of digital keys, certificates, and other secrets is automated and persistently reviewed.'
+    varies_by_class: false
+    controls: [ac-17.2, ia-5.2, ia-5.6, sc-12, sc-17]
+  KSI-SVC-EIS:
+    family: KSI-SVC
+    name: 'Evaluating and Improving Security'
+    statement: 'Information resources are persistently evaluated for opportunities to improve security and those improvements are persistently made.'
+    varies_by_class: false
+    controls: [cm-7.1, cm-12.1, ma-2, pl-8, sc-7, sc-39, si-2.2, si-4, sr-10]
+  KSI-SVC-PRR:
+    family: KSI-SVC
+    name: 'Preventing Residual Risk'
+    statement: '**Optional:** Plans, procedures, and the state of information resources are persistently reviewed after making changes to limit and remove unwanted residual elements that would likely negatively affect the confidentiality, integrity, or availability of federal customer data.'
+    varies_by_class: true
+    controls: [sc-4]
+  KSI-SVC-RUD:
+    family: KSI-SVC
+    name: 'Removing Unwanted Data'
+    statement: '**Optional:** Unwanted federal customer data is removed promptly when requested by an agency in alignment with customer agreements, including from backups if appropriate; this typically applies when a customer spills information or when a customer seeks to remove information from a service due to a change in usage.'
+    varies_by_class: true
+    controls: [si-12.3, si-18.4]
+  KSI-SVC-SIN:
+    family: KSI-SVC
+    name: 'Securing Information'
+    statement: 'Information is encrypted or otherwise secured from unwanted access or modification.'
+    varies_by_class: false
+    controls: [ac-1, ac-17.2, cp-9.8, sc-8, sc-8.1, sc-13, sc-20, sc-21, sc-22, sc-23, sc-28, sc-28.1]
+  KSI-SVC-VCM:
+    family: KSI-SVC
+    name: 'Validating Communications'
+    statement: '**Optional:** The authenticity and integrity of communications between machine-based information resources is persistently validated using automation.'
+    varies_by_class: true
+    controls: [sc-23, si-7.1]
+  KSI-SVC-VRI:
+    family: KSI-SVC
+    name: 'Validating Resource Integrity'
+    statement: 'Use cryptographic methods to validate the integrity of machine-based information resources.'
+    varies_by_class: false
+    controls: [cm-2.2, cm-8.3, sc-13, sc-23, si-7, si-7.1, sr-10]

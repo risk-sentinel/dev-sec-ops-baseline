@@ -99,6 +99,12 @@ jobs:
       - name: Fixture tests — test-execution evidence
         run: python3 tests/test_evidence_test.py
 
+      - name: Fixture tests — KSI resolution
+        # `check` and `json` only PARSE the control files. A `tag ksi:` carrying
+        # the wrong indicator, or none at all, validates exactly as happily as a
+        # correct one. Nothing else here can tell those apart.
+        run: python3 tests/ksi_resolver_test.py
+
       - name: Generated artefacts are in sync with the registry
         # The tables and the coverage controls are generated. A registry edit
         # that forgets to re-render leaves the documentation asserting coverage
@@ -106,3 +112,4 @@ jobs:
         run: |
           python3 tools/render_matrix.py --check
           python3 tools/render_controls.py --check
+          python3 tools/render_ksi.py --check

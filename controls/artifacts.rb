@@ -33,6 +33,7 @@ control 'artifact-sast' do
   desc  'fix', 'If absent, the SAST stage did not run or did not publish its report. Check the workflow run and the artifact upload path; a stage that fails open leaves no report and no finding.'
   desc  'Static application security testing ran and produced a SARIF artifact.'
   tag nist: ['SA-11(1)']
+  tag ksi: ['KSI-SCR-MIT']
   tag layer: 'static-analysis'
   only_if('SAST not expected in this pipeline') { input('expect_sast') }
 
@@ -58,6 +59,7 @@ control 'artifact-secrets' do
   desc  'fix', 'If absent, the secrets stage did not run or published nothing. Note a clean scan must still emit — an empty prefix is indistinguishable from a broken pipeline.'
   desc  'A secrets-detection stage ran and emitted a report.'
   tag nist: ['IA-5(7)', 'SA-11']
+  tag ksi: ['KSI-IAM-APM', 'KSI-SCR-MIT']
   tag layer: 'secrets'
   only_if('Generic secrets scan not expected') { input('expect_secrets') }
   assert_present(adir, input('secrets_report'))
@@ -77,6 +79,7 @@ control 'artifact-trufflehog' do
         'Empty file is valid here ONLY if your stage writes an explicit empty result; '\
         'default asserts the file exists and stage executed.'
   tag nist: ['IA-5(7)', 'SA-11']
+  tag ksi: ['KSI-IAM-APM', 'KSI-SCR-MIT']
   tag layer: 'secrets-verified'
   only_if('Trufflehog not expected') { input('expect_trufflehog') }
 
@@ -97,6 +100,7 @@ control 'artifact-lint' do
   desc  'check', 'Asserts the declared lint report exists in the artifact directory and is non-empty.'
   desc  'fix', 'If absent, the lint stage did not run or did not publish its report. Check the workflow run and the artifact path.'
   tag nist: ['SA-15(5)', 'SA-11']
+  tag ksi: ['KSI-SCR-MIT']
   tag layer: 'quality'
   only_if('Lint not expected') { input('expect_lint') }
   assert_present(adir, input('lint_report'))
@@ -113,6 +117,8 @@ control 'artifact-quality' do
   desc  'check', 'Asserts the declared quality report exists in the artifact directory and is non-empty.'
   desc  'fix', 'If absent, the quality stage did not run or did not publish. If your quality gate lives in a hosted service, point the declaration at its exported report rather than assuming the badge is evidence.'
   tag nist: ['SA-15']
+  tag ksi: []
+  tag ksi_broader: ['KSI-SCR-MIT']
   tag layer: 'quality'
   only_if('Quality scan not expected') { input('expect_quality') }
   assert_present(adir, input('quality_report'))
@@ -129,6 +135,7 @@ control 'artifact-code-review' do
   desc  'check', 'Asserts the declared code-review report exists in the artifact directory and is non-empty.'
   desc  'fix', 'If absent, the automated review did not run or published nothing. Human review recorded only in PR approvals is not covered by this control.'
   tag nist: ['SA-11(4)', 'SA-15(7)']
+  tag ksi: ['KSI-SCR-MIT']
   tag layer: 'review'
   only_if('Automated code review not expected') { input('expect_code_review') }
   assert_present(adir, input('code_review_report'))
@@ -145,6 +152,8 @@ control 'artifact-sbom' do
   desc  'check', 'Asserts the declared SBOM exists, is non-empty, and parses as CycloneDX with a components array.'
   desc  'fix', 'If absent, the SBOM stage did not run or published nothing. An SBOM generated later from source is not evidence about the released artifact.'
   tag nist: ['SR-3', 'SR-4']
+  tag ksi: []
+  tag ksi_unmapped: ['sr-3', 'sr-4']
   tag layer: 'supply-chain'
   only_if('SBOM not expected') { input('expect_sbom') }
 
@@ -169,6 +178,8 @@ control 'artifact-dependency' do
   desc  'check', 'Asserts the declared dependency report exists in the artifact directory and is non-empty.'
   desc  'fix', 'If absent, the SCA stage did not run or did not publish. Confirm it scanned the lockfile actually shipped, not a regenerated one.'
   tag nist: ['RA-5', 'SA-11(1)', 'SR-3']
+  tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
+  tag ksi_unmapped: ['sr-3']
   tag layer: 'sca'
   only_if('Generic dependency scan not expected') { input('expect_dependency') }
   assert_present(adir, input('dependency_report'))
@@ -186,6 +197,8 @@ control 'artifact-trivy' do
   desc  'fix', 'If absent, Trivy did not run or did not publish. Check which layers were enabled — a run limited to one scanner still produces a report and silently narrows coverage.'
   desc  'Trivy ran (vuln/misconfig/secret/license layers) and emitted JSON.'
   tag nist: ['RA-5', 'CM-6', 'SR-3']
+  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-SCR-MON', 'KSI-SVC-ACM']
+  tag ksi_unmapped: ['sr-3']
   tag layer: 'sca-multi'
   only_if('Trivy not expected') { input('expect_trivy') }
 
@@ -211,6 +224,7 @@ control 'artifact-grype' do
   desc  'check', 'Asserts the Grype report exists, is non-empty, and parses as JSON with a matches array.'
   desc  'fix', 'If absent, Grype did not run or published nothing. If it ran against an SBOM, confirm the SBOM was the one built from this artifact.'
   tag nist: ['RA-5', 'SA-11(1)']
+  tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
   tag layer: 'sca'
   only_if('Grype not expected') { input('expect_grype') }
 
@@ -236,6 +250,8 @@ control 'artifact-snyk' do
   desc  'check', 'Asserts the Snyk report exists, is non-empty, and parses as JSON.'
   desc  'fix', 'If absent, Snyk did not run, or ran without a token and failed open. A failed-open scanner is the worst case: no report, no finding, and a green pipeline.'
   tag nist: ['RA-5', 'SR-3']
+  tag ksi: ['KSI-SCR-MON']
+  tag ksi_unmapped: ['sr-3']
   tag layer: 'sca'
   only_if('Snyk not expected') { input('expect_snyk') }
 
@@ -263,6 +279,8 @@ control 'artifact-license' do
   desc  "OSS license governance was performed. Source of review: "\
         "#{input('license_source')}."
   tag nist: ['SR-3', 'SA-4']
+  tag ksi: []
+  tag ksi_unmapped: ['sa-4', 'sr-3']
   tag layer: 'license-governance'
   # NOT `tag license_source: input('license_source')`. Tags are STATIC
   # metadata: InSpec's AST TagCollector reads the literal at parse time and
@@ -297,6 +315,8 @@ control 'artifact-container-sig' do
   desc  'fix', 'If absent, the signing step did not run or its evidence was not published. Note signatures attach three different ways — cosign tag scheme, OCI referrers, AWS-native — so check which your registry uses before concluding the image is unsigned.'
   desc  'Cosign (or equivalent) verified artifact signature and emitted a result.'
   tag nist: ['SI-7', 'SR-4']
+  tag ksi: ['KSI-SVC-VRI']
+  tag ksi_unmapped: ['sr-4']
   tag layer: 'supply-chain-integrity'
   only_if('Container signing not expected') { input('expect_container_sig') }
   assert_present(adir, input('container_sig_report'))
@@ -315,6 +335,7 @@ control 'artifact-inspec-deployed' do
   desc  'check', 'Asserts the declared deployed-resource InSpec report exists, is non-empty, and parses as JSON.'
   desc  'fix', 'If absent, the post-deployment assessment did not run or did not publish. This is the control most often missing, because pipelines tend to stop at deploy.'
   tag nist: ['CA-2(2)', 'CA-7', 'CM-6', 'RA-5']
+  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-PIY-RIS', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag layer: 'runtime-assessment'
   only_if('Deployed-resource InSpec not expected') { input('expect_inspec_deployed') }
 

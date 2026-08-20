@@ -39,6 +39,8 @@ import sys
 
 import yaml
 
+from ksi_resolver import KsiCatalog, tag_lines
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "files" / "tool_registry.yml"
 TARGET = ROOT / "controls" / "coverage.rb"
@@ -274,7 +276,7 @@ control '{key_ctl}' do
     that it ran.
   DESC
   tag nist: {nist}
-  tag ssdf: {ssdf}
+{ksi}  tag ssdf: {ssdf}
   tag sdlc_stage: '{stage}'
   tag scan_type: '{key}'
   tag layer: 'coverage'
@@ -289,6 +291,11 @@ def ruby_list(values) -> str:
 
 
 def render(reg: dict) -> str:
+    # The same resolver the hand-written control files use. Sharing it is the
+    # point: two implementations of "which KSI does SA-11(1) reach" would
+    # eventually disagree, and every control would still carry a
+    # plausible-looking tag while they did.
+    catalog = KsiCatalog()
     out = [HEADER]
     for key, meta in (reg.get("scan_types") or {}).items():
         desc = " ".join(str(meta.get("description", "")).split())
@@ -305,6 +312,9 @@ def render(reg: dict) -> str:
                 title=str(meta.get("title", key)).replace("'", "\\'"),
                 desc=desc,
                 nist=ruby_list(meta.get("nist", [])),
+                ksi="\n".join(
+                    tag_lines(catalog.resolve(meta.get("nist", [])))
+                ) + "\n",
                 ssdf=ruby_list(meta.get("ssdf", [])),
                 stage=meta.get("sdlc_stage", ""),
             )

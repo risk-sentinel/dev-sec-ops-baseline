@@ -225,6 +225,7 @@ control 'devsecops-coverage-sast' do
     that it ran.
   DESC
   tag nist: ['SA-11(1)']
+  tag ksi: ['KSI-SCR-MIT']
   tag ssdf: ['PW.7', 'PW.8']
   tag sdlc_stage: 'code'
   tag scan_type: 'sast'
@@ -245,6 +246,7 @@ control 'devsecops-coverage-secrets' do
     that it ran.
   DESC
   tag nist: ['IA-5(7)', 'SA-11']
+  tag ksi: ['KSI-IAM-APM', 'KSI-SCR-MIT']
   tag ssdf: ['PW.1']
   tag sdlc_stage: 'code'
   tag scan_type: 'secrets'
@@ -265,6 +267,7 @@ control 'devsecops-coverage-iac' do
     that it ran.
   DESC
   tag nist: ['CM-2', 'CM-6', 'RA-5']
+  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CNA-DFP', 'KSI-CNA-IBP', 'KSI-MLA-EVC', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag ssdf: ['PW.9']
   tag sdlc_stage: 'code'
   tag scan_type: 'iac'
@@ -285,6 +288,8 @@ control 'devsecops-coverage-sca' do
     that it ran.
   DESC
   tag nist: ['RA-5', 'SA-11(1)', 'SR-3']
+  tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
+  tag ksi_unmapped: ['sr-3']
   tag ssdf: ['RV.1', 'PW.4']
   tag sdlc_stage: 'build'
   tag scan_type: 'sca'
@@ -305,6 +310,8 @@ control 'devsecops-coverage-sbom' do
     that it ran.
   DESC
   tag nist: ['SR-3', 'SR-4']
+  tag ksi: []
+  tag ksi_unmapped: ['sr-3', 'sr-4']
   tag ssdf: ['PS.3', 'PW.4']
   tag sdlc_stage: 'build'
   tag scan_type: 'sbom'
@@ -325,6 +332,8 @@ control 'devsecops-coverage-container' do
     that it ran.
   DESC
   tag nist: ['RA-5', 'CM-6', 'SR-3']
+  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-SCR-MON', 'KSI-SVC-ACM']
+  tag ksi_unmapped: ['sr-3']
   tag ssdf: ['RV.1']
   tag sdlc_stage: 'build'
   tag scan_type: 'container'
@@ -345,6 +354,8 @@ control 'devsecops-coverage-licensing' do
     that it ran.
   DESC
   tag nist: ['SR-3', 'SA-4']
+  tag ksi: []
+  tag ksi_unmapped: ['sa-4', 'sr-3']
   tag ssdf: ['PW.4']
   tag sdlc_stage: 'build'
   tag scan_type: 'licensing'
@@ -365,6 +376,8 @@ control 'devsecops-coverage-dast' do
     that it ran.
   DESC
   tag nist: ['SA-11(8)', 'RA-5', 'CA-8']
+  tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
+  tag ksi_unmapped: ['ca-8']
   tag ssdf: ['PW.8', 'RV.1']
   tag sdlc_stage: 'test'
   tag scan_type: 'dast'
@@ -385,6 +398,7 @@ control 'devsecops-coverage-runtime' do
     that it ran.
   DESC
   tag nist: ['CA-2(2)', 'CA-7', 'CM-6', 'RA-5']
+  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-PIY-RIS', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag ssdf: ['RV.1', 'PW.9']
   tag sdlc_stage: 'operate'
   tag scan_type: 'runtime'
@@ -405,6 +419,7 @@ control 'devsecops-coverage-test_execution' do
     that it ran.
   DESC
   tag nist: ['SA-11']
+  tag ksi: ['KSI-SCR-MIT']
   tag ssdf: ['PW.8']
   tag sdlc_stage: 'test'
   tag scan_type: 'test_execution'
@@ -425,6 +440,7 @@ control 'devsecops-coverage-iast' do
     that it ran.
   DESC
   tag nist: ['SA-11(9)']
+  tag ksi: ['KSI-SCR-MIT']
   tag ssdf: ['PW.8']
   tag sdlc_stage: 'test'
   tag scan_type: 'iast'

@@ -115,6 +115,7 @@ execution record even when the scan is clean — see
 | Pointing the profile at your evidence | [`docs/evidence_sources.md`](docs/evidence_sources.md) |
 | The GitHub dashboard bridge | [`docs/dashboard_bridge.md`](docs/dashboard_bridge.md) |
 | Tokens, scopes, and what fails quietly | [`docs/tokens.md`](docs/tokens.md) |
+| Running against GitLab, and the three places its merge rules live | [`docs/gitlab.md`](docs/gitlab.md) |
 | What is expected at each SDLC stage | [`docs/sdlc/`](docs/sdlc/) |
 
 **Credentials at a glance** — each can be an InSpec input *or* the conventional

@@ -99,6 +99,15 @@ jobs:
       - name: Fixture tests — test-execution evidence
         run: python3 tests/test_evidence_test.py
 
+      - name: Fixture tests — gitlab_security and forge dispatch
+        # There is no GitLab instance to exec against, so these fixtures are the
+        # ONLY thing standing between gitlab_security and a consumer. `check`
+        # and `json` load a library; they never call a method on it.
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work \
+            --entrypoint /opt/cinc-workstation/embedded/bin/ruby \
+            "$AUDITOR_IMAGE" tests/gitlab_security_test.rb
+
       - name: Fixture tests — KSI resolution
         # `check` and `json` only PARSE the control files. A `tag ksi:` carrying
         # the wrong indicator, or none at all, validates exactly as happily as a

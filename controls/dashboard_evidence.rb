@@ -51,8 +51,51 @@ control_plane = %w[control-plane both].include?(run_mode)
 # three were run against the pinned image rather than assumed. Hoisting these
 # would trade a code smell for a profile that will not load.
 needs_cp = 'Dashboard evidence needs control-plane access'.freeze
-repo_names    = targets.map { |t| t.to_h['repo'] }.compact.reject(&:empty?)
+declared      = targets.map { |t| t.to_h['repo'] }.compact.reject(&:empty?)
 ref           = "refs/heads/#{branch}"
+
+# The dashboard bridge reads code-scanning analyses, Dependabot alerts and
+# secret-scanning alerts: three GitHub endpoints, three enablement states, three
+# failure codes. GitLab funnels the equivalents through one differently-shaped
+# vulnerability-findings endpoint. These are not one question asked twice, and
+# pointing the GitHub reader at a GitLab project would 404 on every call and
+# report the project as having no scanning at all.
+#
+# So non-GitHub targets are partitioned out and named, never probed. `forge:`
+# has been declared on every target since the schema was written and read by
+# nothing; this is one of the places that mattered.
+declaration = {
+  'organization' => input('organization'),
+  'targets'      => input('targets'),
+  'exclusions'   => input('exclusions'),
+  'defaults'     => input('defaults')
+}
+
+forge_of = lambda do |repo|
+  ::ForgeSecurity.for_target(declaration, repo)
+rescue ::Inspec::Exceptions::ResourceFailed
+  # An undeclared or misspelled forge is reported by the governance controls,
+  # which own that question. Here it only means "not demonstrably GitHub", and
+  # the target is named in the skip either way rather than silently dropped.
+  nil
+end
+
+repo_names, off_forge = declared.partition { |r| forge_of.call(r) == 'github' }
+
+# Emitted by every control in this file. A target excluded from the dashboard
+# bridge has to SAY so in the results: dropping it from the loop would shrink
+# the denominator silently, which is the same failure as an unauthenticated
+# enumeration returning a short list.
+off_forge_note = lambda do |label|
+  off_forge.each do |repo|
+    describe "#{repo} — #{label}" do
+      it('is not on a forge with this dashboard') do
+        skip ::ForgeSecurity.unsupported_reason(forge_of.call(repo) || 'an undeclared forge',
+                                                'dashboard')
+      end
+    end
+  end
+end
 
 # =============================================================================
 # The executed-and-clean claim.
@@ -85,8 +128,10 @@ control 'devsecops-code-scanning-executed' do
   tag ksi: ['KSI-CMT-VTD', 'KSI-SCR-MIT', 'KSI-SCR-MON']
   tag layer: 'dashboard-evidence' # NOSONAR - tag values must be AST literals
   only_if(needs_cp) do
-    control_plane && !org_name.to_s.empty? && !repo_names.empty?
+    control_plane && !org_name.to_s.empty? && !declared.empty?
   end
+
+  off_forge_note.call('code scanning analyses')
 
   repo_names.each do |repo|
     slug = "#{org_name}/#{repo}"
@@ -148,8 +193,10 @@ control 'devsecops-dashboard-open-findings' do
   tag ksi: ['KSI-CMT-RMV', 'KSI-CMT-VTD', 'KSI-CNA-DFP', 'KSI-IAM-APM', 'KSI-IAM-ELP', 'KSI-SCR-MON']
   tag layer: 'dashboard-evidence' # NOSONAR - tag values must be AST literals
   only_if(needs_cp) do
-    control_plane && !org_name.to_s.empty? && !repo_names.empty?
+    control_plane && !org_name.to_s.empty? && !declared.empty?
   end
+
+  off_forge_note.call('open dashboard findings')
 
   repo_names.each do |repo|
     slug = "#{org_name}/#{repo}"
@@ -198,8 +245,10 @@ control 'devsecops-dismissals-accountable' do
   tag ksi_unmapped: ['ca-5', 'pm-4']
   tag layer: 'dashboard-evidence' # NOSONAR - tag values must be AST literals
   only_if(needs_cp) do
-    control_plane && !org_name.to_s.empty? && !repo_names.empty?
+    control_plane && !org_name.to_s.empty? && !declared.empty?
   end
+
+  off_forge_note.call('dismissed-finding accountability')
 
   repo_names.each do |repo|
     slug = "#{org_name}/#{repo}"
@@ -241,8 +290,10 @@ control 'devsecops-push-protection-bypasses' do
   tag ksi: ['KSI-CMT-LMC', 'KSI-IAM-APM', 'KSI-IAM-ELP', 'KSI-IAM-JIT', 'KSI-MLA-LET', 'KSI-MLA-OSM', 'KSI-MLA-RVL', 'KSI-SVC-EIS']
   tag layer: 'dashboard-evidence' # NOSONAR - tag values must be AST literals
   only_if(needs_cp) do
-    control_plane && !org_name.to_s.empty? && !repo_names.empty?
+    control_plane && !org_name.to_s.empty? && !declared.empty?
   end
+
+  off_forge_note.call('push-protection bypasses')
 
   repo_names.each do |repo|
     slug = "#{org_name}/#{repo}"

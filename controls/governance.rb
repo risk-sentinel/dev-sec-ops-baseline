@@ -37,6 +37,8 @@ declaration = {
 run_mode  = input('run_mode')
 gh_token  = input('github_token')
 gh_api    = input('github_api_base')
+gl_token  = input('gitlab_token')
+gl_api    = input('gitlab_api_base')
 org_name  = input('organization').to_h['name']
 branch    = input('protected_branch')
 
@@ -51,8 +53,17 @@ targets = Array(input('targets')).map { |t| t['repo'] }.compact
 # come along for matching.
 alias_map = registry.tools.each_with_object({}) { |(k, v), h| h[k] = Array(v['aliases']) }
 
+# Both sets of credentials go down; the dispatcher picks. A control does not
+# have to know which forge it is about to be handed.
+forge_creds = {
+  'github' => { token: gh_token, api_base: gh_api },
+  'gitlab' => { token: gl_token, api_base: gl_api }
+}
+
 gh = lambda do |repo|
-  ::GithubSecurityHandle.call(repo, org_name, gh_token, gh_api)
+  ::ForgeSecurity.handle(repo,
+                         forge: ::ForgeSecurity.for_target(declaration, repo),
+                         org: org_name, creds: forge_creds)
 end
 
 # Returns the reason string when exempt, nil otherwise.
@@ -81,18 +92,48 @@ GOV_OK          = 'ok'.freeze
 # `describe` binds to the calling control. Six copies of the exemption block and
 # describe shape is duplication whether or not it is short: it makes every
 # future change six edits and buries the one line that differs.
-per_repo = lambda do |control_key, label, probe|
+#
+# `capability` names the QUESTION the control asks, so a forge that cannot
+# answer it produces a named skip rather than a wrong answer. Before this,
+# `forge:` was declared everywhere and read nowhere: a target declaring
+# `forge: gitlab` was probed against api.github.com, 404'd on every call, and
+# reported as having no protection at all.
+per_repo = lambda do |control_key, label, probe, capability = 'required_reviews'|
   targets.each do |repo|
     why = exempt.call(repo, control_key)
     if why
       describe "#{repo} — #{label}" do
         it(GOV_EXEMPT_DESC) { skip "Declared exemption: #{why}" }
       end
-    else
+      next
+    end
+
+    # Resolved out here, but the raise is deferred into the example. A malformed
+    # `forge:` raising in the control BODY would abort the whole control and
+    # take every other repository's result down with it — one bad line in a
+    # declaration silently costing twenty real assessments.
+    forge = begin
+      ::ForgeSecurity.for_target(declaration, repo)
+    rescue ::Inspec::Exceptions::ResourceFailed => e
       describe "#{repo} — #{label}" do
-        subject { probe.call(repo) }
+        subject { raise ::Inspec::Exceptions::ResourceFailed, e.message }
         it { should cmp GOV_OK }
       end
+      next
+    end
+
+    unless ::ForgeSecurity.supported?(forge, capability)
+      describe "#{repo} — #{label}" do
+        it('is not readable on this forge') do
+          skip ::ForgeSecurity.unsupported_reason(forge, capability)
+        end
+      end
+      next
+    end
+
+    describe "#{repo} — #{label}" do
+      subject { probe.call(repo) }
+      it { should cmp GOV_OK }
     end
   end
 end
@@ -118,6 +159,7 @@ control 'devsecops-governance-required-reviews' do
     n = g.effective_required_reviews(branch)
     n >= min_reviews ? GOV_OK : "#{n} required, minimum #{min_reviews} (via #{g.governance_sources(branch).join(' + ')})"
   },
+                'required_reviews',
                 &per_repo)
 end
 
@@ -151,6 +193,7 @@ control 'devsecops-governance-required-checks' do
     else "#{contexts.size} required check(s), none naming a declared security tool: #{contexts.join(', ')}"
     end
   },
+                'required_checks',
                 &per_repo)
 end
 
@@ -174,6 +217,7 @@ control 'devsecops-governance-rulesets-enforced' do
     names = gh.call(repo).evaluate_mode_ruleset_names
     names.empty? ? GOV_OK : "evaluating, not enforcing: #{names.join(', ')}"
   },
+                'rulesets',
                 &per_repo)
 end
 
@@ -199,6 +243,7 @@ control 'devsecops-governance-signed-commits' do
                 lambda { |repo|
     gh.call(repo).signed_commits_required?(branch) ? GOV_OK : 'not required'
   },
+                'signed_commits',
                 &per_repo)
 end
 
@@ -228,6 +273,7 @@ control 'devsecops-governance-codeowners' do
     else "CODEOWNERS covers #{g.codeowners_paths.join(' ')} but owner review is not required"
     end
   },
+                'codeowners',
                 &per_repo)
 end
 
@@ -257,5 +303,6 @@ control 'devsecops-governance-shift-left' do
     gaps = gh.call(repo).tools_not_gating_pull_requests(declared_tools.call(repo), branch, alias_map)
     gaps.empty? ? GOV_OK : "runs only post-merge: #{gaps.join(', ')}"
   },
+                'shift_left',
                 &per_repo)
 end

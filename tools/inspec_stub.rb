@@ -41,4 +41,12 @@ module Inspec
   def self.resource(_version)
     FakeBase
   end
+
+  # forge_security raises this to fail one example rather than aborting a whole
+  # control. Outside the runner it only needs to EXIST and to be rescuable;
+  # inheriting from StandardError matches how the real class behaves at the one
+  # point the tests care about.
+  module Exceptions
+    class ResourceFailed < StandardError; end
+  end
 end

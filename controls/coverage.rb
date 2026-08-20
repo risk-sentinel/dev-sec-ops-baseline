@@ -62,7 +62,14 @@ run_mode = input('run_mode')
 #   sonar_token  -> SONAR_TOKEN / SONARQUBE_TOKEN
 gh_token = input('github_token')
 gh_api   = input('github_api_base')
+gl_token = input('gitlab_token')
+gl_api   = input('gitlab_api_base')
 org_name = input('organization').to_h['name']
+
+forge_creds = {
+  'github' => { token: gh_token, api_base: gh_api },
+  'gitlab' => { token: gl_token, api_base: gl_api }
+}
 
 evidence_bucket   = input('evidence_bucket')
 evidence_boundary = input('evidence_boundary')
@@ -117,7 +124,19 @@ verify = lambda do |repo, tool, surface|
       next "sonarqube analysis is #{age} days old (limit #{freshness_days})" if age > freshness_days
       'verified'
     else
-      gs = ::GithubSecurityHandle.call(repo, org_name, gh_token, gh_api)
+      # Forge-native capability state, dispatched by the target's declared
+      # `forge:`. Before this it went to api.github.com unconditionally, so a
+      # GitLab target 404'd and every capability read as disabled.
+      #
+      # A forge that cannot answer is reported as OUR gap in the message. It
+      # still fails here rather than skipping, because the registry models
+      # coverage gaps per tool-and-surface and not per forge — making that
+      # forge-aware is a schema change, tracked separately.
+      forge = ::ForgeSecurity.for_target(declaration, repo)
+      unless ::ForgeSecurity.supported?(forge, 'capabilities')
+        next "#{cap}: #{::ForgeSecurity.unsupported_reason(forge, 'capabilities')}"
+      end
+      gs = ::ForgeSecurity.handle(repo, forge: forge, org: org_name, creds: forge_creds)
       st = gs.capability_status(cap)
       next "#{cap}: #{st} — #{gs.capability_reason(cap)}" unless st == :enabled
       'verified'

@@ -115,16 +115,37 @@ def suite_control(s, repo, sha, ref, run_id, timestamp):
         results.append(result("failed", f["name"], timestamp, message=f["message"]))
 
     return control(
-        f"test-execution-{s['name']}",
-        f"Test suite {s['name']} executed",
-        detail + "\n\nRecords that developer testing ran over this commit "
-                 "(SA-11, SSDF PW.8). It is not a security scan and does not "
-                 "assert anything about vulnerabilities.",
-        results,
-        {"nist": NIST, "ssdf": SSDF, "suite": s["name"], "repository": repo,
-         "commit": sha, "ref": ref, "run_id": str(run_id) if run_id else None,
-         "tests": s["tests"], "failures": len(s["failures"])},
+        control_id=f"test-execution-{s['name']}",
+        title=f"Test suite {s['name']} executed over this commit",
+        desc=detail + "\n\nRecords that developer testing ran over this commit "
+                      "(SA-11, SSDF PW.8). It is not a security scan and does "
+                      "not assert anything about vulnerabilities.",
+        rationale=(
+            "SA-11 asks whether developer testing happens, and a suite that ran "
+            "is the only thing that answers it. Coverage says which lines "
+            "executed; a suite says whether behaviour was correct. Without this "
+            "record a repository with no tests and a repository whose tests "
+            "were never run look the same from outside."
+        ),
+        check=(
+            f"Parsed the JUnit XML emitted by {s['name']} for {repo} at commit "
+            f"{sha or 'unknown'}: {s['tests']} test(s), {len(s['failures'])} "
+            f"failed, {s['skipped']} skipped, in {s['time']}s."
+            + (f" The run is retrievable as run id {run_id}." if run_id else "")
+        ),
+        fix=(
+            "If a test fails, fix the behaviour it asserts — the individual "
+            "failures are recorded as separate results so each is actionable. "
+            "If this control is ABSENT for a repository, the suite did not run "
+            "or produced no JUnit output; check the workflow run and the "
+            "reporter configuration."
+        ),
+        results=results,
+        tags={"nist": NIST, "ssdf": SSDF, "suite": s["name"], "repository": repo,
+              "commit": sha, "ref": ref, "run_id": str(run_id) if run_id else None,
+              "tests": s["tests"], "failures": len(s["failures"])},
         impact=0.5,
+        source_ref="tools/test_evidence.py (suite)",
     )
 
 
@@ -137,19 +158,39 @@ def coverage_control(cov, repo, sha, timestamp):
               f"{cov['tool']} produced no line-coverage total.")
 
     return control(
-        "test-coverage-measured",
-        "Code coverage measured",
-        detail + "\n\nRecorded as EVIDENCE, not as a gate. Impact is 0.0 so this "
-                 "renders Not Applicable rather than pass or fail: turning a "
-                 "coverage percentage into a control invents a threshold nobody "
-                 "agreed to. A threshold belongs in a declared input.",
-        [result("skipped", detail, timestamp,
-                message="Coverage is recorded for evidence; no threshold is asserted.")],
-        {"nist": NIST, "ssdf": SSDF, "repository": repo, "commit": sha,
-         "coverage_percent": round(pct, 2) if pct is not None else None,
-         "lines_covered": cov["covered"], "lines_total": cov["total"],
-         "files_measured": cov["files"], "tool": cov["tool"]},
+        control_id="test-coverage-measured",
+        title="Code coverage measured over this commit",
+        desc=detail + "\n\nRecorded as EVIDENCE, not as a gate. Impact is 0.0 "
+                      "so this renders Not Applicable rather than pass or fail.",
+        rationale=(
+            "Turning a coverage percentage into a control invents a threshold "
+            "nobody agreed to, and a threshold belongs in a declared input where "
+            "it can be argued with. The measurement is still worth recording: it "
+            "is the difference between a suite whose reach is known and one "
+            "whose reach is assumed."
+        ),
+        check=(
+            f"Parsed the {cov['tool']} output for {repo} at commit "
+            f"{sha or 'unknown'}: "
+            + (f"{pct:.2f}% line coverage ({cov['covered']} of {cov['total']} "
+               f"lines across {cov['files']} files)."
+               if pct is not None else "no line-coverage total was present.")
+        ),
+        fix=(
+            "Nothing to remediate — this control never fails. If it is ABSENT, "
+            "the coverage reporter did not run or wrote no output; check the "
+            "workflow run. If the percentage is lower than your team expects, "
+            "that is a conversation to have against a declared threshold, not "
+            "something this control decides."
+        ),
+        results=[result("skipped", detail, timestamp,
+                        message="Coverage is recorded for evidence; no threshold is asserted.")],
+        tags={"nist": NIST, "ssdf": SSDF, "repository": repo, "commit": sha,
+              "coverage_percent": round(pct, 2) if pct is not None else None,
+              "lines_covered": cov["covered"], "lines_total": cov["total"],
+              "files_measured": cov["files"], "tool": cov["tool"]},
         impact=0.0,
+        source_ref="tools/test_evidence.py (coverage)",
     )
 
 

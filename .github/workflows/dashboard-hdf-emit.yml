@@ -70,6 +70,14 @@ on:
         required: false
       DOCKERHUB_TOKEN:
         required: false
+      FORGE_TOKEN:
+        description: >-
+          Token that can read secret-scanning and Dependabot alerts. GITHUB_TOKEN
+          CANNOT: neither is a grantable workflow `permissions:` key, so those two
+          sources come back "Resource not accessible by integration" and the
+          bridge covers code scanning only. Optional -- omit it and the run still
+          succeeds, covering the sources it can reach and warning about the rest.
+        required: false
 
 permissions:
   contents: read
@@ -100,7 +108,10 @@ jobs:
 
       - name: Fetch dashboards -> SARIF + provenance
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # FORGE_TOKEN first. bridge.rb reads GITHUB_TOKEN, so the better token
+          # is supplied under that name rather than teaching the script a second
+          # one -- the choice of credential is a pipeline concern, not its.
+          GITHUB_TOKEN: ${{ secrets.FORGE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           mkdir -p "$OUTDIR"

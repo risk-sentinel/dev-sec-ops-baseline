@@ -136,7 +136,7 @@ environment variable, so an org-level CI secret needs no input plumbing:
 
 MIT OR Apache-2.0. No ownership claims asserted.
 
-[![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=risk-sentinel_dev-sec-ops-profile)](https://sonarcloud.io/summary/new_code?id=risk-sentinel_dev-sec-ops-profile)
+[![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=risk-sentinel_dev-sec-ops-baseline)](https://sonarcloud.io/summary/new_code?id=risk-sentinel_dev-sec-ops-baseline)
 
 ## Producing evidence
 

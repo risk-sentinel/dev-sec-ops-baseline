@@ -112,6 +112,24 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ${{ inputs.image }}
+    # `secrets` is NOT an available context in a step-level `if:` — only env,
+    # github, inputs, job, matrix, needs, runner, steps, strategy and vars are.
+    # Referencing it there is a SCHEMA error, so GitHub rejected this file at
+    # validation time: every push produced a 0-second, 0-job failed run, on
+    # every repository carrying this workflow, since the day it landed.
+    #
+    # It IS available in a job-level `env:`, and `env` IS available in a step
+    # `if:`. So the PRESENCE of the secret is lifted here as a boolean and the
+    # guard below tests that.
+    #
+    # A boolean rather than the ARN itself, deliberately. Lifting the value would
+    # put it in the environment of every step in the job, and for the sibling
+    # profile workflows the secret is named AWS_ROLE_ARN -- which the AWS SDK
+    # reads as half of its web-identity credential configuration. Exporting it
+    # job-wide would quietly change credential resolution in steps that have
+    # nothing to do with this one.
+    env:
+      HAS_EVIDENCE_READER: ${{ secrets.EVIDENCE_READER_ARN != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -119,7 +137,7 @@ jobs:
       # they could not look, which is correct — and distinct from reporting that
       # there was nothing to find.
       - name: Configure AWS credentials (evidence store)
-        if: ${{ secrets.EVIDENCE_READER_ARN != '' }}
+        if: env.HAS_EVIDENCE_READER == 'true'
         uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
         with:
           role-to-assume: ${{ secrets.EVIDENCE_READER_ARN }}

@@ -34,6 +34,9 @@ jobs:
     with:
       boundary: ${{ vars.EVIDENCE_BOUNDARY || 'sparc' }}
     secrets:
+      # Reads secret-scanning and Dependabot alerts, which GITHUB_TOKEN cannot.
+      # Same secret exec-evidence.yml already documents as FORGE_TOKEN.
+      FORGE_TOKEN: ${{ secrets.DEVSECOPS_SCAN_TOKEN }}
       S3_EMIT_ROLE_ARN: ${{ secrets.DEV_SEC_OPS_BASELINE_EMIT_ARN }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       COMPLIANCE_S3_BUCKET: ${{ secrets.COMPLIANCE_S3_BUCKET }}

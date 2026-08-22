@@ -33,6 +33,10 @@ jobs:
     uses: ./.github/workflows/dashboard-hdf-emit.yml
     with:
       boundary: ${{ vars.EVIDENCE_BOUNDARY || 'sparc' }}
+      # This repo supplies a FORGE_TOKEN that reads all three dashboards --
+      # observed at 3 of 3, not assumed. A partial document here means the token
+      # lost a permission, which must be red rather than a warning nobody reads.
+      require_full_coverage: true
     secrets:
       # Reads secret-scanning and Dependabot alerts, which GITHUB_TOKEN cannot.
       # Same secret exec-evidence.yml already documents as FORGE_TOKEN.

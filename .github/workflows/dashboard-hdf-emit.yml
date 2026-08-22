@@ -70,6 +70,14 @@ on:
         required: false
       DOCKERHUB_TOKEN:
         required: false
+      FORGE_TOKEN:
+        description: >-
+          Token that can read secret-scanning and Dependabot alerts. GITHUB_TOKEN
+          CANNOT: neither is a grantable workflow `permissions:` key, so those two
+          sources come back "Resource not accessible by integration" and the
+          bridge covers code scanning only. Optional -- omit it and the run still
+          succeeds, covering the sources it can reach and warning about the rest.
+        required: false
 
 permissions:
   contents: read
@@ -100,7 +108,10 @@ jobs:
 
       - name: Fetch dashboards -> SARIF + provenance
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # FORGE_TOKEN first. bridge.rb reads GITHUB_TOKEN, so the better token
+          # is supplied under that name rather than teaching the script a second
+          # one -- the choice of credential is a pipeline concern, not its.
+          GITHUB_TOKEN: ${{ secrets.FORGE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           mkdir -p "$OUTDIR"
@@ -111,6 +122,14 @@ jobs:
             --entrypoint /opt/cinc-workstation/embedded/bin/ruby \
             risksentinel/sparc-auditor:v0.5.0 \
             tools/bridge.rb --repo "$TARGET_REPO" --ref "$TARGET_REF" --out "$OUTDIR"
+          # The container runs as root, so everything it just wrote into the
+          # bind mount is root-owned. The next step runs apply_dispositions.py
+          # on the HOST as the runner user and writes those files in place --
+          # which is the PermissionError this job has died on every run since
+          # it landed. Hand ownership back rather than running the container as
+          # the runner: the image resolves its gems from root's GEM_HOME, so
+          # --user would trade this failure for a harder one.
+          sudo chown -R "$(id -u):$(id -g)" "$OUTDIR"
 
       - name: Convert SARIF -> HDF, reconcile dispositions, summarise
         id: convert
@@ -127,6 +146,8 @@ jobs:
             docker run --rm -v "$PWD:/work" -w /work \
               --entrypoint saf risksentinel/sparc-auditor:v0.5.0 \
               convert sarif2hdf -i "$sarif" -o "$out"
+            # Root-owned again, and apply_dispositions.py below rewrites it.
+            sudo chown "$(id -u):$(id -g)" "$out"
 
             # Dispositions apply only to code scanning: secret-scanning and
             # Dependabot alerts are fetched already filtered to open, so there
@@ -190,6 +211,40 @@ jobs:
               lines += ["", f"**Connection error recorded:** {p['connectionError']}"]
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
               f.write("\n".join(lines) + "\n")
+          PY
+
+      - name: Annotate unreadable dashboard sources
+        # provenance.json already records every source's status, and the step
+        # above tabulates it in the job summary -- so the gap is in the evidence
+        # and always has been. What it is NOT is visible without opening the
+        # summary, and the run is green either way.
+        #
+        # This raises each degraded source to a warning annotation, so the run
+        # header says which dashboards the document actually covers.
+        #
+        # A warning rather than a failure, deliberately: two of the three
+        # sources are unreadable because GITHUB_TOKEN cannot read secret
+        # scanning or Dependabot alerts at all -- not a grantable workflow
+        # permission -- and no PAT is provisioned for this repository. Failing
+        # here would make the job permanently red with no fix available to it.
+        # Once a token exists this should become fatal; tracked in #46.
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, pathlib
+          p = json.load(open(pathlib.Path(os.environ["OUTDIR"]) / "provenance.json"))
+          sources = p.get("sources", {})
+          degraded = {n: r for n, r in sources.items() if r.get("status") != "enabled"}
+          for name, rec in degraded.items():
+              print(f"::warning::dashboard source '{name}' is {rec.get('status')}: "
+                    f"{rec.get('reason') or 'no reason recorded'}. The emitted HDF "
+                    f"does NOT cover it.")
+          covered = len(sources) - len(degraded)
+          line = f"dashboard coverage: {covered} of {len(sources)} sources readable"
+          if degraded:
+              print(f"::warning::{line} — missing: {', '.join(sorted(degraded))}")
+          else:
+              print(f"::notice::{line}")
           PY
 
       - name: Upload bridge output (evidence even without S3)

@@ -50,6 +50,16 @@ on:
         type: string
         required: false
         default: sparc
+      require_full_coverage:
+        description: >-
+          Fail the run when any dashboard source is unreadable, instead of
+          warning. Default false so an adopter with only GITHUB_TOKEN still gets
+          a working run covering code scanning. Callers that supply a FORGE_TOKEN
+          able to read all three should set it true — otherwise a token that
+          silently loses a permission degrades the evidence and stays green.
+        type: boolean
+        required: false
+        default: false
       profile_ref:
         description: 'Tag of dev-sec-ops-baseline supplying the bridge.'
         type: string
@@ -222,12 +232,15 @@ jobs:
         # This raises each degraded source to a warning annotation, so the run
         # header says which dashboards the document actually covers.
         #
-        # A warning rather than a failure, deliberately: two of the three
-        # sources are unreadable because GITHUB_TOKEN cannot read secret
-        # scanning or Dependabot alerts at all -- not a grantable workflow
-        # permission -- and no PAT is provisioned for this repository. Failing
-        # here would make the job permanently red with no fix available to it.
-        # Once a token exists this should become fatal; tracked in #46.
+        # Warning by default, fatal when the caller says it expects full
+        # coverage. GITHUB_TOKEN alone cannot read secret scanning or Dependabot
+        # alerts -- neither is a grantable workflow permission -- so an adopter
+        # without a FORGE_TOKEN would be permanently red for something they
+        # cannot fix. A caller that DOES supply one has no such excuse: a token
+        # that quietly loses a permission would otherwise degrade the evidence
+        # and keep reporting green.
+        env:
+          REQUIRE_FULL_COVERAGE: ${{ inputs.require_full_coverage }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -241,10 +254,18 @@ jobs:
                     f"does NOT cover it.")
           covered = len(sources) - len(degraded)
           line = f"dashboard coverage: {covered} of {len(sources)} sources readable"
-          if degraded:
-              print(f"::warning::{line} — missing: {', '.join(sorted(degraded))}")
-          else:
+          strict = os.environ.get("REQUIRE_FULL_COVERAGE") == "true"
+          if not degraded:
               print(f"::notice::{line}")
+          elif strict:
+              print(f"::error::{line} — missing: {', '.join(sorted(degraded))}. "
+                    "This caller declares it expects every source, so a partial "
+                    "document is a failure rather than a warning. Check the "
+                    "FORGE_TOKEN still carries read on secret-scanning, "
+                    "Dependabot and code-scanning alerts.")
+              raise SystemExit(1)
+          else:
+              print(f"::warning::{line} — missing: {', '.join(sorted(degraded))}")
           PY
 
       - name: Upload bridge output (evidence even without S3)

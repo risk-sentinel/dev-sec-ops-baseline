@@ -1,7 +1,8 @@
 name: dev-sec-ops-v1r1
 title: DevSecOps Pipeline and Control-Plane Validation
-maintainer: Clem
-copyright: SPDX-License-Identifier MIT OR Apache-2.0
+maintainer: Risk Sentinel
+copyright: Risk Sentinel
+copyright_email: support@risk-sentinel.org
 license: MIT OR Apache-2.0
 summary: >-
   Verifies that a DevSecOps pipeline is in place: that expected scans run and

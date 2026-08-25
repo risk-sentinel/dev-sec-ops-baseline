@@ -127,7 +127,7 @@ targets:
       secrets: { enabled: true, tools: [trufflehog] }
       dast:    { enabled: true, tools: [burpsuite] }
 
-  # Same model as sparc-iac: SonarCloud by API, the rest as artifacts.
+  # Same model used elsewhere here: SonarCloud by API, the rest as artifacts.
   - repo: container-build-sign
     declaration: confirmed
     evidence_sources:
@@ -216,7 +216,7 @@ targets:
   # this declaration being incorrect, not a missing scan.
   #
   # CodeQL and Semgrep are pinned to the artifact surface for the same reason as
-  # sparc-iac: the SARIF is the evidence, and Code Security is not licensed on
+  # elsewhere here: the SARIF is the evidence, and Code Security is not licensed on
   # private repositories here.
   - repo: sparc-iac-template
     declaration: confirmed

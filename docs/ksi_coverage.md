@@ -10,8 +10,8 @@ they do not.
 [`files/ksi_mapping.yml`](../files/ksi_mapping.yml), transcribed from the
 **FedRAMP Consolidated Rules for 2026** — the authoritative machine-readable
 publication. It is committed rather than fetched: reading it from a running
-SPARC instance would make this profile unrunnable by anyone who does not have
-one, and every profile repository in this estate is clone-to-results.
+compliance application would make this profile unrunnable by anyone who does not
+have one, and every profile repository here is clone-to-results.
 
 The published mapping runs KSI → NIST. This profile tags NIST, so it needs the
 reverse. [`tools/ksi_resolver.py`](../tools/ksi_resolver.py) builds that index

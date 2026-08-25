@@ -34,7 +34,7 @@ inputs:
     description: 'pipeline | control-plane | both.'
 
   # ---- Declaration (control-plane mode) -------------------------------------
-  # See inputs/risk-sentinel-org.yml for a worked example, and
+  # See inputs/example-org.yml for a worked example, and
   # files/tool_registry.yml for what the profile can detect.
 
   - name: organization

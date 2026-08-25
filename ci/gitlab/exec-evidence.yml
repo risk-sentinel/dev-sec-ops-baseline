@@ -4,7 +4,7 @@
 # Include it (nothing else needs to be copied into your repository):
 #
 #   include:
-#     - project: risk-sentinel/rs-aws-secrets-baseline
+#     - project: <your-org>/rs-aws-secrets-baseline
 #       ref: v0.1.0
 #       file: /ci/gitlab/exec-evidence.yml
 #       inputs:

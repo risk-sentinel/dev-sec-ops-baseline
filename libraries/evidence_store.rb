@@ -49,7 +49,7 @@ require 'time'
 # including the fourteen artifact controls that never touch S3. A missing gem is
 # a problem for one surface, not for the profile.
 #
-# (sparc-validate's document_attestation keeps the lazy form and marks the rule
+# (the document_attestation resource keeps the lazy form and marks the rule
 # accepted; hoisting-with-rescue reaches the same place without a suppression.)
 begin
   require 'aws-sdk-s3'

@@ -7,11 +7,11 @@
 #
 # ---- Why it is committed rather than fetched --------------------------------
 #
-# The obvious alternative was to read the mapping from the SPARC application,
-# which already serves a KSI catalog. That would have made this profile
-# unrunnable by anyone without a SPARC deployment, breaking the clone-to-results
-# property every profile repository in this estate now has. A consumer who
-# clones this repo has no SPARC to ask.
+# The obvious alternative was to read the mapping from a compliance application
+# that already serves a KSI catalog. That would have made this profile
+# unrunnable by anyone without that application deployed, breaking the
+# clone-to-results property every profile repository here now has. A consumer
+# who clones this repo has no such service to ask.
 #
 # ---- Provenance -------------------------------------------------------------
 #
@@ -26,10 +26,10 @@
 # resulting tag changes. The drift gate in CI will catch a refresh that skips
 # the re-render.
 #
-# ---- This is NOT the catalog SPARC seeds ------------------------------------
+# ---- This is NOT the older seeded catalog -----------------------------------
 #
-# SPARC's db/seeds/fedramp_20x_ksi.rb carries an EARLIER release, and the two
-# disagree structurally, not just in detail:
+# Compliance tooling commonly seeds an EARLIER release of this catalog, and the
+# two disagree structurally, not just in detail:
 #
 #   * Family codes differ         CM / IR / POL / REC / EDU  (seed)
 #                                 CMT / INR / PIY / RPL / CED  (current)
@@ -78,7 +78,7 @@
 # It does not decide that a KSI is SATISFIED. Each KSI encapsulates the intent
 # of several NIST controls, so reverse resolution is necessary and not
 # sufficient — evidence from boundaries this profile never sees is also
-# required. The rollup stays SPARC's.
+# required. The rollup stays with the consuming compliance system.
 # =============================================================================
 
 schema_version: 1

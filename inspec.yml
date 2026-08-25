@@ -3,7 +3,7 @@ title: DevSecOps Pipeline and Control-Plane Validation
 maintainer: Risk Sentinel
 copyright: Risk Sentinel
 copyright_email: support@risk-sentinel.org
-license: MIT OR Apache-2.0
+license: Apache-2.0
 summary: >-
   Verifies that a DevSecOps pipeline is in place: that expected scans run and
   emit valid artifacts, that the forge's security capabilities are enabled, and

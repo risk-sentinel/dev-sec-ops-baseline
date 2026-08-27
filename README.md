@@ -152,9 +152,11 @@ jobs:
     uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/exec-evidence.yml@main
     with:
       target: my-org
+      boundary: my-boundary
+      aws_region: us-east-1
       profile_name: dev-sec-ops-v1r1
       profile_version: "1.1.0"
-      inputs_file: inputs/my-org.yml
+      inputs_file: inputs/mine.yml
     secrets:
       FORGE_TOKEN: ${{ secrets.DEVSECOPS_SCAN_TOKEN }}
 ```
@@ -164,13 +166,24 @@ jobs:
 ```yaml
 include:
   - project: risk-sentinel/dev-sec-ops-baseline
+    ref: v0.8.0
     file: /ci/gitlab/exec-evidence.yml
     inputs:
       target: my-org
+      boundary: my-boundary
+      aws_region: us-east-1
       profile_name: dev-sec-ops-v1r1
       profile_version: "1.1.0"
-      inputs_file: inputs/my-org.yml
+      inputs_file: inputs/mine.yml
 ```
+
+`target`, `boundary`, `aws_region`, `profile_name` and `profile_version` are
+required and have no defaults. A missing one is rejected before the job starts —
+GitHub refuses the `workflow_call`, GitLab refuses the `include` — rather than
+running against the wrong account or filing the results under the wrong label.
+`inputs_file` defaults to `inputs/example.yml`, which runs with example values,
+so set it to your own copy. See [docs/ci-templates.md](docs/ci-templates.md) for
+the full contract, including which secrets are genuinely optional.
 
 `inputs_file` is **required and deliberately undefaulted**. This profile assesses
 an organisation, and defaulting it to ours would silently assess the wrong one

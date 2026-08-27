@@ -63,8 +63,10 @@ on:
         type: string
         required: true
       aws_region:
+        description: >-
+          Region for `aws://` scans and for any cloud-evidence reads. Region is environment-specific and deliberately undefaulted: a wrong region does not error, it reads an empty account and reports a clean result.
         type: string
-        default: us-east-1
+        required: true
       image:
         description: 'Pinned auditor image supplying cinc-auditor, hdf, saf and jq.'
         type: string

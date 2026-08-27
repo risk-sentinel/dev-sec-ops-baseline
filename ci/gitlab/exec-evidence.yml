@@ -24,8 +24,12 @@ spec:
       description: organization for a control-plane sweep; repository for a single repo.
       default: organization
     boundary:
-      description: Authorization boundary the evidence is filed under.
-      default: sparc
+      description: >-
+        Authorization boundary the evidence is filed under. Required and
+        deliberately undefaulted: it labels the evidence and decides where it
+        lands in the evidence store, so a default would file an including
+        project's results under somebody else's boundary. GitLab refuses the
+        include when it is missing, which is the intended behaviour.
     scan_type:
       description: Evidence class recorded in the audit record — runtime, sast, dast.
       default: sast
@@ -33,8 +37,9 @@ spec:
       description: control-plane | pipeline | both.
       default: control-plane
     evidence_boundary:
-      description: Boundary prefix used when emitting to the shared evidence store.
-      default: sparc
+      description: >-
+        Boundary prefix used when emitting to the shared evidence store.
+        Required and deliberately undefaulted, for the same reason as `boundary`.
     target_uri:
       description: InSpec transport — aws://, local://, or ssh://user@host.
       default: "local://"

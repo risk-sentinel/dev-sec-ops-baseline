@@ -22,8 +22,13 @@ on:
         type: string
         default: organization
       boundary:
+        description: >-
+          Authorization boundary the evidence is filed under. Required and
+          deliberately undefaulted: it labels the evidence and decides where it
+          lands in the evidence store, so a default would file a caller's results
+          under somebody else's boundary while reporting success.
         type: string
-        default: sparc
+        required: true
       scan_type:
         type: string
         default: sast

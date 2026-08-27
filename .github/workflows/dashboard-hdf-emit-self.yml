@@ -26,13 +26,28 @@ permissions:
   id-token: write
 
 jobs:
+  # Fail fast rather than handing an empty boundary to the reusable, which would
+  # label the evidence with nothing and file it at the wrong key.
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required configuration
+        env:
+          BOUNDARY: ${{ vars.EVIDENCE_BOUNDARY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BOUNDARY:-}" ]; then
+            echo "::error::EVIDENCE_BOUNDARY is not set. Set it as a repository or organization variable; it labels the evidence and has no safe default."
+            exit 1
+          fi
+
   bridge:
     # No job-level `environment:` — it flips the OIDC subject to
     # environment:NAME and the emit-role assume fails, because the roles are
     # pinned to refs/heads/main.
     uses: ./.github/workflows/dashboard-hdf-emit.yml
     with:
-      boundary: ${{ vars.EVIDENCE_BOUNDARY || 'sparc' }}
+      boundary: ${{ vars.EVIDENCE_BOUNDARY }}
       # This repo supplies a FORGE_TOKEN that reads all three dashboards --
       # observed at 3 of 3, not assumed. A partial document here means the token
       # lost a permission, which must be red rather than a warning nobody reads.

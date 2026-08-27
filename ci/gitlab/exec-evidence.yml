@@ -4,22 +4,17 @@
 # Include it (nothing else needs to be copied into your repository):
 #
 #   include:
-#     - project: <your-org>/rs-aws-secrets-baseline
-#       ref: v0.1.0
+#     - project: <your-org>/dev-sec-ops-baseline
+#       ref: v0.8.0
 #       file: /ci/gitlab/exec-evidence.yml
 #       inputs:
 #         target: my-account
-#         profile_name: rs-aws-secrets-v1r1
-#         profile_version: "0.1.0"
+#         profile_name: dev-sec-ops-v1r1
+#         profile_version: "1.1.0"
 #
-# Or clone the profile on the fly in your own job and paste the script below.
-# Both work, which is the point: the logic lives in YAML, so `include:` carries
-# all of it. A helper script in the profile repository would be invisible to an
-# including project — that is why nothing here shells out to one.
-#
-# The script is intentionally identical to .github/workflows/exec-evidence.yml.
-# Duplicating it across forges is preferable to a dependency a consumer cannot
-# satisfy.
+# Or clone the profile on the fly in your own job and paste the script below;
+# both work. See docs/ci-templates.md for why the logic lives in YAML and is
+# duplicated across forges.
 
 spec:
   inputs:

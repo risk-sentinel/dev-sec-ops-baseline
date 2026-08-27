@@ -1,12 +1,12 @@
 name: Dashboard HDF emit
 
-# Bridges the three GitHub security dashboards into the evidence stream as HDF
-# (#22): code scanning, secret scanning, and Dependabot.
+# Bridges the three GitHub security dashboards into the evidence stream as HDF:
+# code scanning, secret scanning, and Dependabot.
 #
 # Reusable. Other repositories call this rather than copying it, so there is one
 # bridge to fix when the conversion changes — unlike secret-scan-hdf-emit.yml,
 # which was copied to fourteen repositories and now needs fourteen PRs to
-# correct (#21). A caller is a dozen lines:
+# correct. A caller is a dozen lines:
 #
 #   jobs:
 #     bridge:

@@ -1,6 +1,6 @@
 # encoding: utf-8
 # =============================================================================
-# Governance controls — delivery gating on the control plane (#16).
+# Governance controls — delivery gating on the control plane.
 #
 # Hand-written rather than generated: these are not per-scan-type, so there is
 # no registry loop to derive them from and their tags are already literals.

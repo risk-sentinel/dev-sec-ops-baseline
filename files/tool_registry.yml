@@ -474,7 +474,7 @@ tools:
         format: sarif
         # The API serves SARIF directly under content negotiation, so the
         # tool's own output reaches HDF unmodified. Dispositions are applied
-        # after conversion — see tools/apply_dispositions.py (#22).
+        # after conversion — see tools/apply_dispositions.py.
         note: dashboard-hdf-bridge.yml (#22)
 
   semgrep:
@@ -590,8 +590,7 @@ tools:
         # to its own layout can point the profile at it with
         # `evidence_key_template`, but that input is global, so a repository
         # emitting gitleaks somewhere else while everything else is canonical
-        # will report as unevidenced. That is a true finding, not a false one
-        # (#28).
+        # will report as unevidenced. That is a true finding, not a false one.
         note: producers convert with `hdf convert <gitleaks>.sarif`
 
   platform_secret_scanning:
@@ -613,7 +612,7 @@ tools:
         format: sarif
         # No native SARIF and no saf-cli converter; alerts are mapped by
         # libraries/alert_sarif.rb. Mapped to SARIF rather than to TruffleHog's
-        # shape so the finding stays attributed to GitHub (#22).
+        # shape so the finding stays attributed to GitHub.
         note: dashboard-hdf-bridge.yml (#22)
 
   junit:
@@ -731,7 +730,7 @@ tools:
         format: sarif
         # Vulnerability findings against declared dependencies — the same
         # assertion Grype and Trivy make from a different vantage point. An
-        # SBOM is inventory and does NOT satisfy this scan type (#22).
+        # SBOM is inventory and does NOT satisfy this scan type.
         note: dashboard-hdf-bridge.yml (#22)
 
   gitlab_dependency_scanning:

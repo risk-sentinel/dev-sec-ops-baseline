@@ -46,10 +46,13 @@ on:
         required: false
         default: refs/heads/main
       boundary:
-        description: 'Evidence boundary — the first path segment in the bucket.'
+        description: >-
+          Evidence boundary -- the first path segment in the bucket, and the
+          label on the evidence. Required and deliberately undefaulted: a default
+          files a caller's results under somebody else's boundary while reporting
+          success.
         type: string
-        required: false
-        default: sparc
+        required: true
       require_full_coverage:
         description: >-
           Fail the run when any dashboard source is unreadable, instead of

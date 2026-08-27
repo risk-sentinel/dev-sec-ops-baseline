@@ -40,9 +40,13 @@ on:
         required: false
         default: ''
       boundary:
+        description: >-
+          Evidence boundary -- the first path segment in the bucket, and the
+          label on the evidence. Required and deliberately undefaulted: a default
+          files a caller's results under somebody else's boundary while reporting
+          success.
         type: string
-        required: false
-        default: sparc
+        required: true
       profile_ref:
         description: 'Ref of dev-sec-ops-baseline supplying tools/test_evidence.py.'
         type: string

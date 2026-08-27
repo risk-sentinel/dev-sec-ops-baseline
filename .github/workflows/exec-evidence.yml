@@ -76,8 +76,13 @@ on:
         type: string
         default: control-plane
       evidence_boundary:
+        description: >-
+          Evidence boundary -- the first path segment in the bucket, and the
+          label on the evidence. Required and deliberately undefaulted: a default
+          files a caller's results under somebody else's boundary while reporting
+          success.
         type: string
-        default: sparc
+        required: true
     secrets:
       # NOT the default GITHUB_TOKEN. Measured against this org: an unauthenticated
       # token enumerates 16 repositories where an authorised one sees 21 — the five

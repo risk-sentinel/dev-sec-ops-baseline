@@ -2,7 +2,7 @@ name: Test-execution evidence emit (reusable)
 
 # Converts a repository's existing test output — JUnit XML, SimpleCov JSON —
 # into HDF and files it in the evidence store, evidencing NIST SA-11 and
-# SSDF PW.8 (#27).
+# SSDF PW.8.
 #
 # ---- What this is not -------------------------------------------------------
 #

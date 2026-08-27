@@ -2,28 +2,13 @@ name: Control-plane exec + evidence (reusable)
 
 # Runs this baseline against a target and produces audit-ready HDF evidence.
 #
-# ---- Why every step is inline shell, and not a script in this repo ----------
-#
-# A consumer on GitLab pulls this pattern in with `include:`, which brings YAML
-# and nothing else — a helper script sitting in tools/ would simply not exist on
-# their runner. The same is true of a GitHub caller using `uses:`. Putting the
-# logic in the YAML is what makes the pattern portable between forges and
-# between "include it" and "clone it on the fly"; a script would work for
-# exactly one of those four combinations.
-#
-# It costs some duplication against ci/gitlab/exec-evidence.yml, which carries
-# the same shell. That duplication is deliberate and preferable to a dependency
-# a consumer cannot satisfy.
-#
-# ---- Order matters ---------------------------------------------------------
+# Steps run in this order, and the order is load-bearing:
 #
 #   create passthrough -> execute -> convert (gate) -> apply -> label (gate)
 #   -> validate (gate) -> display
 #
-# The audit record is built BEFORE the scan, because that is when the honest
-# start time and the pipeline provenance are known. Only the facts that cannot
-# exist until afterwards — finish time, the digest of the produced artifact, and
-# the outcome counts — are added at the end.
+# See docs/ci-templates.md for why the audit record is built before the scan,
+# and why every step is inline shell rather than a script.
 
 on:
   workflow_call:

@@ -2,7 +2,7 @@
 # =============================================================================
 # evidence_store — reads converted HDF evidence out of the S3 evidence bucket.
 #
-# The fourth detection surface (#10). The other three answer "can I see the scan
+# The fourth detection surface. The other three answer "can I see the scan
 # from where I am standing"; this one answers "did the scan run at some point
 # and leave evidence behind", which is the only surface that works for a tool
 # with no API when you are not inside its pipeline.

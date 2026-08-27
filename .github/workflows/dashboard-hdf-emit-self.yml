@@ -1,9 +1,9 @@
 name: Dashboard HDF emit (this repo)
 
-# This repository's caller for its own reusable dashboard-hdf-emit.yml (#22).
+# This repository's caller for its own reusable dashboard-hdf-emit.yml.
 #
 # A caller rather than a copy. secret-scan-hdf-emit.yml was copied to fourteen
-# repositories, and correcting it now takes fourteen PRs (#21) — the same
+# repositories, and correcting it now takes fourteen pull requests — the same
 # mistake is not repeated here. Every other repository gets a file that looks
 # like this one, and the bridge itself is fixed in one place.
 #

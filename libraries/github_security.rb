@@ -538,7 +538,7 @@ class GithubSecurity < Inspec.resource(1)
   # over-reports badly. A workflow triggered on `push` with no branch filter
   # runs on the PR branch, and GitHub attaches those check runs to the head
   # commit, where the PR displays them and required checks can match them.
-  # Verified against a real PR: sparc-iac's compliance.yml is push-only and its
+  # Verified against a real PR: a push-only compliance workflow was observed, and its
   # Checkov checks report on pull requests as SUCCESS.
   def workflow_pre_merge?(path)
     key = [:premerge, path]

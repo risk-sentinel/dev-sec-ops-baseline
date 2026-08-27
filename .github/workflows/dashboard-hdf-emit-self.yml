@@ -29,7 +29,7 @@ jobs:
   bridge:
     # No job-level `environment:` — it flips the OIDC subject to
     # environment:NAME and the emit-role assume fails, because the roles are
-    # pinned to refs/heads/main (the sparc-iac#399 shape).
+    # pinned to refs/heads/main.
     uses: ./.github/workflows/dashboard-hdf-emit.yml
     with:
       boundary: ${{ vars.EVIDENCE_BOUNDARY || 'sparc' }}

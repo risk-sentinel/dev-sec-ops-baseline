@@ -10,7 +10,7 @@ name: Dashboard HDF emit
 #
 #   jobs:
 #     bridge:
-#       uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/dashboard-hdf-emit.yml@<commit-sha>  # <release-tag>
+#       uses: <your-org>/dev-sec-ops-baseline/.github/workflows/dashboard-hdf-emit.yml@<commit-sha>  # <release-tag>
 #       permissions:
 #         contents: read
 #         security-events: read
@@ -31,7 +31,7 @@ name: Dashboard HDF emit
 #
 # Declaring one flips the OIDC subject to environment:NAME and the reader/emit
 # role assume fails, because the roles are pinned to refs/heads/main. This is
-# the sparc-iac#399 shape. Do not add one to any job here.
+# the intended shape. Do not add one to any job here.
 
 on:
   workflow_call:

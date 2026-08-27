@@ -1,8 +1,9 @@
 name: dev-sec-ops-v1r1
 title: DevSecOps Pipeline and Control-Plane Validation
-maintainer: Clem
-copyright: SPDX-License-Identifier MIT OR Apache-2.0
-license: MIT OR Apache-2.0
+maintainer: Risk Sentinel
+copyright: Risk Sentinel
+copyright_email: support@risk-sentinel.org
+license: Apache-2.0
 summary: >-
   Verifies that a DevSecOps pipeline is in place: that expected scans run and
   emit valid artifacts, that the forge's security capabilities are enabled, and
@@ -34,7 +35,7 @@ inputs:
     description: 'pipeline | control-plane | both.'
 
   # ---- Declaration (control-plane mode) -------------------------------------
-  # See inputs/risk-sentinel-org.yml for a worked example, and
+  # See inputs/example-org.yml for a worked example, and
   # files/tool_registry.yml for what the profile can detect.
 
   - name: organization

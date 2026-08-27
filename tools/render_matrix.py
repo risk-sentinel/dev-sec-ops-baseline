@@ -35,9 +35,9 @@ BEGIN = "<!-- BEGIN GENERATED: coverage-matrix -->"
 END = "<!-- END GENERATED: coverage-matrix -->"
 
 # Order matches the surfaces block in the registry. evidence_store was added
-# to the registry in #15 but never to this list, so every rendered table has
-# been understating coverage of the fourth surface — including for the tools
-# that already implemented it. Corrected in #22.
+# to the registry but never to this list, so every rendered table understated
+# coverage of the fourth surface — including for the tools that already
+# implemented it. Since corrected.
 SURFACES = ["artifact", "platform_api", "repo_contents", "evidence_store"]
 SURFACE_LABEL = {
     "artifact": "Artifact",

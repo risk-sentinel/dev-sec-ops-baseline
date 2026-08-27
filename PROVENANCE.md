@@ -135,4 +135,3 @@ than asserting the repository has no security gate.
   OSCAL/Heimdall rollup.
 - Keep this doc in sync when artifact checks are added/removed or re-anchored.
 
-_Closes #1._

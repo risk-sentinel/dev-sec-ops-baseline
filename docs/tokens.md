@@ -37,7 +37,7 @@ which need Code Security licensing.
 # Standalone — read the control plane, no pipeline required
 export GITHUB_TOKEN=...            # or pass token: through the control body
 cinc-auditor exec . -t local:// \
-  --input-file inputs/risk-sentinel-org.yml \
+  --input-file inputs/example-org.yml \
   --reporter cli json:hdf.json
 
 # Bolt-on — last step of a pipeline, with reports/ populated
@@ -77,11 +77,11 @@ secret works with no input plumbing at all.
 # Environment — the usual CI shape, nothing passed as an input
 export GITHUB_TOKEN=$GH_ORG_TOKEN
 export SONAR_TOKEN=$SONAR_ORG_TOKEN
-cinc-auditor exec . -t local:// --input-file inputs/risk-sentinel-org.yml
+cinc-auditor exec . -t local:// --input-file inputs/example-org.yml
 
 # Or explicitly. NOTE: repeated --input flags are silently dropped — only the
 # last survives. One flag, many pairs.
-cinc-auditor exec . -t local:// --input-file inputs/risk-sentinel-org.yml \
+cinc-auditor exec . -t local:// --input-file inputs/example-org.yml \
   --input github_token="$GH_ORG_TOKEN" sonar_token="$SONAR_ORG_TOKEN"
 ```
 

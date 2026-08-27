@@ -104,10 +104,10 @@ check("the broader fallback still fires for its real case (base, cited enhanceme
       catalog.resolve(["SA-15"]).broader == ["KSI-SCR-MIT"])
 
 print()
-print("no baseline filter (#40)")
-# ca-2.1 is cited by a KSI and carries an enhancement of the kind #40 reports as
-# unresolvable against the FedRAMP High catalog we publish. It must resolve here
-# regardless: this wiring does not depend on that question's answer.
+print("no baseline filter")
+# ca-2.1 is cited by a KSI and carries an enhancement of the kind reported as
+# unresolvable against the FedRAMP High catalog this estate publishes. It must
+# resolve here regardless: this wiring does not depend on that question.
 r = catalog.resolve(["CA-2(2)"])
 check("an enhancement that #40 flags still resolves", r.ksi != [])
 

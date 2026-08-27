@@ -48,7 +48,7 @@
 # ---- No baseline filter -----------------------------------------------------
 #
 # Nothing here is pruned to what resolves against the FedRAMP High resolved
-# catalog this estate publishes. #40 is open on that question and under peer
+# catalog this estate publishes. That question is open and under peer
 # review; this mapping deliberately does not depend on its outcome, and must not
 # be "cleaned up" to agree with it.
 #

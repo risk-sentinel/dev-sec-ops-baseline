@@ -62,7 +62,7 @@ Three things that diagram is making a point about:
 ```bash
 export GITHUB_TOKEN=...
 cinc-auditor exec . -t local:// \
-  --input-file inputs/risk-sentinel-org.yml \
+  --input-file inputs/example-org.yml \
   --reporter cli json:hdf.json
 ```
 

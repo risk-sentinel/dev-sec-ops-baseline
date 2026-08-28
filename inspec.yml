@@ -107,7 +107,7 @@ inputs:
       results are point-in-time and may be stale; without a bound, an analysis
       from last year would satisfy a coverage control.
 
-  # ---- Evidence store (the fourth surface, #10) ------------------------------
+  # ---- Evidence store (the fourth surface) -----------------------------------
   - name: evidence_bucket
     type: string
     value: ''

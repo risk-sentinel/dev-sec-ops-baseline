@@ -295,7 +295,7 @@ control '{key_ctl}' do
     that it ran.
   DESC
   tag nist: {nist}
-{ksi}  tag ssdf: {ssdf}
+{cci}{nist_r4}{ksi}  tag ssdf: {ssdf}
   tag sdlc_stage: '{stage}'
   tag scan_type: '{key}'
   tag layer: 'coverage'
@@ -331,6 +331,12 @@ def render(reg: dict) -> str:
                 title=str(meta.get("title", key)).replace("'", "\\'"),
                 desc=desc,
                 nist=ruby_list(meta.get("nist", [])),
+                # Optional so a scan type with no published mapping emits no
+                # empty tag -- absence stays visible rather than looking answered.
+                cci=(f"  tag cci: {ruby_list(meta['cci'])}\n"
+                     if meta.get("cci") else ""),
+                nist_r4=(f"  tag nist_r4: {ruby_list(meta['nist_r4'])}\n"
+                         if meta.get("nist_r4") else ""),
                 ksi="\n".join(
                     tag_lines(catalog.resolve(meta.get("nist", [])))
                 ) + "\n",

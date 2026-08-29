@@ -34,6 +34,8 @@ control 'artifact-sast' do
   desc  'Static application security testing ran and produced a SARIF artifact.'
   tag nist: ['SA-11(1)']
   tag ksi: ['KSI-SCR-MIT']
+  tag nist_r4: ['SA-11(1)']
+  tag cci:  ['CCI-003179']
   tag layer: 'static-analysis'
   only_if('SAST not expected in this pipeline') { input('expect_sast') }
 
@@ -60,6 +62,8 @@ control 'artifact-secrets' do
   desc  'A secrets-detection stage ran and emitted a report.'
   tag nist: ['IA-5(7)', 'SA-11']
   tag ksi: ['KSI-IAM-APM', 'KSI-SCR-MIT']
+  tag nist_r4: ['IA-5(7)', 'SA-11']
+  tag cci:  ['CCI-003171', 'CCI-004069']
   tag layer: 'secrets'
   only_if('Generic secrets scan not expected') { input('expect_secrets') }
   assert_present(adir, input('secrets_report'))
@@ -80,6 +84,8 @@ control 'artifact-trufflehog' do
         'default asserts the file exists and stage executed.'
   tag nist: ['IA-5(7)', 'SA-11']
   tag ksi: ['KSI-IAM-APM', 'KSI-SCR-MIT']
+  tag nist_r4: ['IA-5(7)', 'SA-11']
+  tag cci:  ['CCI-003171', 'CCI-004069']
   tag layer: 'secrets-verified'
   only_if('Trufflehog not expected') { input('expect_trufflehog') }
 
@@ -101,6 +107,8 @@ control 'artifact-lint' do
   desc  'fix', 'If absent, the lint stage did not run or did not publish its report. Check the workflow run and the artifact path.'
   tag nist: ['SA-15(5)', 'SA-11']
   tag ksi: ['KSI-SCR-MIT']
+  tag nist_r4: ['SA-11', 'SA-15(5)']
+  tag cci:  ['CCI-003171', 'CCI-003272']
   tag layer: 'quality'
   only_if('Lint not expected') { input('expect_lint') }
   assert_present(adir, input('lint_report'))
@@ -119,6 +127,9 @@ control 'artifact-quality' do
   tag nist: ['SA-15']
   tag ksi: []
   tag ksi_broader: ['KSI-SCR-MIT']
+  tag nist_r4: ['SA-15']
+  tag cci:  ['CCI-003233']
+  tag ksi_broader: ['KSI-SCR-MIT']
   tag layer: 'quality'
   only_if('Quality scan not expected') { input('expect_quality') }
   assert_present(adir, input('quality_report'))
@@ -136,6 +147,8 @@ control 'artifact-code-review' do
   desc  'fix', 'If absent, the automated review did not run or published nothing. Human review recorded only in PR approvals is not covered by this control.'
   tag nist: ['SA-11(4)', 'SA-15(7)']
   tag ksi: ['KSI-SCR-MIT']
+  tag nist_r4: ['SA-11(4)', 'SA-15(7)']
+  tag cci:  ['CCI-003187', 'CCI-003275']
   tag layer: 'review'
   only_if('Automated code review not expected') { input('expect_code_review') }
   assert_present(adir, input('code_review_report'))
@@ -153,6 +166,8 @@ control 'artifact-sbom' do
   desc  'fix', 'If absent, the SBOM stage did not run or published nothing. An SBOM generated later from source is not evidence about the released artifact.'
   tag nist: ['SR-3', 'SR-4']
   tag ksi: []
+  tag ksi_unmapped: ['sr-3', 'sr-4']
+  tag cci:  ['CCI-005080', 'CCI-005096']
   tag ksi_unmapped: ['sr-3', 'sr-4']
   tag layer: 'supply-chain'
   only_if('SBOM not expected') { input('expect_sbom') }
@@ -180,6 +195,9 @@ control 'artifact-dependency' do
   tag nist: ['RA-5', 'SA-11(1)', 'SR-3']
   tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
   tag ksi_unmapped: ['sr-3']
+  tag nist_r4: ['RA-5', 'SA-11(1)', 'SR-3']
+  tag cci:  ['CCI-001054', 'CCI-003179', 'CCI-005080']
+  tag ksi_unmapped: ['sr-3']
   tag layer: 'sca'
   only_if('Generic dependency scan not expected') { input('expect_dependency') }
   assert_present(adir, input('dependency_report'))
@@ -198,6 +216,9 @@ control 'artifact-trivy' do
   desc  'Trivy ran (vuln/misconfig/secret/license layers) and emitted JSON.'
   tag nist: ['RA-5', 'CM-6', 'SR-3']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-SCR-MON', 'KSI-SVC-ACM']
+  tag ksi_unmapped: ['sr-3']
+  tag nist_r4: ['CM-6', 'RA-5', 'SR-3']
+  tag cci:  ['CCI-000366', 'CCI-001054', 'CCI-005080']
   tag ksi_unmapped: ['sr-3']
   tag layer: 'sca-multi'
   only_if('Trivy not expected') { input('expect_trivy') }
@@ -225,6 +246,8 @@ control 'artifact-grype' do
   desc  'fix', 'If absent, Grype did not run or published nothing. If it ran against an SBOM, confirm the SBOM was the one built from this artifact.'
   tag nist: ['RA-5', 'SA-11(1)']
   tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
+  tag nist_r4: ['RA-5', 'SA-11(1)']
+  tag cci:  ['CCI-001054', 'CCI-003179']
   tag layer: 'sca'
   only_if('Grype not expected') { input('expect_grype') }
 
@@ -251,6 +274,9 @@ control 'artifact-snyk' do
   desc  'fix', 'If absent, Snyk did not run, or ran without a token and failed open. A failed-open scanner is the worst case: no report, no finding, and a green pipeline.'
   tag nist: ['RA-5', 'SR-3']
   tag ksi: ['KSI-SCR-MON']
+  tag ksi_unmapped: ['sr-3']
+  tag nist_r4: ['RA-5', 'SR-3']
+  tag cci:  ['CCI-001054', 'CCI-005080']
   tag ksi_unmapped: ['sr-3']
   tag layer: 'sca'
   only_if('Snyk not expected') { input('expect_snyk') }
@@ -280,6 +306,9 @@ control 'artifact-license' do
         "#{input('license_source')}."
   tag nist: ['SR-3', 'SA-4']
   tag ksi: []
+  tag ksi_unmapped: ['sa-4', 'sr-3']
+  tag nist_r4: ['SA-4', 'SR-3']
+  tag cci:  ['CCI-003094', 'CCI-005080']
   tag ksi_unmapped: ['sa-4', 'sr-3']
   tag layer: 'license-governance'
   # NOT `tag license_source: input('license_source')`. Tags are STATIC
@@ -317,6 +346,9 @@ control 'artifact-container-sig' do
   tag nist: ['SI-7', 'SR-4']
   tag ksi: ['KSI-SVC-VRI']
   tag ksi_unmapped: ['sr-4']
+  tag nist_r4: ['SI-7', 'SR-4']
+  tag cci:  ['CCI-002703', 'CCI-005096']
+  tag ksi_unmapped: ['sr-4']
   tag layer: 'supply-chain-integrity'
   only_if('Container signing not expected') { input('expect_container_sig') }
   assert_present(adir, input('container_sig_report'))
@@ -336,6 +368,8 @@ control 'artifact-inspec-deployed' do
   desc  'fix', 'If absent, the post-deployment assessment did not run or did not publish. This is the control most often missing, because pipelines tend to stop at deploy.'
   tag nist: ['CA-2(2)', 'CA-7', 'CM-6', 'RA-5']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-PIY-RIS', 'KSI-SCR-MON', 'KSI-SVC-ACM']
+  tag nist_r4: ['CA-2(2)', 'CA-7', 'CM-6', 'RA-5']
+  tag cci:  ['CCI-000256', 'CCI-000274', 'CCI-000366', 'CCI-001054']
   tag layer: 'runtime-assessment'
   only_if('Deployed-resource InSpec not expected') { input('expect_inspec_deployed') }
 

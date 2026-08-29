@@ -244,6 +244,8 @@ control 'devsecops-coverage-sast' do
     that it ran.
   DESC
   tag nist: ['SA-11(1)']
+  tag cci: ['CCI-003179']
+  tag nist_r4: ['SA-11 (1)']
   tag ksi: ['KSI-SCR-MIT']
   tag ssdf: ['PW.7', 'PW.8']
   tag sdlc_stage: 'code'
@@ -265,6 +267,8 @@ control 'devsecops-coverage-secrets' do
     that it ran.
   DESC
   tag nist: ['IA-5(7)', 'SA-11']
+  tag cci: ['CCI-003171', 'CCI-004069']
+  tag nist_r4: ['SA-11 a']
   tag ksi: ['KSI-IAM-APM', 'KSI-SCR-MIT']
   tag ssdf: ['PW.1']
   tag sdlc_stage: 'code'
@@ -286,6 +290,8 @@ control 'devsecops-coverage-iac' do
     that it ran.
   DESC
   tag nist: ['CM-2', 'CM-6', 'RA-5']
+  tag cci: ['CCI-000295', 'CCI-000366', 'CCI-001054']
+  tag nist_r4: ['CM-2', 'CM-6 b', 'RA-5 a']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CNA-DFP', 'KSI-CNA-IBP', 'KSI-MLA-EVC', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag ssdf: ['PW.9']
   tag sdlc_stage: 'code'
@@ -307,6 +313,8 @@ control 'devsecops-coverage-sca' do
     that it ran.
   DESC
   tag nist: ['RA-5', 'SA-11(1)', 'SR-3']
+  tag cci: ['CCI-001054', 'CCI-003179', 'CCI-005080']
+  tag nist_r4: ['RA-5 a', 'SA-11 (1)']
   tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
   tag ksi_unmapped: ['sr-3']
   tag ssdf: ['RV.1', 'PW.4']
@@ -329,6 +337,7 @@ control 'devsecops-coverage-sbom' do
     that it ran.
   DESC
   tag nist: ['SR-3', 'SR-4']
+  tag cci: ['CCI-005080', 'CCI-005096']
   tag ksi: []
   tag ksi_unmapped: ['sr-3', 'sr-4']
   tag ssdf: ['PS.3', 'PW.4']
@@ -351,6 +360,8 @@ control 'devsecops-coverage-container' do
     that it ran.
   DESC
   tag nist: ['RA-5', 'CM-6', 'SR-3']
+  tag cci: ['CCI-000366', 'CCI-001054', 'CCI-005080']
+  tag nist_r4: ['CM-6 b', 'RA-5 a']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag ksi_unmapped: ['sr-3']
   tag ssdf: ['RV.1']
@@ -373,6 +384,8 @@ control 'devsecops-coverage-licensing' do
     that it ran.
   DESC
   tag nist: ['SR-3', 'SA-4']
+  tag cci: ['CCI-003094', 'CCI-005080']
+  tag nist_r4: ['SA-4 a']
   tag ksi: []
   tag ksi_unmapped: ['sa-4', 'sr-3']
   tag ssdf: ['PW.4']
@@ -395,6 +408,8 @@ control 'devsecops-coverage-dast' do
     that it ran.
   DESC
   tag nist: ['SA-11(8)', 'RA-5', 'CA-8']
+  tag cci: ['CCI-001054', 'CCI-002093', 'CCI-003196']
+  tag nist_r4: ['CA-8', 'RA-5 a', 'SA-11 (8)']
   tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
   tag ksi_unmapped: ['ca-8']
   tag ssdf: ['PW.8', 'RV.1']
@@ -417,6 +432,8 @@ control 'devsecops-coverage-runtime' do
     that it ran.
   DESC
   tag nist: ['CA-2(2)', 'CA-7', 'CM-6', 'RA-5']
+  tag cci: ['CCI-000256', 'CCI-000274', 'CCI-000366', 'CCI-001054']
+  tag nist_r4: ['CA-2 (2)', 'CA-7', 'CM-6 b', 'RA-5 a']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-PIY-RIS', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag ssdf: ['RV.1', 'PW.9']
   tag sdlc_stage: 'operate'
@@ -459,6 +476,7 @@ control 'devsecops-coverage-iast' do
     that it ran.
   DESC
   tag nist: ['SA-11(9)']
+  tag cci: ['CCI-004814']
   tag ksi: ['KSI-SCR-MIT']
   tag ssdf: ['PW.8']
   tag sdlc_stage: 'test'

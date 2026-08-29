@@ -75,7 +75,6 @@ control 'devsecops-inventory-reconciliation' do
   tag ksi_unmapped: ['pm-5']
   tag nist_r4: ['CA-7', 'CM-8', 'CM-8(1)', 'PM-5']
   tag cci:  ['CCI-000274', 'CCI-000398', 'CCI-000408', 'CCI-004328']
-  tag ksi: ['KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-PIY-GIV']
   tag ksi_unmapped: ['pm-5']
   tag layer: 'inventory'
   only_if('Organisation enumeration needs control-plane access') do
@@ -183,7 +182,6 @@ control 'devsecops-native-capability-enablement' do
   tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag nist_r4: ['RA-5', 'SA-11', 'SI-5']
   tag cci:  ['CCI-001054', 'CCI-001285', 'CCI-003171']
-  tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag layer: 'platform-enablement'
   only_if('Native capability checks need control-plane access') do
     %w[control-plane both].include?(run_mode)

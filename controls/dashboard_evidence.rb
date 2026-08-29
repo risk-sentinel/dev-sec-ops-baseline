@@ -128,7 +128,6 @@ control 'devsecops-code-scanning-executed' do
   tag ksi: ['KSI-CMT-VTD', 'KSI-SCR-MIT', 'KSI-SCR-MON']
   tag nist_r4: ['RA-5', 'RA-5(2)', 'SA-11', 'SA-11(1)', 'SI-2']
   tag cci:  ['CCI-001054', 'CCI-001063', 'CCI-001225', 'CCI-003171', 'CCI-003179']
-  tag ksi: ['KSI-CMT-VTD', 'KSI-SCR-MIT', 'KSI-SCR-MON']
   tag layer: 'dashboard-evidence' # NOSONAR - tag values must be AST literals
   only_if(needs_cp) do
     control_plane && !org_name.to_s.empty? && !declared.empty?
@@ -196,7 +195,6 @@ control 'devsecops-dashboard-open-findings' do
   tag ksi: ['KSI-CMT-RMV', 'KSI-CMT-VTD', 'KSI-CNA-DFP', 'KSI-IAM-APM', 'KSI-IAM-ELP', 'KSI-SCR-MON']
   tag nist_r4: ['IA-5(7)', 'RA-5', 'SI-2', 'SI-3']
   tag cci:  ['CCI-001054', 'CCI-001225', 'CCI-001241', 'CCI-004069']
-  tag ksi: ['KSI-CMT-RMV', 'KSI-CMT-VTD', 'KSI-CNA-DFP', 'KSI-IAM-APM', 'KSI-IAM-ELP', 'KSI-SCR-MON']
   tag layer: 'dashboard-evidence' # NOSONAR - tag values must be AST literals
   only_if(needs_cp) do
     control_plane && !org_name.to_s.empty? && !declared.empty?
@@ -251,7 +249,6 @@ control 'devsecops-dismissals-accountable' do
   tag ksi_unmapped: ['ca-5', 'pm-4']
   tag nist_r4: ['CA-5', 'PM-4', 'RA-5(5)', 'SA-11']
   tag cci:  ['CCI-000142', 'CCI-000264', 'CCI-001067', 'CCI-003171']
-  tag ksi: ['KSI-IAM-JIT', 'KSI-IAM-SNU', 'KSI-SCR-MIT', 'KSI-SCR-MON']
   tag ksi_unmapped: ['ca-5', 'pm-4']
   tag layer: 'dashboard-evidence' # NOSONAR - tag values must be AST literals
   only_if(needs_cp) do
@@ -300,7 +297,6 @@ control 'devsecops-push-protection-bypasses' do
   tag ksi: ['KSI-CMT-LMC', 'KSI-IAM-APM', 'KSI-IAM-ELP', 'KSI-IAM-JIT', 'KSI-MLA-LET', 'KSI-MLA-OSM', 'KSI-MLA-RVL', 'KSI-SVC-EIS']
   tag nist_r4: ['AC-6', 'AU-2', 'IA-5(7)', 'SI-4']
   tag cci:  ['CCI-000123', 'CCI-000225', 'CCI-001253', 'CCI-004069']
-  tag ksi: ['KSI-CMT-LMC', 'KSI-IAM-APM', 'KSI-IAM-ELP', 'KSI-IAM-JIT', 'KSI-MLA-LET', 'KSI-MLA-OSM', 'KSI-MLA-RVL', 'KSI-SVC-EIS']
   tag layer: 'dashboard-evidence' # NOSONAR - tag values must be AST literals
   only_if(needs_cp) do
     control_plane && !org_name.to_s.empty? && !declared.empty?

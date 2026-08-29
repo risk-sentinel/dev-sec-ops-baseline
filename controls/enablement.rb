@@ -75,7 +75,6 @@ control 'devsecops-inventory-reconciliation' do
   tag ksi_unmapped: ['pm-5']
   tag nist_r4: ['CA-7', 'CM-8', 'CM-8(1)', 'PM-5']
   tag cci:  ['CCI-000274', 'CCI-000398', 'CCI-000408', 'CCI-004328']
-  tag ksi_unmapped: ['pm-5']
   tag layer: 'inventory'
   only_if('Organisation enumeration needs control-plane access') do
     %w[control-plane both].include?(run_mode) && !org_name.to_s.empty?

@@ -242,7 +242,6 @@ control 'devsecops-governance-signed-commits' do
   tag ksi_unmapped: ['sr-4']
   tag nist_r4: ['SI-7']
   tag cci:  ['CCI-002703', 'CCI-005096']
-  tag ksi_unmapped: ['sr-4']
   tag layer: 'governance'
   only_if('Signed-commit enforcement is not required by policy') do
     GOV_MODES.include?(run_mode) && want_signing
@@ -270,7 +269,6 @@ control 'devsecops-governance-codeowners' do
   tag ksi_broader: ['KSI-SCR-MIT']
   tag nist_r4: ['CM-3', 'SA-15(7)']
   tag cci:  ['CCI-000313', 'CCI-003275']
-  tag ksi_broader: ['KSI-SCR-MIT']
   tag layer: 'governance'
   only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }
 

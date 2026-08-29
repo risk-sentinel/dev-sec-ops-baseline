@@ -437,6 +437,7 @@ scan_types:
     sdlc_stage: test
     nist:
       - SA-11
+    nist_r4: ['SA-11']
     ssdf:
       - PW.8
     description: >-

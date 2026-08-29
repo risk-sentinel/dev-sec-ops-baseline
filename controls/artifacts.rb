@@ -195,7 +195,7 @@ control 'artifact-dependency' do
   tag nist: ['RA-5', 'SA-11(1)', 'SR-3']
   tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
   tag ksi_unmapped: ['sr-3']
-  tag nist_r4: ['RA-5', 'SA-11(1)', 'SR-3']
+  tag nist_r4: ['RA-5', 'SA-11(1)']
   tag cci:  ['CCI-001054', 'CCI-003179', 'CCI-005080']
   tag ksi_unmapped: ['sr-3']
   tag layer: 'sca'
@@ -217,7 +217,7 @@ control 'artifact-trivy' do
   tag nist: ['RA-5', 'CM-6', 'SR-3']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag ksi_unmapped: ['sr-3']
-  tag nist_r4: ['CM-6', 'RA-5', 'SR-3']
+  tag nist_r4: ['CM-6', 'RA-5']
   tag cci:  ['CCI-000366', 'CCI-001054', 'CCI-005080']
   tag ksi_unmapped: ['sr-3']
   tag layer: 'sca-multi'
@@ -275,7 +275,7 @@ control 'artifact-snyk' do
   tag nist: ['RA-5', 'SR-3']
   tag ksi: ['KSI-SCR-MON']
   tag ksi_unmapped: ['sr-3']
-  tag nist_r4: ['RA-5', 'SR-3']
+  tag nist_r4: ['RA-5']
   tag cci:  ['CCI-001054', 'CCI-005080']
   tag ksi_unmapped: ['sr-3']
   tag layer: 'sca'
@@ -307,7 +307,7 @@ control 'artifact-license' do
   tag nist: ['SR-3', 'SA-4']
   tag ksi: []
   tag ksi_unmapped: ['sa-4', 'sr-3']
-  tag nist_r4: ['SA-4', 'SR-3']
+  tag nist_r4: ['SA-4']
   tag cci:  ['CCI-003094', 'CCI-005080']
   tag ksi_unmapped: ['sa-4', 'sr-3']
   tag layer: 'license-governance'
@@ -346,7 +346,7 @@ control 'artifact-container-sig' do
   tag nist: ['SI-7', 'SR-4']
   tag ksi: ['KSI-SVC-VRI']
   tag ksi_unmapped: ['sr-4']
-  tag nist_r4: ['SI-7', 'SR-4']
+  tag nist_r4: ['SI-7']
   tag cci:  ['CCI-002703', 'CCI-005096']
   tag ksi_unmapped: ['sr-4']
   tag layer: 'supply-chain-integrity'

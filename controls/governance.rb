@@ -240,7 +240,7 @@ control 'devsecops-governance-signed-commits' do
   tag nist: ['SI-7', 'SR-4']
   tag ksi: ['KSI-SVC-VRI']
   tag ksi_unmapped: ['sr-4']
-  tag nist_r4: ['SI-7', 'SR-4']
+  tag nist_r4: ['SI-7']
   tag cci:  ['CCI-002703', 'CCI-005096']
   tag ksi_unmapped: ['sr-4']
   tag layer: 'governance'

@@ -455,6 +455,7 @@ control 'devsecops-coverage-test_execution' do
     that it ran.
   DESC
   tag nist: ['SA-11']
+  tag nist_r4: ['SA-11']
   tag ksi: ['KSI-SCR-MIT']
   tag ssdf: ['PW.8']
   tag sdlc_stage: 'test'

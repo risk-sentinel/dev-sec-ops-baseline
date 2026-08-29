@@ -343,6 +343,8 @@ scan_types:
     title: Static Application Security Testing
     sdlc_stage: code
     nist: ['SA-11(1)']
+    cci: ['CCI-003179']
+    nist_r4: ['SA-11 (1)']
     ssdf: [PW.7, PW.8]
     description: Analyses source without executing it.
 
@@ -350,6 +352,8 @@ scan_types:
     title: Secrets Detection
     sdlc_stage: code
     nist: ['IA-5(7)', 'SA-11']
+    cci: ['CCI-003171', 'CCI-004069']
+    nist_r4: ['SA-11 a']
     ssdf: [PW.1]
     description: Finds embedded static authenticators in source and git history.
 
@@ -357,6 +361,8 @@ scan_types:
     title: Infrastructure as Code Scanning
     sdlc_stage: code
     nist: ['CM-2', 'CM-6', 'RA-5']
+    cci: ['CCI-000295', 'CCI-000366', 'CCI-001054']
+    nist_r4: ['CM-2', 'CM-6 b', 'RA-5 a']
     ssdf: [PW.9]
     description: Misconfiguration analysis of declarative infrastructure.
 
@@ -365,6 +371,8 @@ scan_types:
     aliases: [dependency]
     sdlc_stage: build
     nist: ['RA-5', 'SA-11(1)', 'SR-3']
+    cci: ['CCI-001054', 'CCI-003179', 'CCI-005080']
+    nist_r4: ['RA-5 a', 'SA-11 (1)']
     ssdf: [RV.1, PW.4]
     description: >-
       Known-vulnerable third-party components. GitLab calls this "Dependency
@@ -374,6 +382,7 @@ scan_types:
     title: Software Bill of Materials
     sdlc_stage: build
     nist: ['SR-3', 'SR-4']
+    cci: ['CCI-005080', 'CCI-005096']
     ssdf: [PS.3, PW.4]
     description: Component inventory and provenance record.
 
@@ -381,6 +390,8 @@ scan_types:
     title: Container Image Scanning
     sdlc_stage: build
     nist: ['RA-5', 'CM-6', 'SR-3']
+    cci: ['CCI-000366', 'CCI-001054', 'CCI-005080']
+    nist_r4: ['CM-6 b', 'RA-5 a']
     ssdf: [RV.1]
     description: >-
       Vulnerability and misconfiguration analysis of a built image. Frequently
@@ -391,6 +402,8 @@ scan_types:
     title: Software Licensing Review
     sdlc_stage: build
     nist: ['SR-3', 'SA-4']
+    cci: ['CCI-003094', 'CCI-005080']
+    nist_r4: ['SA-4 a']
     ssdf: [PW.4]
     description: OSS licence governance over acquired and reused components.
 
@@ -398,6 +411,8 @@ scan_types:
     title: Dynamic Application Security Testing
     sdlc_stage: test
     nist: ['SA-11(8)', 'RA-5', 'CA-8']
+    cci: ['CCI-001054', 'CCI-002093', 'CCI-003196']
+    nist_r4: ['CA-8', 'RA-5 a', 'SA-11 (8)']
     ssdf: [PW.8, RV.1]
     description: Exercises a running application from the outside.
 
@@ -406,6 +421,8 @@ scan_types:
     aliases: [post_deploy, continuous_monitoring]
     sdlc_stage: operate
     nist: ['CA-2(2)', 'CA-7', 'CM-6', 'RA-5']
+    cci: ['CCI-000256', 'CCI-000274', 'CCI-000366', 'CCI-001054']
+    nist_r4: ['CA-2 (2)', 'CA-7', 'CM-6 b', 'RA-5 a']
     ssdf: [RV.1, PW.9]
     description: >-
       Assessment of what is actually deployed, not what was built. The SDLC
@@ -434,6 +451,7 @@ scan_types:
     title: Interactive Application Security Testing
     sdlc_stage: test
     nist: ['SA-11(9)']
+    cci: ['CCI-004814']
     ssdf: [PW.8]
     description: >-
       Instrumented analysis of a running application. NIST 800-53r5 names this

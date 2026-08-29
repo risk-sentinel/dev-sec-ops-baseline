@@ -149,6 +149,8 @@ control 'devsecops-governance-required-reviews' do
     a passing result that does not say which is not much use in an assessment.
   DESC
   tag nist: ['CM-3', 'SA-11(4)', 'AC-6']
+  tag nist_r4: ['AC-6', 'CM-3', 'SA-11(4)']
+  tag cci:  ['CCI-000225', 'CCI-000313', 'CCI-003187']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CMT-RVP', 'KSI-CMT-VTD', 'KSI-IAM-ELP', 'KSI-IAM-JIT', 'KSI-SCR-MIT']
   tag layer: 'governance'
   only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }
@@ -176,6 +178,8 @@ control 'devsecops-governance-required-checks' do
     A required context counts when it names a tool the repository declares.
   DESC
   tag nist: ['CM-3', 'SA-10', 'SA-11']
+  tag nist_r4: ['CM-3', 'SA-10', 'SA-11']
+  tag cci:  ['CCI-000313', 'CCI-000692', 'CCI-003171']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CMT-RVP', 'KSI-CMT-VTD', 'KSI-SCR-MIT']
   tag layer: 'governance'
   only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }
@@ -208,6 +212,8 @@ control 'devsecops-governance-rulesets-enforced' do
     effect is not.
   DESC
   tag nist: ['CM-2', 'CM-6']
+  tag nist_r4: ['CM-2', 'CM-6']
+  tag cci:  ['CCI-000295', 'CCI-000366']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CNA-DFP', 'KSI-CNA-IBP', 'KSI-MLA-EVC', 'KSI-SVC-ACM']
   tag layer: 'governance'
   only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }
@@ -232,6 +238,8 @@ control 'devsecops-governance-signed-commits' do
     `require_signed_commits` when the estate is ready for it.
   DESC
   tag nist: ['SI-7', 'SR-4']
+  tag nist_r4: ['SI-7', 'SR-4']
+  tag cci:  ['CCI-002703', 'CCI-005096']
   tag ksi: ['KSI-SVC-VRI']
   tag ksi_unmapped: ['sr-4']
   tag layer: 'governance'
@@ -257,6 +265,8 @@ control 'devsecops-governance-codeowners' do
     CODEOWNERS file has no owners to ask.
   DESC
   tag nist: ['SA-15(7)', 'CM-3']
+  tag nist_r4: ['CM-3', 'SA-15(7)']
+  tag cci:  ['CCI-000313', 'CCI-003275']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CMT-RVP', 'KSI-CMT-VTD']
   tag ksi_broader: ['KSI-SCR-MIT']
   tag layer: 'governance'
@@ -294,6 +304,8 @@ control 'devsecops-governance-shift-left' do
     required check means it must pass.
   DESC
   tag nist: ['SA-11(1)', 'SA-15(5)']
+  tag nist_r4: ['SA-11(1)', 'SA-15(5)']
+  tag cci:  ['CCI-003179', 'CCI-003272']
   tag ksi: ['KSI-SCR-MIT']
   tag layer: 'governance'
   only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }

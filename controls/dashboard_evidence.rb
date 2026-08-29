@@ -125,6 +125,7 @@ control 'devsecops-code-scanning-executed' do
     reported as unverifiable rather than as a pass.
   DESC
   tag nist: ['RA-5', 'RA-5(2)', 'SA-11', 'SA-11(1)', 'SI-2']
+  tag ksi: ['KSI-CMT-VTD', 'KSI-SCR-MIT', 'KSI-SCR-MON']
   tag nist_r4: ['RA-5', 'RA-5(2)', 'SA-11', 'SA-11(1)', 'SI-2']
   tag cci:  ['CCI-001054', 'CCI-001063', 'CCI-001225', 'CCI-003171', 'CCI-003179']
   tag ksi: ['KSI-CMT-VTD', 'KSI-SCR-MIT', 'KSI-SCR-MON']
@@ -192,6 +193,7 @@ control 'devsecops-dashboard-open-findings' do
     "nothing found" and "nobody looked" never collapse into the same number.
   DESC
   tag nist: ['RA-5', 'SI-2', 'SI-3', 'IA-5(7)']
+  tag ksi: ['KSI-CMT-RMV', 'KSI-CMT-VTD', 'KSI-CNA-DFP', 'KSI-IAM-APM', 'KSI-IAM-ELP', 'KSI-SCR-MON']
   tag nist_r4: ['IA-5(7)', 'RA-5', 'SI-2', 'SI-3']
   tag cci:  ['CCI-001054', 'CCI-001225', 'CCI-001241', 'CCI-004069']
   tag ksi: ['KSI-CMT-RMV', 'KSI-CMT-VTD', 'KSI-CNA-DFP', 'KSI-IAM-APM', 'KSI-IAM-ELP', 'KSI-SCR-MON']
@@ -245,6 +247,8 @@ control 'devsecops-dismissals-accountable' do
     acceptance remains auditable instead of disappearing.
   DESC
   tag nist: ['RA-5(5)', 'CA-5', 'PM-4', 'SA-11']
+  tag ksi: ['KSI-IAM-JIT', 'KSI-IAM-SNU', 'KSI-SCR-MIT', 'KSI-SCR-MON']
+  tag ksi_unmapped: ['ca-5', 'pm-4']
   tag nist_r4: ['CA-5', 'PM-4', 'RA-5(5)', 'SA-11']
   tag cci:  ['CCI-000142', 'CCI-000264', 'CCI-001067', 'CCI-003171']
   tag ksi: ['KSI-IAM-JIT', 'KSI-IAM-SNU', 'KSI-SCR-MIT', 'KSI-SCR-MON']
@@ -293,6 +297,7 @@ control 'devsecops-push-protection-bypasses' do
     specific events rather than a count.
   DESC
   tag nist: ['IA-5(7)', 'AC-6', 'AU-2', 'SI-4']
+  tag ksi: ['KSI-CMT-LMC', 'KSI-IAM-APM', 'KSI-IAM-ELP', 'KSI-IAM-JIT', 'KSI-MLA-LET', 'KSI-MLA-OSM', 'KSI-MLA-RVL', 'KSI-SVC-EIS']
   tag nist_r4: ['AC-6', 'AU-2', 'IA-5(7)', 'SI-4']
   tag cci:  ['CCI-000123', 'CCI-000225', 'CCI-001253', 'CCI-004069']
   tag ksi: ['KSI-CMT-LMC', 'KSI-IAM-APM', 'KSI-IAM-ELP', 'KSI-IAM-JIT', 'KSI-MLA-LET', 'KSI-MLA-OSM', 'KSI-MLA-RVL', 'KSI-SVC-EIS']

@@ -33,6 +33,7 @@ control 'artifact-sast' do
   desc  'fix', 'If absent, the SAST stage did not run or did not publish its report. Check the workflow run and the artifact upload path; a stage that fails open leaves no report and no finding.'
   desc  'Static application security testing ran and produced a SARIF artifact.'
   tag nist: ['SA-11(1)']
+  tag ksi: ['KSI-SCR-MIT']
   tag nist_r4: ['SA-11(1)']
   tag cci:  ['CCI-003179']
   tag ksi: ['KSI-SCR-MIT']
@@ -61,6 +62,7 @@ control 'artifact-secrets' do
   desc  'fix', 'If absent, the secrets stage did not run or published nothing. Note a clean scan must still emit — an empty prefix is indistinguishable from a broken pipeline.'
   desc  'A secrets-detection stage ran and emitted a report.'
   tag nist: ['IA-5(7)', 'SA-11']
+  tag ksi: ['KSI-IAM-APM', 'KSI-SCR-MIT']
   tag nist_r4: ['IA-5(7)', 'SA-11']
   tag cci:  ['CCI-003171', 'CCI-004069']
   tag ksi: ['KSI-IAM-APM', 'KSI-SCR-MIT']
@@ -83,6 +85,7 @@ control 'artifact-trufflehog' do
         'Empty file is valid here ONLY if your stage writes an explicit empty result; '\
         'default asserts the file exists and stage executed.'
   tag nist: ['IA-5(7)', 'SA-11']
+  tag ksi: ['KSI-IAM-APM', 'KSI-SCR-MIT']
   tag nist_r4: ['IA-5(7)', 'SA-11']
   tag cci:  ['CCI-003171', 'CCI-004069']
   tag ksi: ['KSI-IAM-APM', 'KSI-SCR-MIT']
@@ -106,6 +109,7 @@ control 'artifact-lint' do
   desc  'check', 'Asserts the declared lint report exists in the artifact directory and is non-empty.'
   desc  'fix', 'If absent, the lint stage did not run or did not publish its report. Check the workflow run and the artifact path.'
   tag nist: ['SA-15(5)', 'SA-11']
+  tag ksi: ['KSI-SCR-MIT']
   tag nist_r4: ['SA-11', 'SA-15(5)']
   tag cci:  ['CCI-003171', 'CCI-003272']
   tag ksi: ['KSI-SCR-MIT']
@@ -125,6 +129,8 @@ control 'artifact-quality' do
   desc  'check', 'Asserts the declared quality report exists in the artifact directory and is non-empty.'
   desc  'fix', 'If absent, the quality stage did not run or did not publish. If your quality gate lives in a hosted service, point the declaration at its exported report rather than assuming the badge is evidence.'
   tag nist: ['SA-15']
+  tag ksi: []
+  tag ksi_broader: ['KSI-SCR-MIT']
   tag nist_r4: ['SA-15']
   tag cci:  ['CCI-003233']
   tag ksi: []
@@ -145,6 +151,7 @@ control 'artifact-code-review' do
   desc  'check', 'Asserts the declared code-review report exists in the artifact directory and is non-empty.'
   desc  'fix', 'If absent, the automated review did not run or published nothing. Human review recorded only in PR approvals is not covered by this control.'
   tag nist: ['SA-11(4)', 'SA-15(7)']
+  tag ksi: ['KSI-SCR-MIT']
   tag nist_r4: ['SA-11(4)', 'SA-15(7)']
   tag cci:  ['CCI-003187', 'CCI-003275']
   tag ksi: ['KSI-SCR-MIT']
@@ -164,6 +171,8 @@ control 'artifact-sbom' do
   desc  'check', 'Asserts the declared SBOM exists, is non-empty, and parses as CycloneDX with a components array.'
   desc  'fix', 'If absent, the SBOM stage did not run or published nothing. An SBOM generated later from source is not evidence about the released artifact.'
   tag nist: ['SR-3', 'SR-4']
+  tag ksi: []
+  tag ksi_unmapped: ['sr-3', 'sr-4']
   tag cci:  ['CCI-005080', 'CCI-005096']
   tag ksi: []
   tag ksi_unmapped: ['sr-3', 'sr-4']
@@ -191,6 +200,8 @@ control 'artifact-dependency' do
   desc  'check', 'Asserts the declared dependency report exists in the artifact directory and is non-empty.'
   desc  'fix', 'If absent, the SCA stage did not run or did not publish. Confirm it scanned the lockfile actually shipped, not a regenerated one.'
   tag nist: ['RA-5', 'SA-11(1)', 'SR-3']
+  tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
+  tag ksi_unmapped: ['sr-3']
   tag nist_r4: ['RA-5', 'SA-11(1)', 'SR-3']
   tag cci:  ['CCI-001054', 'CCI-003179', 'CCI-005080']
   tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
@@ -212,6 +223,8 @@ control 'artifact-trivy' do
   desc  'fix', 'If absent, Trivy did not run or did not publish. Check which layers were enabled — a run limited to one scanner still produces a report and silently narrows coverage.'
   desc  'Trivy ran (vuln/misconfig/secret/license layers) and emitted JSON.'
   tag nist: ['RA-5', 'CM-6', 'SR-3']
+  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-SCR-MON', 'KSI-SVC-ACM']
+  tag ksi_unmapped: ['sr-3']
   tag nist_r4: ['CM-6', 'RA-5', 'SR-3']
   tag cci:  ['CCI-000366', 'CCI-001054', 'CCI-005080']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-SCR-MON', 'KSI-SVC-ACM']
@@ -241,6 +254,7 @@ control 'artifact-grype' do
   desc  'check', 'Asserts the Grype report exists, is non-empty, and parses as JSON with a matches array.'
   desc  'fix', 'If absent, Grype did not run or published nothing. If it ran against an SBOM, confirm the SBOM was the one built from this artifact.'
   tag nist: ['RA-5', 'SA-11(1)']
+  tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
   tag nist_r4: ['RA-5', 'SA-11(1)']
   tag cci:  ['CCI-001054', 'CCI-003179']
   tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
@@ -269,6 +283,8 @@ control 'artifact-snyk' do
   desc  'check', 'Asserts the Snyk report exists, is non-empty, and parses as JSON.'
   desc  'fix', 'If absent, Snyk did not run, or ran without a token and failed open. A failed-open scanner is the worst case: no report, no finding, and a green pipeline.'
   tag nist: ['RA-5', 'SR-3']
+  tag ksi: ['KSI-SCR-MON']
+  tag ksi_unmapped: ['sr-3']
   tag nist_r4: ['RA-5', 'SR-3']
   tag cci:  ['CCI-001054', 'CCI-005080']
   tag ksi: ['KSI-SCR-MON']
@@ -300,6 +316,8 @@ control 'artifact-license' do
   desc  "OSS license governance was performed. Source of review: "\
         "#{input('license_source')}."
   tag nist: ['SR-3', 'SA-4']
+  tag ksi: []
+  tag ksi_unmapped: ['sa-4', 'sr-3']
   tag nist_r4: ['SA-4', 'SR-3']
   tag cci:  ['CCI-003094', 'CCI-005080']
   tag ksi: []
@@ -338,6 +356,8 @@ control 'artifact-container-sig' do
   desc  'fix', 'If absent, the signing step did not run or its evidence was not published. Note signatures attach three different ways — cosign tag scheme, OCI referrers, AWS-native — so check which your registry uses before concluding the image is unsigned.'
   desc  'Cosign (or equivalent) verified artifact signature and emitted a result.'
   tag nist: ['SI-7', 'SR-4']
+  tag ksi: ['KSI-SVC-VRI']
+  tag ksi_unmapped: ['sr-4']
   tag nist_r4: ['SI-7', 'SR-4']
   tag cci:  ['CCI-002703', 'CCI-005096']
   tag ksi: ['KSI-SVC-VRI']
@@ -360,6 +380,7 @@ control 'artifact-inspec-deployed' do
   desc  'check', 'Asserts the declared deployed-resource InSpec report exists, is non-empty, and parses as JSON.'
   desc  'fix', 'If absent, the post-deployment assessment did not run or did not publish. This is the control most often missing, because pipelines tend to stop at deploy.'
   tag nist: ['CA-2(2)', 'CA-7', 'CM-6', 'RA-5']
+  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-PIY-RIS', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag nist_r4: ['CA-2(2)', 'CA-7', 'CM-6', 'RA-5']
   tag cci:  ['CCI-000256', 'CCI-000274', 'CCI-000366', 'CCI-001054']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-PIY-RIS', 'KSI-SCR-MON', 'KSI-SVC-ACM']

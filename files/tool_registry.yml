@@ -382,6 +382,7 @@ scan_types:
     title: Software Bill of Materials
     sdlc_stage: build
     nist: ['SR-3', 'SR-4']
+    nist_r4_unmapped: ['SR-3', 'SR-4']
     cci: ['CCI-005080', 'CCI-005096']
     ssdf: [PS.3, PW.4]
     description: Component inventory and provenance record.
@@ -437,6 +438,10 @@ scan_types:
     sdlc_stage: test
     nist:
       - SA-11
+    nist_r4: ['SA-11']
+    # SA-11 b is the statement this evidences -- the developer performing the
+    # unit, integration, system and regression testing, not the plan for it.
+    cci: ['CCI-003173']
     ssdf:
       - PW.8
     description: >-
@@ -451,6 +456,7 @@ scan_types:
     title: Interactive Application Security Testing
     sdlc_stage: test
     nist: ['SA-11(9)']
+    nist_r4_unmapped: ['SA-11(9)']
     cci: ['CCI-004814']
     ssdf: [PW.8]
     description: >-

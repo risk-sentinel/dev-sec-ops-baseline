@@ -338,6 +338,7 @@ control 'devsecops-coverage-sbom' do
   DESC
   tag nist: ['SR-3', 'SR-4']
   tag cci: ['CCI-005080', 'CCI-005096']
+  tag nist_r4_unmapped: ['SR-3', 'SR-4']
   tag ksi: []
   tag ksi_unmapped: ['sr-3', 'sr-4']
   tag ssdf: ['PS.3', 'PW.4']
@@ -455,6 +456,8 @@ control 'devsecops-coverage-test_execution' do
     that it ran.
   DESC
   tag nist: ['SA-11']
+  tag cci: ['CCI-003173']
+  tag nist_r4: ['SA-11']
   tag ksi: ['KSI-SCR-MIT']
   tag ssdf: ['PW.8']
   tag sdlc_stage: 'test'
@@ -477,6 +480,7 @@ control 'devsecops-coverage-iast' do
   DESC
   tag nist: ['SA-11(9)']
   tag cci: ['CCI-004814']
+  tag nist_r4_unmapped: ['SA-11(9)']
   tag ksi: ['KSI-SCR-MIT']
   tag ssdf: ['PW.8']
   tag sdlc_stage: 'test'

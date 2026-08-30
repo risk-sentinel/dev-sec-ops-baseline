@@ -129,7 +129,6 @@ control 'artifact-quality' do
   tag ksi_broader: ['KSI-SCR-MIT']
   tag nist_r4: ['SA-15']
   tag cci:  ['CCI-003233']
-  tag ksi_broader: ['KSI-SCR-MIT']
   tag layer: 'quality'
   only_if('Quality scan not expected') { input('expect_quality') }
   assert_present(adir, input('quality_report'))
@@ -167,8 +166,8 @@ control 'artifact-sbom' do
   tag nist: ['SR-3', 'SR-4']
   tag ksi: []
   tag ksi_unmapped: ['sr-3', 'sr-4']
+  tag nist_r4_unmapped: ['SR-3', 'SR-4']
   tag cci:  ['CCI-005080', 'CCI-005096']
-  tag ksi_unmapped: ['sr-3', 'sr-4']
   tag layer: 'supply-chain'
   only_if('SBOM not expected') { input('expect_sbom') }
 
@@ -195,9 +194,8 @@ control 'artifact-dependency' do
   tag nist: ['RA-5', 'SA-11(1)', 'SR-3']
   tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
   tag ksi_unmapped: ['sr-3']
-  tag nist_r4: ['RA-5', 'SA-11(1)', 'SR-3']
+  tag nist_r4: ['RA-5', 'SA-11(1)']
   tag cci:  ['CCI-001054', 'CCI-003179', 'CCI-005080']
-  tag ksi_unmapped: ['sr-3']
   tag layer: 'sca'
   only_if('Generic dependency scan not expected') { input('expect_dependency') }
   assert_present(adir, input('dependency_report'))
@@ -217,9 +215,8 @@ control 'artifact-trivy' do
   tag nist: ['RA-5', 'CM-6', 'SR-3']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag ksi_unmapped: ['sr-3']
-  tag nist_r4: ['CM-6', 'RA-5', 'SR-3']
+  tag nist_r4: ['CM-6', 'RA-5']
   tag cci:  ['CCI-000366', 'CCI-001054', 'CCI-005080']
-  tag ksi_unmapped: ['sr-3']
   tag layer: 'sca-multi'
   only_if('Trivy not expected') { input('expect_trivy') }
 
@@ -275,9 +272,8 @@ control 'artifact-snyk' do
   tag nist: ['RA-5', 'SR-3']
   tag ksi: ['KSI-SCR-MON']
   tag ksi_unmapped: ['sr-3']
-  tag nist_r4: ['RA-5', 'SR-3']
+  tag nist_r4: ['RA-5']
   tag cci:  ['CCI-001054', 'CCI-005080']
-  tag ksi_unmapped: ['sr-3']
   tag layer: 'sca'
   only_if('Snyk not expected') { input('expect_snyk') }
 
@@ -307,9 +303,8 @@ control 'artifact-license' do
   tag nist: ['SR-3', 'SA-4']
   tag ksi: []
   tag ksi_unmapped: ['sa-4', 'sr-3']
-  tag nist_r4: ['SA-4', 'SR-3']
+  tag nist_r4: ['SA-4']
   tag cci:  ['CCI-003094', 'CCI-005080']
-  tag ksi_unmapped: ['sa-4', 'sr-3']
   tag layer: 'license-governance'
   # NOT `tag license_source: input('license_source')`. Tags are STATIC
   # metadata: InSpec's AST TagCollector reads the literal at parse time and
@@ -346,9 +341,8 @@ control 'artifact-container-sig' do
   tag nist: ['SI-7', 'SR-4']
   tag ksi: ['KSI-SVC-VRI']
   tag ksi_unmapped: ['sr-4']
-  tag nist_r4: ['SI-7', 'SR-4']
+  tag nist_r4: ['SI-7']
   tag cci:  ['CCI-002703', 'CCI-005096']
-  tag ksi_unmapped: ['sr-4']
   tag layer: 'supply-chain-integrity'
   only_if('Container signing not expected') { input('expect_container_sig') }
   assert_present(adir, input('container_sig_report'))

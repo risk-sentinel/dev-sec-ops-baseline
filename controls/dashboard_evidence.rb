@@ -249,7 +249,6 @@ control 'devsecops-dismissals-accountable' do
   tag ksi_unmapped: ['ca-5', 'pm-4']
   tag nist_r4: ['CA-5', 'PM-4', 'RA-5(5)', 'SA-11']
   tag cci:  ['CCI-000142', 'CCI-000264', 'CCI-001067', 'CCI-003171']
-  tag ksi_unmapped: ['ca-5', 'pm-4']
   tag layer: 'dashboard-evidence' # NOSONAR - tag values must be AST literals
   only_if(needs_cp) do
     control_plane && !org_name.to_s.empty? && !declared.empty?

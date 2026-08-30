@@ -21,7 +21,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
 from ksi_resolver import KsiCatalog, normalise, tag_lines  # noqa: E402
-from render_ksi import write_control  # noqa: E402
+from render_ksi import rewrite, write_control  # noqa: E402
 
 FAILURES = []
 
@@ -154,6 +154,29 @@ for probe in ("../../../tmp/escape.rb", "/tmp/absolute.rb", "Weird Name.rb",
 check("...and created nothing outside the repository",
       not pathlib.Path("/tmp/escape.rb").exists()
       and not pathlib.Path("/tmp/absolute.rb").exists())
+
+print("rewriting is position-independent")
+# The regression this pins: rewrite() used to consume only the KSI lines
+# IMMEDIATELY following `tag nist:`. Any other tag written between the two hid
+# the existing lines from the pass, which then emitted a second copy — it
+# duplicated the tag across 28 controls once, and again the day
+# `tag nist_r4_unmapped:` landed in that gap.
+_catalog = KsiCatalog()
+_between = (
+    "control 'probe' do\n"
+    "  tag nist: ['SA-11(1)']\n"
+    "  tag nist_r4_unmapped: ['SA-11 (9)']\n"
+    "  tag ksi: ['KSI-SCR-MIT']\n"
+    "  tag cci: ['CCI-003179']\n"
+    "end\n"
+)
+_once = rewrite(_between, _catalog, "probe")
+check("a tag between nist: and ksi: does not produce a second ksi tag",
+      _once.count("tag ksi:") == 1)
+check("and the intervening tag survives",
+      "tag nist_r4_unmapped: ['SA-11 (9)']" in _once)
+check("rewriting the result again changes nothing",
+      rewrite(_once, _catalog, "probe") == _once)
 
 print("renderers are idempotent")
 for tool in ("render_ksi.py", "render_controls.py"):

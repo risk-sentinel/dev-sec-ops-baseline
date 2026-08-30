@@ -164,6 +164,7 @@ control 'artifact-sbom' do
   desc  'check', 'Asserts the declared SBOM exists, is non-empty, and parses as CycloneDX with a components array.'
   desc  'fix', 'If absent, the SBOM stage did not run or published nothing. An SBOM generated later from source is not evidence about the released artifact.'
   tag nist: ['SR-3', 'SR-4']
+  tag nist_r4_unmapped: ['SR-3', 'SR-4']
   tag ksi: []
   tag ksi_unmapped: ['sr-3', 'sr-4']
   tag cci:  ['CCI-005080', 'CCI-005096']

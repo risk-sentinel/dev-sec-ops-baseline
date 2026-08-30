@@ -295,7 +295,7 @@ control '{key_ctl}' do
     that it ran.
   DESC
   tag nist: {nist}
-{cci}{nist_r4}{ksi}  tag ssdf: {ssdf}
+{cci}{nist_r4}{nist_r4_unmapped}{ksi}  tag ssdf: {ssdf}
   tag sdlc_stage: '{stage}'
   tag scan_type: '{key}'
   tag layer: 'coverage'
@@ -337,6 +337,12 @@ def render(reg: dict) -> str:
                      if meta.get("cci") else ""),
                 nist_r4=(f"  tag nist_r4: {ruby_list(meta['nist_r4'])}\n"
                          if meta.get("nist_r4") else ""),
+                # A scan type anchored only on controls Rev 5 introduced has no
+                # Rev 4 tag, and says so rather than going quiet: an absent
+                # anchor and a control that has none read the same otherwise.
+                nist_r4_unmapped=(
+                    f"  tag nist_r4_unmapped: {ruby_list(meta['nist_r4_unmapped'])}\n"
+                    if meta.get("nist_r4_unmapped") else ""),
                 ksi="\n".join(
                     tag_lines(catalog.resolve(meta.get("nist", [])))
                 ) + "\n",

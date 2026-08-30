@@ -25,6 +25,36 @@ Implementation note: a naive depth counter is wrong. Decrementing on every
 after which the rest of the body goes unchecked — that mistake made the first
 version of this linter pass the very code it was written to catch. A stack is
 required so each `end` pops the frame it actually belongs to.
+
+SECOND RULE — a control-scope HELPER called inside a deferred block.
+
+The mirror image of the first, and it caught nothing until it existed:
+
+    describe 'EBS volumes with encryption disabled' do
+      subject { aws_ebs_volumes_multi_region(regions: compute_scan_regions)... }
+
+    undefined local variable or method 'compute_scan_regions'
+      for #<RSpec::ExampleGroups::EBSVolumesWithEncryptionDisabled>
+
+`subject { }` is deferred into the example, which is exactly why calling a
+RESOURCE there is legal. A helper is different: helpers reach controls through
+`::Inspec::Rule.include(SomeModule)`, so they exist on the control, and the
+example is not the control. Deferring the call moves it out of the scope that
+has the method.
+
+The helper names are not hard-coded. They are read from `libraries/`: every
+module passed to `::Inspec::Rule.include(...)`, and every public method it
+defines above `private`. So a new helper is covered the moment it is included,
+and a private one — which controls cannot call anyway — is not.
+
+The same call is LEGAL at control scope, which is where the working call sites
+put it:
+
+    describe aws_ecs_task_sets(regions: compute_scan_regions) do   # argument
+    inv = aws_lightsail_inventory(regions: compute_scan_regions)   # local
+
+Both defects shipped in a tagged release and were invisible to `check` and
+`json`, which load control files without evaluating a single control body.
 """
 import re
 import sys
@@ -46,6 +76,51 @@ DEFERRED = re.compile(r"^(it|its|subject|before|after|let|let!|specify|example)\
 DESCRIBE_FRAME = "describe"
 DEFERRED_FRAME = "deferred"
 OTHER_FRAME = "other"
+
+
+RULE_INCLUDE = re.compile(r"::?Inspec::Rule\.include\(\s*([A-Z]\w*)")
+MODULE_DEF = re.compile(r"^module\s+([A-Z]\w*)\s*$", re.M)
+DEF_LINE = re.compile(r"^\s+def\s+([a-z_][a-z0-9_]*[?!]?)", re.M)
+PRIVATE_LINE = re.compile(r"^\s+private\s*$", re.M)
+
+
+def control_scope_helpers(roots):
+    """Every method a control can call because a module was included into Rule.
+
+    Only the public ones: a `private` method is unreachable from a control body
+    in the first place, so flagging it would be noise. Read from the source
+    rather than listed here, so this does not need editing when a helper is
+    added.
+    """
+    names = set()
+    for root in roots:
+        for lib in sorted(Path(root).rglob("*.rb")):
+            text = lib.read_text()
+            included = set(RULE_INCLUDE.findall(text))
+            if not included:
+                continue
+            for m in MODULE_DEF.finditer(text):
+                if m.group(1) not in included:
+                    continue
+                body = text[m.end():]
+                end = re.search(r"^end\s*$", body, re.M)
+                body = body[:end.start()] if end else body
+                cut = PRIVATE_LINE.search(body)
+                if cut:
+                    body = body[:cut.start()]
+                names.update(DEF_LINE.findall(body))
+    return names
+
+
+def helper_calls(line, helpers):
+    """Helper names invoked on this line, ignoring definitions and receivers."""
+    hits = []
+    for name in helpers:
+        if re.search(rf"(?<![.\w:]){re.escape(name)}\b", line) and not re.match(
+            rf"\s*def\s+{re.escape(name)}\b", line
+        ):
+            hits.append(name)
+    return sorted(hits)
 
 
 def _classify(line: str) -> str:
@@ -75,13 +150,23 @@ def _in_describe_body(stack) -> bool:
     return False
 
 
+def _in_deferred(stack) -> bool:
+    """True when this line runs inside an EXAMPLE rather than on the control.
+
+    Any deferred frame anywhere in the stack is enough: once execution is inside
+    an `it`/`subject`/`let`, a nested `if` or `each` is still the example.
+    """
+    return DEFERRED_FRAME in stack
+
+
 def _is_violation(line: str, kind: str, stack) -> bool:
     # A resource on the `describe ... do` line is an ARGUMENT — legal.
     # A resource on an it/subject/let line is deferred — legal.
     return kind == OTHER_FRAME and _in_describe_body(stack) and bool(RESOURCE.search(line))
 
 
-def violations(path: Path):
+def violations(path: Path, helpers=frozenset()):
+    """(lineno, line, kind) for each violation; kind is 'resource' or 'helper'."""
     stack = []
     out = []
 
@@ -92,7 +177,14 @@ def violations(path: Path):
 
         kind = _classify(line)
         if _is_violation(line, kind, stack):
-            out.append((lineno, line))
+            out.append((lineno, line, "resource"))
+
+        # A deferred ONE-LINER never opens a frame — `subject { ... }` closes on
+        # its own line — so it has to be judged here rather than by the stack.
+        deferred_here = kind == DEFERRED_FRAME and "{" in line
+        if helpers and (deferred_here or _in_deferred(stack)):
+            for name in helper_calls(line, helpers):
+                out.append((lineno, f"{line}   [helper: {name}]", "helper"))
 
         if END.match(line) and stack:
             stack.pop()
@@ -107,19 +199,36 @@ def main(argv):
     for root in argv[1:] or ["controls", "libraries"]:
         targets.extend(Path(root).rglob("*.rb"))
 
-    found = []
-    for f in sorted(targets):
-        for lineno, line in violations(f):
-            found.append(f"{f}:{lineno}: {line[:100]}")
+    helpers = control_scope_helpers(["libraries"])
+    if not helpers:
+        # Say it out loud. A profile can legitimately have none — helpers reached
+        # through a constant (`SomeHelper.method`) resolve in any scope and carry
+        # no hazard — but "found nothing to check" and "checked and found nothing
+        # wrong" must not print the same way.
+        print("::notice::no modules are included into ::Inspec::Rule under libraries/, "
+              "so the deferred-helper rule has nothing to check in this profile.")
 
-    if found:
+    found = {"resource": [], "helper": []}
+    for f in sorted(targets):
+        for lineno, line, kind in violations(f, helpers):
+            found[kind].append(f"{f}:{lineno}: {line[:110]}")
+
+    if found["resource"]:
         print("::error::InSpec resource called in a describe body — raises "
               "WrongScopeError at exec. Resolve it at control scope instead.")
-        for f in found:
+        for f in found["resource"]:
             print(f"  {f}")
+    if found["helper"]:
+        print("::error::control-scope helper called inside a deferred block — raises "
+              "NameError at exec, because the example is not the control. Resolve it "
+              "at control scope and close over the value.")
+        for f in found["helper"]:
+            print(f"  {f}")
+    if found["resource"] or found["helper"]:
         return 1
 
-    print(f"OK — no resource calls in describe bodies ({len(targets)} file(s) checked)")
+    print(f"OK — no resource calls in describe bodies and no control-scope helpers "
+          f"in deferred blocks ({len(targets)} file(s), {len(helpers)} helper(s) known)")
     return 0
 
 

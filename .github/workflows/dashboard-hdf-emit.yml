@@ -142,7 +142,7 @@ jobs:
             -e GITHUB_TOKEN \
             -e BRIDGE_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --entrypoint /opt/cinc-workstation/embedded/bin/ruby \
-            risksentinel/sparc-auditor:v0.5.2 \
+            risksentinel/sparc-auditor:v1.2.1 \
             tools/bridge.rb --repo "$TARGET_REPO" --ref "$TARGET_REF" --out "$OUTDIR"
           # The container runs as root, so everything it just wrote into the
           # bind mount is root-owned. The next step runs apply_dispositions.py
@@ -166,7 +166,7 @@ jobs:
             out="$OUTDIR/${base}-hdf.json"
 
             docker run --rm -v "$PWD:/work" -w /work \
-              --entrypoint saf risksentinel/sparc-auditor:v0.5.2 \
+              --entrypoint saf risksentinel/sparc-auditor:v1.2.1 \
               convert sarif2hdf -i "$sarif" -o "$out"
             # Root-owned again, and apply_dispositions.py below rewrites it.
             sudo chown "$(id -u):$(id -g)" "$out"
@@ -187,7 +187,7 @@ jobs:
             # identical green checks otherwise.
             echo "::group::saf view summary — $base"
             docker run --rm -v "$PWD:/work" -w /work \
-              --entrypoint saf risksentinel/sparc-auditor:v0.5.2 \
+              --entrypoint saf risksentinel/sparc-auditor:v1.2.1 \
               view summary -i "$out"
             echo "::endgroup::"
 

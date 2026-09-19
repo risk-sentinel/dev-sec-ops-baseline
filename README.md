@@ -138,6 +138,74 @@ Apache-2.0. No ownership claims asserted.
 
 [![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=risk-sentinel_dev-sec-ops-baseline)](https://sonarcloud.io/summary/new_code?id=risk-sentinel_dev-sec-ops-baseline)
 
+## Running without GitHub access
+
+Every release carries a `.tar.gz` asset, built and verified by
+`.github/workflows/release-artifact.yml`.
+
+It holds this profile. This one declares no `depends:`, so there is no resource
+pack to carry, but the asset is still the supported way to move it across to a
+consumer who cannot reach github.com.
+
+Assets are attached to every release cut **after this workflow landed**; earlier
+releases have none.
+
+```bash
+VERSION=<the release you want>
+
+# once, from somewhere that CAN reach GitHub
+curl -LO https://github.com/risk-sentinel/dev-sec-ops-baseline/releases/download/$VERSION/dev-sec-ops-v1r1-$VERSION.tar.gz
+
+# then, on the isolated side
+mkdir -p dev-sec-ops-v1r1 && tar xzf dev-sec-ops-v1r1-$VERSION.tar.gz -C dev-sec-ops-v1r1
+cd dev-sec-ops-v1r1
+cinc-auditor exec . -t local:// --input-file inputs/example.yml
+```
+
+**Extract it, then run from inside the directory.** That is the shape the CI
+templates use and the only one that is tested.
+
+The asset is verified before it is attached: the release job rejects an archive
+that declares `depends:` but carries no `vendor/`, and it rejects one that will
+not **load with the network switched off**. A tarball that exists is not a
+tarball that works.
+
+### From CI
+
+Both templates take `profile_source`, defaulting to `git` — existing callers are
+unaffected:
+
+| value | behaviour |
+| --- | --- |
+| `git` | Vendor from the declared remotes. Needs to reach them. |
+| `archive` | Unpack a release artifact. Contacts no remote. Requires `archive_path`. |
+
+`archive` **never falls back to `git`.** An empty or missing `archive_path` fails
+the job, as does an archive that declares dependencies but carries none. A
+fallback would defeat the isolation the mode exists for *and* still report a
+successful scan.
+
+GitHub Actions:
+
+```yaml
+uses: risk-sentinel/dev-sec-ops-baseline/.github/workflows/exec-evidence.yml@<version>
+with:
+  profile_source: archive
+  archive_path: ./dev-sec-ops-v1r1-<version>.tar.gz
+```
+
+GitLab:
+
+```yaml
+include:
+  - project: <your-org>/dev-sec-ops-baseline
+    ref: <version>
+    file: /ci/jobs/exec-evidence.yml
+    inputs:
+      profile_source: archive
+      archive_path: ./dev-sec-ops-v1r1-<version>.tar.gz
+```
+
 ## Producing evidence
 
 A `--reporter cli` run answers the question. It does not produce something an
@@ -167,7 +235,7 @@ jobs:
 include:
   - project: risk-sentinel/dev-sec-ops-baseline
     ref: v0.8.0
-    file: /ci/gitlab/exec-evidence.yml
+    file: /ci/jobs/exec-evidence.yml
     inputs:
       target: my-org
       boundary: my-boundary

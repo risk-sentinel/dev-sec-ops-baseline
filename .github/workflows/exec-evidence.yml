@@ -67,6 +67,20 @@ on:
           Region for `aws://` scans and for any cloud-evidence reads. Region is environment-specific and deliberately undefaulted: a wrong region does not error, it reads an empty account and reports a clean result.
         type: string
         required: true
+      profile_source:
+        description: >-
+          git | archive. `git` vendors from the declared remotes. `archive`
+          unpacks a release artifact that already carries its dependencies and
+          contacts no remote -- for a consumer who can reach their cloud account
+          but not github.com. archive never falls back to git.
+        type: string
+        default: git
+      archive_path:
+        description: >-
+          Path on the runner to the release .tar.gz, when profile_source=archive.
+          Fetch it in an earlier step from wherever your network keeps it.
+        type: string
+        default: ''
       image:
         description: 'Pinned auditor image supplying cinc-auditor, hdf, saf and jq.'
         type: string
@@ -198,9 +212,41 @@ jobs:
           RUN_MODE: ${{ inputs.run_mode }}
           INPUTS_FILE: ${{ inputs.inputs_file }}
           TARGET_URI: ${{ inputs.target_uri }}
+          PROFILE_SOURCE: ${{ inputs.profile_source }}
+          ARCHIVE_PATH: ${{ inputs.archive_path }}
         run: |
           set -uo pipefail
-          cinc-auditor vendor . --overwrite
+          # Where the profile comes from. `git` vendors from the declared remotes and
+          # needs the network to reach them. `archive` unpacks a release artifact that
+          # already carries its vendored dependencies, so nothing is fetched.
+          #
+          # archive NEVER falls back to git. A missing archive fails the job: falling
+          # back would quietly defeat the isolation the mode exists for, while still
+          # reporting a successful scan.
+          case "${PROFILE_SOURCE:-git}" in
+            git)
+              cinc-auditor vendor . --overwrite
+              ;;
+            archive)
+              if [ -z "${ARCHIVE_PATH:-}" ] || [ ! -s "${ARCHIVE_PATH}" ]; then
+              echo "::error::profile_source=archive but no archive at '${ARCHIVE_PATH:-<empty>}'. Refusing to vendor from the network instead." >&2; exit 1
+              fi
+              # Unpacked OVER the checkout rather than into a subdirectory: the archive
+              # holds this same profile plus its vendor/ tree, and
+              # _aws_backend_bootstrap.rb finds the vendored pack by globbing Dir.pwd,
+              # so the profile root has to stay the working directory.
+              if ! tar xzf "${ARCHIVE_PATH}" -C .; then
+              echo "::error::archive did not extract: ${ARCHIVE_PATH}" >&2; exit 1
+              fi
+              if grep -q "^depends:" inspec.yml && [ ! -d vendor ]; then
+              echo "::error::archive declares depends: but carries no vendor/ -- it would reach the network at exec." >&2; exit 1
+              fi
+              echo "profile source: archive (${ARCHIVE_PATH}) -- no remote contacted"
+              ;;
+            *)
+              echo "::error::profile_source must be 'git' or 'archive', got '${PROFILE_SOURCE}'" >&2; exit 1
+              ;;
+          esac
           # One --input flag with several pairs: repeated --input flags are
           # silently dropped and only the last survives.
           cinc-auditor exec . -t "$TARGET_URI" --input-file "$INPUTS_FILE" \

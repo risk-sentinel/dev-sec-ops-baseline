@@ -313,17 +313,17 @@ jobs:
             # Provenance on every run, clean included. This is the object the
             # profile reads to distinguish "scanned and clean" from "never ran".
             aws s3 cp "$OUTDIR/provenance.json" \
-              "${base}/dashboard/provenance.json" --content-type application/json
+              "${base}/dashboard/provenance.json" --content-type application/json --sse aws:kms
 
             for hdf in "$OUTDIR"/code-scanning-*-hdf.json; do
               aws s3 cp "$hdf" "${base}/code-scanning/$(basename "$hdf")" \
-                --content-type application/json
+                --content-type application/json --sse aws:kms
             done
             for pair in "secret-scanning:secret-scanning" "dependabot:dependabot"; do
               src="$OUTDIR/${pair%%:*}-hdf.json"
               [ -f "$src" ] || continue
               aws s3 cp "$src" "${base}/${pair##*:}/$(basename "$src")" \
-                --content-type application/json
+                --content-type application/json --sse aws:kms
             done
           done
           echo "Emitted to ${BOUNDARY}/{${d},latest}/${repo_name}/"

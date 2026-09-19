@@ -190,7 +190,7 @@ jobs:
           for slot in "$d" latest; do
             aws s3 cp out/test-execution-hdf.json \
               "s3://${BUCKET}/${BOUNDARY}/${slot}/${repo}/test-execution/test-execution-hdf.json" \
-              --content-type application/json
+              --content-type application/json --sse aws:kms
           done
           echo "Emitted to ${BOUNDARY}/{${d},latest}/${repo}/test-execution/"
 

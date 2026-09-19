@@ -6,7 +6,7 @@
 #   include:
 #     - project: <your-org>/dev-sec-ops-baseline
 #       ref: v0.8.0
-#       file: /ci/gitlab/exec-evidence.yml
+#       file: /ci/jobs/exec-evidence.yml
 #       inputs:
 #         target: my-account
 #         profile_name: dev-sec-ops-v1r1

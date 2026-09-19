@@ -167,7 +167,7 @@ jobs:
 include:
   - project: risk-sentinel/dev-sec-ops-baseline
     ref: v0.8.0
-    file: /ci/gitlab/exec-evidence.yml
+    file: /ci/jobs/exec-evidence.yml
     inputs:
       target: my-org
       boundary: my-boundary

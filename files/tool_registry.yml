@@ -382,7 +382,7 @@ scan_types:
     title: Software Bill of Materials
     sdlc_stage: build
     nist: ['SR-3', 'SR-4']
-    nist_r4_unmapped: ['SR-3', 'SR-4']
+    nist_r4: ['SA-12 (15)', 'SA-12 (3)']
     cci: ['CCI-005080', 'CCI-005096']
     ssdf: [PS.3, PW.4]
     description: Component inventory and provenance record.

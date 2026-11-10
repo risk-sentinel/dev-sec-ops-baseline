@@ -166,7 +166,7 @@ control 'artifact-sbom' do
   tag nist: ['SR-3', 'SR-4']
   tag ksi: []
   tag ksi_unmapped: ['sr-3', 'sr-4']
-  tag nist_r4_unmapped: ['SR-3', 'SR-4']
+  tag nist_r4: ['SA-12 (15)', 'SA-12 (3)']
   tag cci:  ['CCI-005080', 'CCI-005096']
   tag layer: 'supply-chain'
   only_if('SBOM not expected') { input('expect_sbom') }

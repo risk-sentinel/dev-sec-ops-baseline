@@ -53,11 +53,13 @@ import yaml
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MAPPING = ROOT / "files" / "ksi_mapping.yml"
 
-# `SA-11(1)` / `RA-5` as written in `tag nist:`. Anything else is a malformed
-# tag rather than an unmapped one, and is raised rather than quietly skipped —
-# a typo'd control id would otherwise resolve to nothing and read as a coverage
-# gap.
-_TAG = re.compile(r"^([A-Za-z]{2})-(\d+)(?:\((\d+)\))?$")
+# A `tag nist:` label: control, enhancement, and optionally the Rev 5 part --
+# `RA-5`, `SA-11(1)`, `SA-11 (1)`, `RA-5 a`, `SA-15 (7) (a)`, `SI-4 c 1`.
+# KSIs cite controls and enhancements, so the part is dropped. Anything else is
+# a malformed tag rather than an unmapped one, and is raised rather than quietly
+# skipped -- a typo'd control id would otherwise resolve to nothing and read as
+# a coverage gap.
+_TAG = re.compile(r"^([A-Za-z]{2})-(\d+)(?:\s*\((\d+)\))?(?:\s+(?:[a-z]|\([a-z]\))(?:\s+\S+)*)?$")
 
 
 class Resolution(NamedTuple):
@@ -70,7 +72,7 @@ class Resolution(NamedTuple):
 
 
 def normalise(tag: str) -> str:
-    """`SA-11(1)` -> `sa-11.1`, matching the published control id form."""
+    """`SA-11(1)`, `SA-11 (1) (a)` -> `sa-11.1`, matching the published control id form."""
     m = _TAG.match(tag.strip())
     if not m:
         raise ValueError(f"not a NIST control id: {tag!r}")

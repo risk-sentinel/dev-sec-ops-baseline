@@ -47,6 +47,17 @@ print("normalisation")
 check("plain control", normalise("RA-5") == "ra-5")
 check("enhancement", normalise("SA-11(1)") == "sa-11.1")
 check("two-digit enhancement", normalise("CM-8(11)") == "cm-8.11")
+check("canonical spaced enhancement", normalise("SA-11 (1)") == "sa-11.1")
+check("Rev 5 part drops to its control", normalise("RA-5 a") == "ra-5")
+check("nested part drops to its control", normalise("SI-4 c 1") == "si-4")
+check("enhancement part drops to its enhancement", normalise("SA-15 (7) (a)") == "sa-15.7")
+check("parenthesised part letter is a part, not an enhancement", normalise("CP-9 (b)") == "cp-9")
+for bad in ("not-a-control", "RA-5 trailing junk!", "SA-11 (1"):
+    try:
+        normalise(bad)
+        check(f"malformed {bad!r} raises", False)
+    except ValueError:
+        check(f"malformed {bad!r} raises", True)
 try:
     normalise("not-a-control")
     check("a malformed tag raises rather than reading as unmapped", False)

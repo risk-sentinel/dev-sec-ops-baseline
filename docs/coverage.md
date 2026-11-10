@@ -42,17 +42,17 @@ Merge-request rules straddle the split. *Whether reviews are required* is platfo
 
 | Scan type | SDLC stage | Tools | Artifact | Platform API | Repo contents | Evidence store | NIST 800-53r5 |
 |---|---|---|---|---|---|---|---|
-| **sast** &mdash; Static Application Security Testing | [Code](sdlc/code.md) | Bandit, CodeQL, Semgrep, SonarQube | **yes** | **yes** | planned | **yes** | `SA-11(1)` |
-| **secrets** &mdash; Secrets Detection | [Code](sdlc/code.md) | Gitleaks, Forge-native secret scanning, Trivy, TruffleHog | **yes** | **yes** | planned | **yes** | `IA-5(7)`, `SA-11` |
-| **iac** &mdash; Infrastructure as Code Scanning | [Code](sdlc/code.md) | Checkov, Semgrep, tfsec, Trivy | **yes** | **yes** | planned | &mdash; | `CM-2`, `CM-6`, `RA-5` |
-| **sca** &mdash; Software Composition Analysis | [Build](sdlc/build.md) | Dependabot, GitLab Dependency Scanning, Grype, Snyk, Sonatype, Trivy | **yes** | **yes** | planned | **yes** | `RA-5`, `SA-11(1)`, `SR-3` |
-| **sbom** &mdash; Software Bill of Materials | [Build](sdlc/build.md) | Syft | **yes** | &mdash; | planned | &mdash; | `SR-3`, `SR-4` |
-| **container** &mdash; Container Image Scanning | [Build](sdlc/build.md) | Anchore, Cosign, Grype, Trivy | **yes** | &mdash; | planned | **yes** | `RA-5`, `CM-6`, `SR-3` |
-| **licensing** &mdash; Software Licensing Review | [Build](sdlc/build.md) | Snyk, Sonatype, Trivy | **yes** | &mdash; | planned | &mdash; | `SR-3`, `SA-4` |
-| **dast** &mdash; Dynamic Application Security Testing | [Test](sdlc/test.md) | Burp Suite, OWASP ZAP | **yes** | &mdash; | &mdash; | planned | `SA-11(8)`, `RA-5`, `CA-8` |
-| **runtime** &mdash; Post-Deployment Validation | [Operate](sdlc/operate.md) | AWS Config, AWS Security Hub, InSpec / CINC baselines, Prowler | **yes** | planned | &mdash; | **yes** | `CA-2(2)`, `CA-7`, `CM-6`, `RA-5` |
-| **test_execution** &mdash; Developer Testing Execution | [Test](sdlc/test.md) | JUnit XML test results, SimpleCov | **yes** | &mdash; | &mdash; | **yes** | `SA-11` |
-| **iast** &mdash; Interactive Application Security Testing | [Test](sdlc/test.md) | _none_ | &mdash; | &mdash; | &mdash; | &mdash; | `SA-11(9)` |
+| **sast** &mdash; Static Application Security Testing | [Code](sdlc/code.md) | Bandit, CodeQL, Semgrep, SonarQube | **yes** | **yes** | planned | **yes** | `SA-11 (1)` |
+| **secrets** &mdash; Secrets Detection | [Code](sdlc/code.md) | Gitleaks, Forge-native secret scanning, Trivy, TruffleHog | **yes** | **yes** | planned | **yes** | `IA-5 (7)`, `SA-11 c` |
+| **iac** &mdash; Infrastructure as Code Scanning | [Code](sdlc/code.md) | Checkov, Semgrep, tfsec, Trivy | **yes** | **yes** | planned | &mdash; | `CM-6 c`, `RA-5 a` |
+| **sca** &mdash; Software Composition Analysis | [Build](sdlc/build.md) | Dependabot, GitLab Dependency Scanning, Grype, Snyk, Sonatype, Trivy | **yes** | **yes** | planned | **yes** | `RA-5 a`, `SR-3 a` |
+| **sbom** &mdash; Software Bill of Materials | [Build](sdlc/build.md) | Syft | **yes** | &mdash; | planned | &mdash; | `SR-4` |
+| **container** &mdash; Container Image Scanning | [Build](sdlc/build.md) | Anchore, Cosign, Grype, Trivy | **yes** | &mdash; | planned | **yes** | `RA-5 a`, `SR-3 a`, `CM-6 c` |
+| **licensing** &mdash; Software Licensing Review | [Build](sdlc/build.md) | Snyk, Sonatype, Trivy | **yes** | &mdash; | planned | &mdash; | `CM-10 a`, `SR-3 a` |
+| **dast** &mdash; Dynamic Application Security Testing | [Test](sdlc/test.md) | Burp Suite, OWASP ZAP | **yes** | &mdash; | &mdash; | planned | `SA-11 (8)`, `RA-5 a` |
+| **runtime** &mdash; Post-Deployment Validation | [Operate](sdlc/operate.md) | AWS Config, AWS Security Hub, InSpec / CINC baselines, Prowler | **yes** | planned | &mdash; | **yes** | `CA-7 c`, `CA-2 (2)` |
+| **test_execution** &mdash; Developer Testing Execution | [Test](sdlc/test.md) | JUnit XML test results, SimpleCov | **yes** | &mdash; | &mdash; | **yes** | `SA-11 b` |
+| **iast** &mdash; Interactive Application Security Testing | [Test](sdlc/test.md) | _none_ | &mdash; | &mdash; | &mdash; | &mdash; | `SA-11 (9)` |
 
 > **No tooling anywhere in the organisation for `iast`.** The row is kept deliberately. Dropping it would imply the scan type does not apply; keeping it empty states that nobody performs it.
 

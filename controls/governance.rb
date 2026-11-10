@@ -148,10 +148,10 @@ control 'devsecops-governance-required-reviews' do
     supplied it: the two have different owners and different blast radius, and
     a passing result that does not say which is not much use in an assessment.
   DESC
-  tag nist: ['CM-3', 'SA-11(4)', 'AC-6']
-  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CMT-RVP', 'KSI-CMT-VTD', 'KSI-IAM-ELP', 'KSI-IAM-JIT', 'KSI-SCR-MIT']
-  tag nist_r4: ['AC-6', 'CM-3', 'SA-11(4)']
-  tag cci:  ['CCI-000225', 'CCI-000313', 'CCI-003187']
+  tag nist: ['CM-3 b', 'SA-10 c', 'SA-11 (4)']
+  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CMT-RVP', 'KSI-CMT-VTD', 'KSI-SCR-MIT']
+  tag nist_r4: ['CM-3 b', 'SA-10 c', 'SA-11 (4)']
+  tag cci:  ['CCI-001740', 'CCI-000692', 'CCI-003187']
   tag layer: 'governance'
   only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }
 
@@ -177,10 +177,10 @@ control 'devsecops-governance-required-checks' do
 
     A required context counts when it names a tool the repository declares.
   DESC
-  tag nist: ['CM-3', 'SA-10', 'SA-11']
+  tag nist: ['CM-3 (2)', 'SA-10 c']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CMT-RVP', 'KSI-CMT-VTD', 'KSI-SCR-MIT']
-  tag nist_r4: ['CM-3', 'SA-10', 'SA-11']
-  tag cci:  ['CCI-000313', 'CCI-000692', 'CCI-003171']
+  tag nist_r4: ['CM-3 (2)', 'SA-10 c']
+  tag cci:  ['CCI-000327', 'CCI-000692']
   tag layer: 'governance'
   only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }
 
@@ -211,10 +211,10 @@ control 'devsecops-governance-rulesets-enforced' do
     without checking whether any carried attribution: the shape is there and the
     effect is not.
   DESC
-  tag nist: ['CM-2', 'CM-6']
-  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CNA-DFP', 'KSI-CNA-IBP', 'KSI-MLA-EVC', 'KSI-SVC-ACM']
-  tag nist_r4: ['CM-2', 'CM-6']
-  tag cci:  ['CCI-000295', 'CCI-000366']
+  tag nist: ['CM-6 b', 'CM-5 (1) (a)']
+  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CMT-RVP', 'KSI-IAM-JIT', 'KSI-MLA-EVC', 'KSI-SVC-ACM']
+  tag nist_r4: ['CM-5 (1)', 'CM-6 b']
+  tag cci:  ['CCI-000366', 'CCI-001813']
   tag layer: 'governance'
   only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }
 
@@ -264,11 +264,10 @@ control 'devsecops-governance-codeowners' do
     enforces is documentation; a code-owner review requirement with no
     CODEOWNERS file has no owners to ask.
   DESC
-  tag nist: ['SA-15(7)', 'CM-3']
+  tag nist: ['CM-3 b', 'CM-3 a']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CMT-RVP', 'KSI-CMT-VTD']
-  tag ksi_broader: ['KSI-SCR-MIT']
-  tag nist_r4: ['CM-3', 'SA-15(7)']
-  tag cci:  ['CCI-000313', 'CCI-003275']
+  tag nist_r4: ['CM-3 a', 'CM-3 b']
+  tag cci:  ['CCI-001740', 'CCI-000313']
   tag layer: 'governance'
   only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }
 
@@ -303,10 +302,10 @@ control 'devsecops-governance-shift-left' do
     workflow, and is the stronger signal anyway: a trigger means it runs, a
     required check means it must pass.
   DESC
-  tag nist: ['SA-11(1)', 'SA-15(5)']
-  tag ksi: ['KSI-SCR-MIT']
-  tag nist_r4: ['SA-11(1)', 'SA-15(5)']
-  tag cci:  ['CCI-003179', 'CCI-003272']
+  tag nist: ['SA-11 (1)', 'CM-3 (2)']
+  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CMT-RVP', 'KSI-CMT-VTD', 'KSI-SCR-MIT']
+  tag nist_r4: ['CM-3 (2)', 'SA-11 (1)']
+  tag cci:  ['CCI-003179', 'CCI-000327']
   tag layer: 'governance'
   only_if(GOV_ONLY_IF) { GOV_MODES.include?(run_mode) }
 

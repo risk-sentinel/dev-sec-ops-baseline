@@ -338,7 +338,7 @@ control 'devsecops-coverage-sbom' do
   DESC
   tag nist: ['SR-3', 'SR-4']
   tag cci: ['CCI-005080', 'CCI-005096']
-  tag nist_r4_unmapped: ['SR-3', 'SR-4']
+  tag nist_r4: ['SA-12 (15)', 'SA-12 (3)']
   tag ksi: []
   tag ksi_unmapped: ['sr-3', 'sr-4']
   tag ssdf: ['PS.3', 'PW.4']

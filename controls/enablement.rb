@@ -70,11 +70,10 @@ control 'devsecops-inventory-reconciliation' do
     the declaration when a repository is archived is the intended cost of never
     silently shrinking the denominator.
   DESC
-  tag nist: ['CM-8', 'CM-8(1)', 'PM-5', 'CA-7']
-  tag ksi: ['KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-PIY-GIV']
-  tag ksi_unmapped: ['pm-5']
-  tag nist_r4: ['CA-7', 'CM-8', 'CM-8(1)', 'PM-5']
-  tag cci:  ['CCI-000274', 'CCI-000398', 'CCI-000408', 'CCI-004328']
+  tag nist: ['CM-8 a 1', 'CM-8 a 2']
+  tag ksi: ['KSI-PIY-GIV']
+  tag nist_r4: ['CM-8']
+  tag cci:  ['CCI-003962', 'CCI-003963']
   tag layer: 'inventory'
   only_if('Organisation enumeration needs control-plane access') do
     %w[control-plane both].include?(run_mode) && !org_name.to_s.empty?
@@ -177,10 +176,10 @@ control 'devsecops-native-capability-enablement' do
     returns 403 or 404, and a client that reads those as "no alerts" reports a
     repository nobody scans as clean.
   DESC
-  tag nist: ['RA-5', 'SI-5', 'SA-11']
-  tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON', 'KSI-SVC-ACM']
-  tag nist_r4: ['RA-5', 'SA-11', 'SI-5']
-  tag cci:  ['CCI-001054', 'CCI-001285', 'CCI-003171']
+  tag nist: ['RA-5 a', 'SI-5 a']
+  tag ksi: ['KSI-SCR-MON', 'KSI-SVC-ACM']
+  tag nist_r4: ['RA-5 a', 'SI-5 a']
+  tag cci:  ['CCI-001054', 'CCI-001285']
   tag layer: 'platform-enablement'
   only_if('Native capability checks need control-plane access') do
     %w[control-plane both].include?(run_mode)

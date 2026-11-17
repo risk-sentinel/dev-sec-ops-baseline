@@ -148,6 +148,20 @@ control 'devsecops-governance-required-reviews' do
     supplied it: the two have different owners and different blast radius, and
     a passing result that does not say which is not much use in an assessment.
   DESC
+  desc 'check', <<~'CHECK'
+    For each declared repository, read classic branch protection and every
+    active ruleset covering `protected_branch` (GitHub: `gh api
+    repos/{org}/{repo}/rules/branches/<branch>`; GitLab: the protected
+    branch's merge request approval rules). The effective required
+    approving review count must be at least `min_required_reviews`. The
+    result names which mechanism supplied the count.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Raise the required approvals for the protected branch to at least
+    `min_required_reviews`, preferably in one mechanism (a ruleset on
+    GitHub, approval rules on GitLab). A repository that is intentionally
+    different takes a reasoned entry in `governance_exemptions`.
+  FIX
   tag nist: ['CM-3 b', 'SA-10 c', 'SA-11 (4)']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CMT-RVP', 'KSI-CMT-VTD', 'KSI-SCR-MIT']
   tag nist_r4: ['CM-3 b', 'SA-10 c', 'SA-11 (4)']
@@ -177,6 +191,19 @@ control 'devsecops-governance-required-checks' do
 
     A required context counts when it names a tool the repository declares.
   DESC
+  desc 'check', <<~'CHECK'
+    For each declared repository, list the required status checks on
+    `protected_branch` from classic protection and active rulesets. At
+    least one required context must name a security tool the repository
+    declares in `targets`. Requiring only build or test checks, or none,
+    fails.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Add a declared scanner's check (for example its CodeQL or SonarCloud
+    check name) to the required status checks for the protected branch. A
+    check must have reported on a recent commit before the platform lets
+    you select it.
+  FIX
   tag nist: ['CM-3 (2)', 'SA-10 c']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CMT-RVP', 'KSI-CMT-VTD', 'KSI-SCR-MIT']
   tag nist_r4: ['CM-3 (2)', 'SA-10 c']
@@ -211,6 +238,17 @@ control 'devsecops-governance-rulesets-enforced' do
     without checking whether any carried attribution: the shape is there and the
     effect is not.
   DESC
+  desc 'check', <<~'CHECK'
+    For each declared repository, list the rulesets that apply to it,
+    including organisation rulesets (`gh api
+    repos/{org}/{repo}/rulesets`). None may have enforcement `evaluate`;
+    the control names any that do.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Switch each listed ruleset from Evaluate to Active once its rule
+    insights show it would not block legitimate work, or delete it if it
+    is not wanted.
+  FIX
   tag nist: ['CM-6 b', 'CM-5 (1) (a)']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CMT-RVP', 'KSI-IAM-JIT', 'KSI-MLA-EVC', 'KSI-SVC-ACM']
   tag nist_r4: ['CM-5 (1)', 'CM-6 b']
@@ -237,6 +275,17 @@ control 'devsecops-governance-signed-commits' do
     policy nobody adopted trains people to ignore the output. Enable through
     `require_signed_commits` when the estate is ready for it.
   DESC
+  desc 'check', <<~'CHECK'
+    Runs only when `require_signed_commits` is true. For each declared
+    repository, confirm classic protection or an active ruleset on
+    `protected_branch` requires signed commits.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Enable signed-commit enforcement for the protected branch, and make
+    sure contributors and automation sign their commits (SSH, GPG or
+    S/MIME). If commit signing is not organisational policy, leave
+    `require_signed_commits` false.
+  FIX
   tag nist: ['SI-7', 'SR-4']
   tag ksi: ['KSI-SVC-VRI']
   tag ksi_unmapped: ['sr-4']
@@ -264,6 +313,18 @@ control 'devsecops-governance-codeowners' do
     enforces is documentation; a code-owner review requirement with no
     CODEOWNERS file has no owners to ask.
   DESC
+  desc 'check', <<~'CHECK'
+    For each declared repository, confirm a CODEOWNERS file exists
+    (GitHub: `.github/`, the root or `docs/`; GitLab: the root, `docs/` or
+    `.gitlab/`) and that the protected branch requires review from code
+    owners. Both must hold.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Add a CODEOWNERS file naming owners for the repository's paths, and
+    enable code-owner review for the protected branch (GitHub: "Require
+    review from Code Owners"; GitLab: code owner approval on the protected
+    branch).
+  FIX
   tag nist: ['CM-3 b', 'CM-3 a']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CMT-RVP', 'KSI-CMT-VTD']
   tag nist_r4: ['CM-3 a', 'CM-3 b']
@@ -302,6 +363,18 @@ control 'devsecops-governance-shift-left' do
     workflow, and is the stronger signal anyway: a trigger means it runs, a
     required check means it must pass.
   DESC
+  desc 'check', <<~'CHECK'
+    For each declared repository, read its workflows and confirm every
+    declared scanner either runs in a workflow triggered by `pull_request`
+    or is a required status check on `protected_branch`. A scanner that
+    runs only on push, on a schedule or after merge fails, and the control
+    names it.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Add a `pull_request` trigger targeting the protected branch to the
+    workflow that runs the scanner, or make the scanner's check required.
+    For app-triggered scanners such as SonarCloud, require its check.
+  FIX
   tag nist: ['SA-11 (1)', 'CM-3 (2)']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CMT-RVP', 'KSI-CMT-VTD', 'KSI-SCR-MIT']
   tag nist_r4: ['CM-3 (2)', 'SA-11 (1)']

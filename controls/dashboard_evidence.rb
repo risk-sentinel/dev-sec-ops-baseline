@@ -124,6 +124,21 @@ control 'devsecops-code-scanning-executed' do
     decision; on private repositories it requires licensing, and that gap is
     reported as unverifiable rather than as a pass.
   DESC
+  desc 'check', <<~'CHECK'
+    For each declared GitHub repository, list code-scanning analyses on
+    the protected branch (Security > Code scanning, or `GET /repos/{org}/{
+    repo}/code-scanning/analyses?ref=refs/heads/<protected_branch>`). Code
+    scanning must be enabled, and every language the repository scans must
+    have an analysis no older than `evidence_freshness_days`. A disabled
+    capability, no analysis, or one stale language fails.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Enable code scanning (default setup or a CodeQL workflow) and run it
+    on pushes to the protected branch and on a schedule, for every
+    language in the repository. If one language went stale, check that
+    language's analysis job: CodeQL records one analysis per language, so
+    a failing job leaves the others looking current.
+  FIX
   tag nist: ['SA-11 (1)', 'RA-5 a']
   tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
   tag nist_r4: ['RA-5 a', 'SA-11 (1)']
@@ -191,6 +206,20 @@ control 'devsecops-dashboard-open-findings' do
     A capability that is not enabled yields no result rather than a zero, so
     "nothing found" and "nobody looked" never collapse into the same number.
   DESC
+  desc 'check', <<~'CHECK'
+    For each declared GitHub repository, count open alerts in code
+    scanning, secret scanning and Dependabot (Security tab, or `GET /repos
+    /{org}/{repo}/{code-scanning|secret-scanning|dependabot}/alerts?state=
+    open`). Each count must be zero. A capability that is not enabled is
+    reported as not evaluated here; devsecops-native-capability-enablement
+    asserts enablement.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Remediate each open alert: fix the code, revoke and rotate an exposed
+    secret, or upgrade the dependency. Where a finding is accepted rather
+    than fixed, dismiss it with a reason and a comment so the acceptance
+    is recorded and checked by devsecops-dismissals-accountable.
+  FIX
   tag nist: ['RA-5 d', 'SI-2 a', 'IA-5 (7)']
   tag ksi: ['KSI-CMT-VTD', 'KSI-IAM-APM', 'KSI-SCR-MON']
   tag nist_r4: ['RA-5 d', 'SI-2 a']
@@ -244,6 +273,18 @@ control 'devsecops-dismissals-accountable' do
     carries the reason, the person and the date into the skip message, so the
     acceptance remains auditable instead of disappearing.
   DESC
+  desc 'check', <<~'CHECK'
+    For each declared GitHub repository with code scanning enabled, list
+    dismissed alerts (`GET
+    /repos/{org}/{repo}/code-scanning/alerts?state=dismissed`). Every
+    alert must carry a `dismissed_reason` and a `dismissed_by` user; the
+    control lists those that lack either.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Have an accountable person reopen each listed alert and dismiss it
+    again, choosing a reason and commenting on why it is accepted. The
+    platform records who dismissed it.
+  FIX
   tag nist: ['RA-5 c', 'SA-10 e']
   tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
   tag nist_r4: ['RA-5 c', 'SA-10 e']
@@ -291,6 +332,16 @@ control 'devsecops-push-protection-bypasses' do
     Reported per repository with the alert numbers, so the record points at
     specific events rather than a count.
   DESC
+  desc 'check', <<~'CHECK'
+    For each declared GitHub repository with secret scanning enabled, list
+    secret-scanning alerts whose `push_protection_bypassed` is true (`GET
+    /repos/{org}/{repo}/secret-scanning/alerts`). The list must be empty.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Treat each listed secret as exposed: revoke and rotate it, then close
+    the alert as revoked. Review who bypassed and why. Where bypasses
+    should need approval, enable delegated bypass for push protection.
+  FIX
   tag nist: ['IA-5 (7)']
   tag ksi: ['KSI-IAM-APM']
   tag nist_r4: ['IA-5 (7)']

@@ -243,6 +243,34 @@ control 'devsecops-coverage-sast' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
+  desc 'check', <<~'CHECK'
+    For each repository in `targets` that declares `sast` enabled, confirm
+    at least one declared tool ran and its result can be read on a surface
+    the run mode reaches. Tools and where each is verified: (1) CodeQL
+    (`codeql`): a report matching `*codeql*.sarif` or `sast*.sarif` in
+    `artifact_dir`; or the forge's `code_scanning` capability enabled; or
+    converted HDF from source `code-scanning` in the evidence bucket
+    within `evidence_lookback_days`. (2) Semgrep (`semgrep`): a report
+    matching `*semgrep*.sarif` or `*semgrep*.json` in `artifact_dir`; or
+    the forge's `code_scanning` capability enabled. (3) SonarQube
+    (`sonarqube`): a report matching `*sonar*.json` or `quality*.json` in
+    `artifact_dir`; or an analysis of the target's
+    `evidence_sources.sonarqube.project_key` project no older than
+    `evidence_freshness_days`; or converted HDF from source `sonarqube` in
+    the evidence bucket within `evidence_lookback_days`. (4) Bandit
+    (`bandit`): a report matching `*bandit*.json` in `artifact_dir`. The
+    `pipeline` run mode reaches report files only; `control-plane` reaches
+    the forge API and the evidence bucket; `both` reaches all. A workflow
+    file naming a scanner does not count.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Run one of `codeql`, `semgrep`, `sonarqube`, `bandit` for the
+    repository and publish its result to a surface listed in the check,
+    then declare it in the target's `scans.sast.tools`. Where Static
+    Application Security Testing does not apply, declare
+    `scans.sast.enabled: false` and supply an attestation; omitting the
+    scan type is not an option.
+  FIX
   tag nist: ['SA-11 (1)']
   tag cci: ['CCI-003179']
   tag nist_r4: ['SA-11 (1)']
@@ -266,6 +294,33 @@ control 'devsecops-coverage-secrets' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
+  desc 'check', <<~'CHECK'
+    For each repository in `targets` that declares `secrets` enabled,
+    confirm at least one declared tool ran and its result can be read on a
+    surface the run mode reaches. Tools and where each is verified: (1)
+    TruffleHog (`trufflehog`): a report matching `*trufflehog*.json` or
+    `*trufflehog*.jsonl` in `artifact_dir`; or converted HDF from source
+    `trufflehog` in the evidence bucket within `evidence_lookback_days`.
+    (2) Gitleaks (`gitleaks`): a report matching `*gitleaks*.json` in
+    `artifact_dir`; or converted HDF from source `gitleaks` in the
+    evidence bucket within `evidence_lookback_days`. (3) Forge-native
+    secret scanning (`platform_secret_scanning`): the forge's
+    `secret_scanning` capability enabled; or converted HDF from source
+    `secret-scanning` in the evidence bucket within
+    `evidence_lookback_days`. (4) Trivy (`trivy`): a report matching
+    `*trivy*.json` in `artifact_dir`. The `pipeline` run mode reaches
+    report files only; `control-plane` reaches the forge API and the
+    evidence bucket; `both` reaches all. A workflow file naming a scanner
+    does not count.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Run one of `trufflehog`, `gitleaks`, `platform_secret_scanning`,
+    `trivy` for the repository and publish its result to a surface listed
+    in the check, then declare it in the target's `scans.secrets.tools`.
+    Where Secrets Detection does not apply, declare
+    `scans.secrets.enabled: false` and supply an attestation; omitting the
+    scan type is not an option.
+  FIX
   tag nist: ['IA-5 (7)', 'SA-11 c']
   tag cci: ['CCI-004069', 'CCI-003176']
   tag nist_r4: ['SA-11 c']
@@ -289,6 +344,27 @@ control 'devsecops-coverage-iac' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
+  desc 'check', <<~'CHECK'
+    For each repository in `targets` that declares `iac` enabled, confirm
+    at least one declared tool ran and its result can be read on a surface
+    the run mode reaches. Tools and where each is verified: (1) Semgrep
+    (`semgrep`): a report matching `*semgrep*.sarif` or `*semgrep*.json`
+    in `artifact_dir`; or the forge's `code_scanning` capability enabled.
+    (2) Trivy (`trivy`): a report matching `*trivy*.json` in
+    `artifact_dir`. (3) Checkov (`checkov`): a report matching
+    `*checkov*.sarif` or `*checkov*.json` in `artifact_dir`. (4) tfsec
+    (`tfsec`): a report matching `*tfsec*.sarif` in `artifact_dir`. The
+    `pipeline` run mode reaches report files only; `control-plane` reaches
+    the forge API and the evidence bucket; `both` reaches all. A workflow
+    file naming a scanner does not count.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Run one of `semgrep`, `trivy`, `checkov`, `tfsec` for the repository
+    and publish its result to a surface listed in the check, then declare
+    it in the target's `scans.iac.tools`. Where Infrastructure as Code
+    Scanning does not apply, declare `scans.iac.enabled: false` and supply
+    an attestation; omitting the scan type is not an option.
+  FIX
   tag nist: ['CM-6 c', 'RA-5 a']
   tag cci: ['CCI-000367', 'CCI-001054']
   tag nist_r4: ['CM-6 c', 'RA-5 a']
@@ -312,6 +388,31 @@ control 'devsecops-coverage-sca' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
+  desc 'check', <<~'CHECK'
+    For each repository in `targets` that declares `sca` enabled, confirm
+    at least one declared tool ran and its result can be read on a surface
+    the run mode reaches. Tools and where each is verified: (1) Grype
+    (`grype`): a report matching `*grype*.json` in `artifact_dir`; or
+    converted HDF from source `grype` in the evidence bucket within
+    `evidence_lookback_days`. (2) Trivy (`trivy`): a report matching
+    `*trivy*.json` in `artifact_dir`. (3) Snyk (`snyk`): a report matching
+    `*snyk*.json` in `artifact_dir`. (4) Dependabot (`dependabot`): the
+    forge's `dependabot_alerts` capability enabled; or converted HDF from
+    source `dependabot` in the evidence bucket within
+    `evidence_lookback_days`. (5) Sonatype (`sonatype`): a report matching
+    `*sonatype*.json` in `artifact_dir`. The `pipeline` run mode reaches
+    report files only; `control-plane` reaches the forge API and the
+    evidence bucket; `both` reaches all. A workflow file naming a scanner
+    does not count.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Run one of `grype`, `trivy`, `snyk`, `dependabot`, `sonatype` for the
+    repository and publish its result to a surface listed in the check,
+    then declare it in the target's `scans.sca.tools`. Where Software
+    Composition Analysis does not apply, declare `scans.sca.enabled:
+    false` and supply an attestation; omitting the scan type is not an
+    option.
+  FIX
   tag nist: ['RA-5 a', 'SR-3 a']
   tag cci: ['CCI-001054', 'CCI-005080']
   tag nist_r4: ['RA-5 a']
@@ -336,6 +437,23 @@ control 'devsecops-coverage-sbom' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
+  desc 'check', <<~'CHECK'
+    For each repository in `targets` that declares `sbom` enabled, confirm
+    at least one declared tool ran and its result can be read on a surface
+    the run mode reaches. Tools and where each is verified: (1) Syft
+    (`syft`): a report matching `*.cdx.json` or `*sbom*.json` or
+    `*syft*.json` in `artifact_dir`. The `pipeline` run mode reaches
+    report files only; `control-plane` reaches the forge API and the
+    evidence bucket; `both` reaches all. A workflow file naming a scanner
+    does not count.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Run one of `syft` for the repository and publish its result to a
+    surface listed in the check, then declare it in the target's
+    `scans.sbom.tools`. Where Software Bill of Materials does not apply,
+    declare `scans.sbom.enabled: false` and supply an attestation;
+    omitting the scan type is not an option.
+  FIX
   tag nist: ['SR-4']
   tag cci: ['CCI-005096']
   tag nist_r4: ['SA-12 (14)']
@@ -360,6 +478,27 @@ control 'devsecops-coverage-container' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
+  desc 'check', <<~'CHECK'
+    For each repository in `targets` that declares `container` enabled,
+    confirm at least one declared tool ran and its result can be read on a
+    surface the run mode reaches. Tools and where each is verified: (1)
+    Grype (`grype`): a report matching `*grype*.json` in `artifact_dir`;
+    or converted HDF from source `grype` in the evidence bucket within
+    `evidence_lookback_days`. (2) Trivy (`trivy`): a report matching
+    `*trivy*.json` in `artifact_dir`. (3) Anchore (`anchore`): a report
+    matching `*anchore*.json` in `artifact_dir`. (4) Cosign (`cosign`): a
+    report matching `*cosign*.json` in `artifact_dir`. The `pipeline` run
+    mode reaches report files only; `control-plane` reaches the forge API
+    and the evidence bucket; `both` reaches all. A workflow file naming a
+    scanner does not count.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Run one of `grype`, `trivy`, `anchore`, `cosign` for the repository
+    and publish its result to a surface listed in the check, then declare
+    it in the target's `scans.container.tools`. Where Container Image
+    Scanning does not apply, declare `scans.container.enabled: false` and
+    supply an attestation; omitting the scan type is not an option.
+  FIX
   tag nist: ['RA-5 a', 'SR-3 a', 'CM-6 c']
   tag cci: ['CCI-001054', 'CCI-005080', 'CCI-000367']
   tag nist_r4: ['CM-6 c', 'RA-5 a']
@@ -384,6 +523,24 @@ control 'devsecops-coverage-licensing' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
+  desc 'check', <<~'CHECK'
+    For each repository in `targets` that declares `licensing` enabled,
+    confirm at least one declared tool ran and its result can be read on a
+    surface the run mode reaches. Tools and where each is verified: (1)
+    Trivy (`trivy`): a report matching `*trivy*.json` in `artifact_dir`.
+    (2) Snyk (`snyk`): a report matching `*snyk*.json` in `artifact_dir`.
+    (3) Sonatype (`sonatype`): a report matching `*sonatype*.json` in
+    `artifact_dir`. The `pipeline` run mode reaches report files only;
+    `control-plane` reaches the forge API and the evidence bucket; `both`
+    reaches all. A workflow file naming a scanner does not count.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Run one of `trivy`, `snyk`, `sonatype` for the repository and publish
+    its result to a surface listed in the check, then declare it in the
+    target's `scans.licensing.tools`. Where Software Licensing Review does
+    not apply, declare `scans.licensing.enabled: false` and supply an
+    attestation; omitting the scan type is not an option.
+  FIX
   tag nist: ['CM-10 a', 'SR-3 a']
   tag cci: ['CCI-001728', 'CCI-005080']
   tag nist_r4: ['CM-10 a']
@@ -408,6 +565,23 @@ control 'devsecops-coverage-dast' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
+  desc 'check', <<~'CHECK'
+    For each repository in `targets` that declares `dast` enabled, confirm
+    at least one declared tool ran and its result can be read on a surface
+    the run mode reaches. Tools and where each is verified: (1) Burp Suite
+    (`burpsuite`): a report matching `*burp*.json` in `artifact_dir`. (2)
+    OWASP ZAP (`zap`): a report matching `*zap*.json` in `artifact_dir`.
+    The `pipeline` run mode reaches report files only; `control-plane`
+    reaches the forge API and the evidence bucket; `both` reaches all. A
+    workflow file naming a scanner does not count.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Run one of `burpsuite`, `zap` for the repository and publish its
+    result to a surface listed in the check, then declare it in the
+    target's `scans.dast.tools`. Where Dynamic Application Security
+    Testing does not apply, declare `scans.dast.enabled: false` and supply
+    an attestation; omitting the scan type is not an option.
+  FIX
   tag nist: ['SA-11 (8)', 'RA-5 a']
   tag cci: ['CCI-003196', 'CCI-001054']
   tag nist_r4: ['RA-5 a', 'SA-11 (8)']
@@ -431,6 +605,30 @@ control 'devsecops-coverage-runtime' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
+  desc 'check', <<~'CHECK'
+    For each repository in `targets` that declares `runtime` enabled,
+    confirm at least one declared tool ran and its result can be read on a
+    surface the run mode reaches. Tools and where each is verified: (1)
+    InSpec / CINC baselines (`inspec`): a report matching `*inspec*.json`
+    or `*hdf*.json` in `artifact_dir`. (2) AWS Config (`aws_config`): a
+    report matching `*aws-config*.json` or `*config-snapshot*.json` in
+    `artifact_dir`; or converted HDF from source `aws-config` in the
+    evidence bucket within `evidence_lookback_days`. (3) AWS Security Hub
+    (`aws_security_hub`): a report matching `*securityhub*.json` or
+    `*security-hub*.json` in `artifact_dir`. (4) Prowler (`prowler`): a
+    report matching `*prowler*.json` in `artifact_dir`. The `pipeline` run
+    mode reaches report files only; `control-plane` reaches the forge API
+    and the evidence bucket; `both` reaches all. A workflow file naming a
+    scanner does not count.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Run one of `inspec`, `aws_config`, `aws_security_hub`, `prowler` for
+    the repository and publish its result to a surface listed in the
+    check, then declare it in the target's `scans.runtime.tools`. Where
+    Post-Deployment Validation does not apply, declare
+    `scans.runtime.enabled: false` and supply an attestation; omitting the
+    scan type is not an option.
+  FIX
   tag nist: ['CA-7 c', 'CA-2 (2)']
   tag cci: ['CCI-000279', 'CCI-000256']
   tag nist_r4: ['CA-2 (2)', 'CA-7 c']
@@ -454,6 +652,29 @@ control 'devsecops-coverage-test_execution' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
+  desc 'check', <<~'CHECK'
+    For each repository in `targets` that declares `test_execution`
+    enabled, confirm at least one declared tool ran and its result can be
+    read on a surface the run mode reaches. Tools and where each is
+    verified: (1) JUnit XML test results (`junit`): a report matching
+    `*results*.xml` or `junit*.xml` or `*test-results*.xml` in
+    `artifact_dir`; or converted HDF from source `test-execution` in the
+    evidence bucket within `evidence_lookback_days`. (2) SimpleCov
+    (`simplecov`): a report matching `coverage*.json` or
+    `*simplecov*.json` in `artifact_dir`; or converted HDF from source
+    `test-execution` in the evidence bucket within
+    `evidence_lookback_days`. The `pipeline` run mode reaches report files
+    only; `control-plane` reaches the forge API and the evidence bucket;
+    `both` reaches all. A workflow file naming a scanner does not count.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Run one of `junit`, `simplecov` for the repository and publish its
+    result to a surface listed in the check, then declare it in the
+    target's `scans.test_execution.tools`. Where Developer Testing
+    Execution does not apply, declare `scans.test_execution.enabled:
+    false` and supply an attestation; omitting the scan type is not an
+    option.
+  FIX
   tag nist: ['SA-11 b']
   tag cci: ['CCI-003173']
   tag nist_r4: ['SA-11 b']
@@ -477,6 +698,18 @@ control 'devsecops-coverage-iast' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
+  desc 'check', <<~'CHECK'
+    No tool in the registry performs Interactive Application Security
+    Testing, so there is nothing to verify automatically. Confirm each
+    repository in `targets` declares `iast`, and review the attestation
+    for any that declare it disabled.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Adopt a tool that performs Interactive Application Security Testing
+    and add it to `files/tool_registry.yml` with the surfaces it can be
+    verified on. Until then, declare `scans.iast.enabled: false` with an
+    attestation.
+  FIX
   tag nist: ['SA-11 (9)']
   tag cci: ['CCI-004814']
   tag nist_r4_unmapped: ['SA-11 (9)']

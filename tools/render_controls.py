@@ -36,6 +36,7 @@ from __future__ import annotations
 import argparse
 import pathlib
 import sys
+import textwrap
 
 import yaml
 
@@ -294,6 +295,12 @@ control '{key_ctl}' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
+  desc 'check', <<~'CHECK'
+{check}
+  CHECK
+  desc 'fix', <<~'FIX'
+{fix}
+  FIX
   tag nist: {nist}
 {cci}{nist_r4}{nist_r4_unmapped}{ksi}  tag ssdf: {ssdf}
   tag sdlc_stage: '{stage}'
@@ -309,6 +316,79 @@ def ruby_list(values) -> str:
     return "[" + ", ".join("'" + str(v).replace("'", "\\'") + "'" for v in values) + "]"
 
 
+def wrap(text: str) -> str:
+    """Re-flow prose into the generated file's four-space heredoc indent."""
+    return "\n".join(textwrap.wrap(" ".join(str(text).split()), width=74,
+                                    initial_indent="    ", subsequent_indent="    ",
+                                    break_on_hyphens=False))
+
+
+def surface_phrase(tool: str, surface: str, meta: dict) -> str:
+    """Where a tool's run can be seen, in the words an assessor would check."""
+    if surface == "artifact":
+        pats = " or ".join(f"`{p}`" for p in meta.get("patterns") or [])
+        return f"a report matching {pats} in `artifact_dir`"
+    if surface == "platform_api":
+        cap = meta.get("capability")
+        if cap == "issues":
+            return (f"an analysis of the target's `evidence_sources.{tool}.project_key` "
+                    "project no older than `evidence_freshness_days`")
+        return f"the forge's `{cap}` capability enabled"
+    if surface == "evidence_store":
+        return (f"converted HDF from source `{meta.get('source')}` in the evidence "
+                "bucket within `evidence_lookback_days`")
+    return f"the `{surface}` surface"
+
+
+def satisfying_tools(reg: dict, key: str) -> list[str]:
+    """One line per tool that can satisfy a scan type, listing only the
+    execution surfaces it is implemented on: those are all the control
+    accepts, so configuration surfaces and planned work are left out."""
+    execution = {s for s, m in (reg.get("surfaces") or {}).items()
+                 if m.get("role") == "execution"}
+    lines = []
+    for name, tool in (reg.get("tools") or {}).items():
+        if key not in (tool.get("scan_types") or []):
+            continue
+        hits = [surface_phrase(name, s, m)
+                for s, m in (tool.get("surfaces") or {}).items()
+                if s in execution and m.get("status") == "implemented"]
+        if hits:
+            lines.append(f"{tool.get('name', name)} (`{name}`): " + "; or ".join(hits))
+    return lines
+
+
+def check_fix(reg: dict, key: str, meta: dict) -> tuple[str, str]:
+    """check/fix text for one scan type. A registry entry's own `check` or
+    `fix` wins; otherwise both are derived from the tools that satisfy it."""
+    title = meta.get("title", key)
+    tools = satisfying_tools(reg, key)
+    if tools:
+        listed = " ".join(f"({i}) {line}." for i, line in enumerate(tools, 1))
+        check = (f"For each repository in `targets` that declares `{key}` enabled, "
+                 "confirm at least one declared tool ran and its result can be read "
+                 f"on a surface the run mode reaches. Tools and where each is "
+                 f"verified: {listed} The `pipeline` run mode reaches report files "
+                 "only; `control-plane` reaches the forge API and the evidence "
+                 "bucket; `both` reaches all. A workflow file naming a scanner "
+                 "does not count.")
+        names = ", ".join(f"`{line.split('`')[1]}`" for line in tools)
+        fix = (f"Run one of {names} for the repository and publish its result to "
+               f"a surface listed in the check, then declare it in the target's "
+               f"`scans.{key}.tools`. Where {title} does not apply, declare "
+               f"`scans.{key}.enabled: false` and supply an attestation; omitting "
+               "the scan type is not an option.")
+    else:
+        check = (f"No tool in the registry performs {title}, so there is nothing to "
+                 "verify automatically. Confirm each repository in `targets` "
+                 f"declares `{key}`, and review the attestation for any that "
+                 "declare it disabled.")
+        fix = (f"Adopt a tool that performs {title} and add it to `files/tool_registry.yml` with "
+               f"the surfaces it can be verified on. Until then, declare "
+               f"`scans.{key}.enabled: false` with an attestation.")
+    return wrap(meta.get("check", check)), wrap(meta.get("fix", fix))
+
+
 def render(reg: dict) -> str:
     # The same resolver the hand-written control files use. Sharing it is the
     # point: two implementations of "which KSI does SA-11(1) reach" would
@@ -318,9 +398,12 @@ def render(reg: dict) -> str:
     out = [HEADER]
     for key, meta in (reg.get("scan_types") or {}).items():
         desc = " ".join(str(meta.get("description", "")).split())
+        check, fix = check_fix(reg, key, meta)
         out.append(
             BODY.format(
                 key=key,
+                check=check,
+                fix=fix,
                 key_ctl=f"devsecops-coverage-{key}",
                 # A scan type with no tooling anywhere cannot be a high-impact
                 # assertion; it is a declared gap, and the impact says so.

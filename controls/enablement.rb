@@ -70,6 +70,22 @@ control 'devsecops-inventory-reconciliation' do
     the declaration when a repository is archived is the intended cost of never
     silently shrinking the denominator.
   DESC
+  desc 'check', <<~'CHECK'
+    Enumerate the organisation's repositories with an authenticated token
+    (`gh repo list <org> --limit 1000`, or the GitLab group projects API),
+    including archived, fork and template repositories. Compare the list
+    with `targets` and `exclusions`: every repository must be declared or
+    excluded, every declared repository must still exist, and every
+    exclusion must carry a reason. The organisation must declare its
+    `forge:`.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Add each undeclared repository to `targets` with every scan type
+    declared, or to `exclusions` with a written reason. Remove
+    declarations for repositories that no longer exist. Use a token that
+    can see private repositories: an unauthenticated listing cannot show
+    that a declared repository is gone.
+  FIX
   tag nist: ['CM-8 a 1', 'CM-8 a 2']
   tag ksi: ['KSI-PIY-GIV']
   tag nist_r4: ['CM-8']
@@ -176,6 +192,21 @@ control 'devsecops-native-capability-enablement' do
     returns 403 or 404, and a client that reads those as "no alerts" reports a
     repository nobody scans as clean.
   DESC
+  desc 'check', <<~'CHECK'
+    Find the declared tools that leave no report on a runner and are
+    verified only through the forge API: platform secret scanning,
+    Dependabot and GitLab Dependency Scanning. For each repository that
+    declares one, confirm the forge capability it needs is enabled
+    (GitHub: Settings > Code security, or `security_and_analysis` on the
+    repository API). A 403 or 404 from the API means disabled or
+    unlicensed, never clean.
+  CHECK
+  desc 'fix', <<~'FIX'
+    Enable the capability on the repository, or at organisation level so
+    new repositories inherit it. If it needs a licence the repository does
+    not have, declare a different tool for that scan type on a surface the
+    run reaches.
+  FIX
   tag nist: ['RA-5 a', 'SI-5 a']
   tag ksi: ['KSI-SCR-MON', 'KSI-SVC-ACM']
   tag nist_r4: ['RA-5 a', 'SI-5 a']

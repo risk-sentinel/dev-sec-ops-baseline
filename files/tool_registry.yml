@@ -342,27 +342,27 @@ scan_types:
   sast:
     title: Static Application Security Testing
     sdlc_stage: code
-    nist: ['SA-11(1)']
-    cci: ['CCI-003179']
+    nist: ['SA-11 (1)']
     nist_r4: ['SA-11 (1)']
+    cci: ['CCI-003179']
     ssdf: [PW.7, PW.8]
     description: Analyses source without executing it.
 
   secrets:
     title: Secrets Detection
     sdlc_stage: code
-    nist: ['IA-5(7)', 'SA-11']
-    cci: ['CCI-003171', 'CCI-004069']
-    nist_r4: ['SA-11 a']
+    nist: ['IA-5 (7)', 'SA-11 c']
+    nist_r4: ['SA-11 c']
+    cci: ['CCI-004069', 'CCI-003176']
     ssdf: [PW.1]
     description: Finds embedded static authenticators in source and git history.
 
   iac:
     title: Infrastructure as Code Scanning
     sdlc_stage: code
-    nist: ['CM-2', 'CM-6', 'RA-5']
-    cci: ['CCI-000295', 'CCI-000366', 'CCI-001054']
-    nist_r4: ['CM-2', 'CM-6 b', 'RA-5 a']
+    nist: ['CM-6 c', 'RA-5 a']
+    nist_r4: ['CM-6 c', 'RA-5 a']
+    cci: ['CCI-000367', 'CCI-001054']
     ssdf: [PW.9]
     description: Misconfiguration analysis of declarative infrastructure.
 
@@ -370,9 +370,9 @@ scan_types:
     title: Software Composition Analysis
     aliases: [dependency]
     sdlc_stage: build
-    nist: ['RA-5', 'SA-11(1)', 'SR-3']
-    cci: ['CCI-001054', 'CCI-003179', 'CCI-005080']
-    nist_r4: ['RA-5 a', 'SA-11 (1)']
+    nist: ['RA-5 a', 'SR-3 a']
+    nist_r4: ['RA-5 a']
+    cci: ['CCI-001054', 'CCI-005080']
     ssdf: [RV.1, PW.4]
     description: >-
       Known-vulnerable third-party components. GitLab calls this "Dependency
@@ -381,18 +381,18 @@ scan_types:
   sbom:
     title: Software Bill of Materials
     sdlc_stage: build
-    nist: ['SR-3', 'SR-4']
-    nist_r4_unmapped: ['SR-3', 'SR-4']
-    cci: ['CCI-005080', 'CCI-005096']
+    nist: ['SR-4']
+    nist_r4_unmapped: ['SR-4']
+    cci: ['CCI-005096']
     ssdf: [PS.3, PW.4]
     description: Component inventory and provenance record.
 
   container:
     title: Container Image Scanning
     sdlc_stage: build
-    nist: ['RA-5', 'CM-6', 'SR-3']
-    cci: ['CCI-000366', 'CCI-001054', 'CCI-005080']
-    nist_r4: ['CM-6 b', 'RA-5 a']
+    nist: ['RA-5 a', 'SR-3 a', 'CM-6 c']
+    nist_r4: ['CM-6 c', 'RA-5 a']
+    cci: ['CCI-001054', 'CCI-005080', 'CCI-000367']
     ssdf: [RV.1]
     description: >-
       Vulnerability and misconfiguration analysis of a built image. Frequently
@@ -402,18 +402,18 @@ scan_types:
   licensing:
     title: Software Licensing Review
     sdlc_stage: build
-    nist: ['SR-3', 'SA-4']
-    cci: ['CCI-003094', 'CCI-005080']
-    nist_r4: ['SA-4 a']
+    nist: ['CM-10 a', 'SR-3 a']
+    nist_r4: ['CM-10 a']
+    cci: ['CCI-001728', 'CCI-005080']
     ssdf: [PW.4]
     description: OSS licence governance over acquired and reused components.
 
   dast:
     title: Dynamic Application Security Testing
     sdlc_stage: test
-    nist: ['SA-11(8)', 'RA-5', 'CA-8']
-    cci: ['CCI-001054', 'CCI-002093', 'CCI-003196']
-    nist_r4: ['CA-8', 'RA-5 a', 'SA-11 (8)']
+    nist: ['SA-11 (8)', 'RA-5 a']
+    nist_r4: ['RA-5 a', 'SA-11 (8)']
+    cci: ['CCI-003196', 'CCI-001054']
     ssdf: [PW.8, RV.1]
     description: Exercises a running application from the outside.
 
@@ -421,9 +421,9 @@ scan_types:
     title: Post-Deployment Validation
     aliases: [post_deploy, continuous_monitoring]
     sdlc_stage: operate
-    nist: ['CA-2(2)', 'CA-7', 'CM-6', 'RA-5']
-    cci: ['CCI-000256', 'CCI-000274', 'CCI-000366', 'CCI-001054']
-    nist_r4: ['CA-2 (2)', 'CA-7', 'CM-6 b', 'RA-5 a']
+    nist: ['CA-7 c', 'CA-2 (2)']
+    nist_r4: ['CA-2 (2)', 'CA-7 c']
+    cci: ['CCI-000279', 'CCI-000256']
     ssdf: [RV.1, PW.9]
     description: >-
       Assessment of what is actually deployed, not what was built. The SDLC
@@ -436,12 +436,11 @@ scan_types:
   test_execution:
     title: Developer Testing Execution
     sdlc_stage: test
-    nist:
-      - SA-11
-    nist_r4: ['SA-11']
+    nist: ['SA-11 b']
+    nist_r4: ['SA-11 b']
+    cci: ['CCI-003173']
     # SA-11 b is the statement this evidences -- the developer performing the
     # unit, integration, system and regression testing, not the plan for it.
-    cci: ['CCI-003173']
     ssdf:
       - PW.8
     description: >-
@@ -455,8 +454,8 @@ scan_types:
   iast:
     title: Interactive Application Security Testing
     sdlc_stage: test
-    nist: ['SA-11(9)']
-    nist_r4_unmapped: ['SA-11(9)']
+    nist: ['SA-11 (9)']
+    nist_r4_unmapped: ['SA-11 (9)']
     cci: ['CCI-004814']
     ssdf: [PW.8]
     description: >-

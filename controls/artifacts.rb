@@ -32,10 +32,10 @@ control 'artifact-sast' do
   desc  'check', 'Asserts the declared SAST report exists in the artifact directory, is non-empty, and parses as SARIF with at least one run.'
   desc  'fix', 'If absent, the SAST stage did not run or did not publish its report. Check the workflow run and the artifact upload path; a stage that fails open leaves no report and no finding.'
   desc  'Static application security testing ran and produced a SARIF artifact.'
-  tag nist: ['SA-11(1)']
+  tag nist: ['SA-11 (1)']
   tag ksi: ['KSI-SCR-MIT']
-  tag nist_r4: ['SA-11(1)']
-  tag cci:  ['CCI-003179']
+  tag nist_r4: ['SA-11 (1)']
+  tag cci:  ['CCI-003179', 'CCI-003180']
   tag layer: 'static-analysis'
   only_if('SAST not expected in this pipeline') { input('expect_sast') }
 
@@ -60,10 +60,10 @@ control 'artifact-secrets' do
   desc  'check', 'Asserts the declared secrets report exists in the artifact directory and is non-empty.'
   desc  'fix', 'If absent, the secrets stage did not run or published nothing. Note a clean scan must still emit — an empty prefix is indistinguishable from a broken pipeline.'
   desc  'A secrets-detection stage ran and emitted a report.'
-  tag nist: ['IA-5(7)', 'SA-11']
+  tag nist: ['IA-5 (7)', 'SA-11 c']
   tag ksi: ['KSI-IAM-APM', 'KSI-SCR-MIT']
-  tag nist_r4: ['IA-5(7)', 'SA-11']
-  tag cci:  ['CCI-003171', 'CCI-004069']
+  tag nist_r4: ['SA-11 c']
+  tag cci:  ['CCI-004069', 'CCI-003176']
   tag layer: 'secrets'
   only_if('Generic secrets scan not expected') { input('expect_secrets') }
   assert_present(adir, input('secrets_report'))
@@ -82,10 +82,10 @@ control 'artifact-trufflehog' do
   desc  'Trufflehog ran (git history + filesystem) and emitted a JSONL report. '\
         'Empty file is valid here ONLY if your stage writes an explicit empty result; '\
         'default asserts the file exists and stage executed.'
-  tag nist: ['IA-5(7)', 'SA-11']
+  tag nist: ['IA-5 (7)', 'SA-11 c']
   tag ksi: ['KSI-IAM-APM', 'KSI-SCR-MIT']
-  tag nist_r4: ['IA-5(7)', 'SA-11']
-  tag cci:  ['CCI-003171', 'CCI-004069']
+  tag nist_r4: ['SA-11 c']
+  tag cci:  ['CCI-004069', 'CCI-003176']
   tag layer: 'secrets-verified'
   only_if('Trufflehog not expected') { input('expect_trufflehog') }
 
@@ -105,10 +105,10 @@ control 'artifact-lint' do
   desc  'rationale', 'SA-15(5) asks for automated analysis in the development process. Lint is the cheapest such control and the one most often assumed rather than evidenced.'
   desc  'check', 'Asserts the declared lint report exists in the artifact directory and is non-empty.'
   desc  'fix', 'If absent, the lint stage did not run or did not publish its report. Check the workflow run and the artifact path.'
-  tag nist: ['SA-15(5)', 'SA-11']
+  tag nist: ['SA-11 (1)']
   tag ksi: ['KSI-SCR-MIT']
-  tag nist_r4: ['SA-11', 'SA-15(5)']
-  tag cci:  ['CCI-003171', 'CCI-003272']
+  tag nist_r4: ['SA-11 (1)']
+  tag cci:  ['CCI-003179', 'CCI-003180']
   tag layer: 'quality'
   only_if('Lint not expected') { input('expect_lint') }
   assert_present(adir, input('lint_report'))
@@ -124,11 +124,11 @@ control 'artifact-quality' do
   desc  'rationale', 'SA-15 asks that development follows a defined process with quality measures. A quality report is the artifact that shows the measure was applied rather than declared.'
   desc  'check', 'Asserts the declared quality report exists in the artifact directory and is non-empty.'
   desc  'fix', 'If absent, the quality stage did not run or did not publish. If your quality gate lives in a hosted service, point the declaration at its exported report rather than assuming the badge is evidence.'
-  tag nist: ['SA-15']
+  tag nist: ['SA-15 (1) (b)']
   tag ksi: []
   tag ksi_broader: ['KSI-SCR-MIT']
-  tag nist_r4: ['SA-15']
-  tag cci:  ['CCI-003233']
+  tag nist_r4: ['SA-15 (1) (b)']
+  tag cci:  ['CCI-003248']
   tag layer: 'quality'
   only_if('Quality scan not expected') { input('expect_quality') }
   assert_present(adir, input('quality_report'))
@@ -144,10 +144,11 @@ control 'artifact-code-review' do
   desc  'rationale', 'SA-11(4) asks for manual code review support and SA-15(7) for automated analysis. This evidences the automated half — the part that runs on every change rather than on the ones someone remembered.'
   desc  'check', 'Asserts the declared code-review report exists in the artifact directory and is non-empty.'
   desc  'fix', 'If absent, the automated review did not run or published nothing. Human review recorded only in PR approvals is not covered by this control.'
-  tag nist: ['SA-11(4)', 'SA-15(7)']
-  tag ksi: ['KSI-SCR-MIT']
-  tag nist_r4: ['SA-11(4)', 'SA-15(7)']
-  tag cci:  ['CCI-003187', 'CCI-003275']
+  tag nist: ['SA-15 (7) (a)']
+  tag ksi: []
+  tag ksi_broader: ['KSI-SCR-MIT']
+  tag nist_r4: ['SA-15 (7) (a)']
+  tag cci:  ['CCI-003275']
   tag layer: 'review'
   only_if('Automated code review not expected') { input('expect_code_review') }
   assert_present(adir, input('code_review_report'))
@@ -163,11 +164,11 @@ control 'artifact-sbom' do
   desc  'rationale', 'SR-3 and SR-4 require knowing what is in what you ship. An SBOM produced at build time is the only version that matches the artifact actually released.'
   desc  'check', 'Asserts the declared SBOM exists, is non-empty, and parses as CycloneDX with a components array.'
   desc  'fix', 'If absent, the SBOM stage did not run or published nothing. An SBOM generated later from source is not evidence about the released artifact.'
-  tag nist: ['SR-3', 'SR-4']
+  tag nist: ['SR-4']
   tag ksi: []
-  tag ksi_unmapped: ['sr-3', 'sr-4']
-  tag nist_r4_unmapped: ['SR-3', 'SR-4']
-  tag cci:  ['CCI-005080', 'CCI-005096']
+  tag ksi_unmapped: ['sr-4']
+  tag nist_r4_unmapped: ['SR-4']
+  tag cci:  ['CCI-005096']
   tag layer: 'supply-chain'
   only_if('SBOM not expected') { input('expect_sbom') }
 
@@ -191,11 +192,11 @@ control 'artifact-dependency' do
   desc  'rationale', 'RA-5 requires vulnerability monitoring, and dependencies are where most of it lives. The report evidences that the scan happened over the lockfile at this commit.'
   desc  'check', 'Asserts the declared dependency report exists in the artifact directory and is non-empty.'
   desc  'fix', 'If absent, the SCA stage did not run or did not publish. Confirm it scanned the lockfile actually shipped, not a regenerated one.'
-  tag nist: ['RA-5', 'SA-11(1)', 'SR-3']
-  tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
+  tag nist: ['RA-5 a', 'SR-3 a']
+  tag ksi: ['KSI-SCR-MON']
   tag ksi_unmapped: ['sr-3']
-  tag nist_r4: ['RA-5', 'SA-11(1)']
-  tag cci:  ['CCI-001054', 'CCI-003179', 'CCI-005080']
+  tag nist_r4: ['RA-5 a']
+  tag cci:  ['CCI-001054', 'CCI-005080']
   tag layer: 'sca'
   only_if('Generic dependency scan not expected') { input('expect_dependency') }
   assert_present(adir, input('dependency_report'))
@@ -212,11 +213,11 @@ control 'artifact-trivy' do
   desc  'check', 'Asserts the Trivy report exists, is non-empty, and parses as JSON with a Results array.'
   desc  'fix', 'If absent, Trivy did not run or did not publish. Check which layers were enabled — a run limited to one scanner still produces a report and silently narrows coverage.'
   desc  'Trivy ran (vuln/misconfig/secret/license layers) and emitted JSON.'
-  tag nist: ['RA-5', 'CM-6', 'SR-3']
+  tag nist: ['RA-5 a', 'SR-3 a', 'CM-6 c']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag ksi_unmapped: ['sr-3']
-  tag nist_r4: ['CM-6', 'RA-5']
-  tag cci:  ['CCI-000366', 'CCI-001054', 'CCI-005080']
+  tag nist_r4: ['CM-6 c', 'RA-5 a']
+  tag cci:  ['CCI-001054', 'CCI-005080', 'CCI-000367']
   tag layer: 'sca-multi'
   only_if('Trivy not expected') { input('expect_trivy') }
 
@@ -241,10 +242,10 @@ control 'artifact-grype' do
   desc  'rationale', 'RA-5 requires vulnerability monitoring. Grype scans an SBOM or image directly, so its report evidences what was actually assessed rather than what was assumed present.'
   desc  'check', 'Asserts the Grype report exists, is non-empty, and parses as JSON with a matches array.'
   desc  'fix', 'If absent, Grype did not run or published nothing. If it ran against an SBOM, confirm the SBOM was the one built from this artifact.'
-  tag nist: ['RA-5', 'SA-11(1)']
-  tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
-  tag nist_r4: ['RA-5', 'SA-11(1)']
-  tag cci:  ['CCI-001054', 'CCI-003179']
+  tag nist: ['RA-5 a']
+  tag ksi: ['KSI-SCR-MON']
+  tag nist_r4: ['RA-5 a']
+  tag cci:  ['CCI-001054']
   tag layer: 'sca'
   only_if('Grype not expected') { input('expect_grype') }
 
@@ -269,10 +270,10 @@ control 'artifact-snyk' do
   desc  'rationale', 'RA-5 and SR-3 — a second SCA opinion catches what one database misses. Where Snyk is declared, its absence is a coverage gap rather than a preference.'
   desc  'check', 'Asserts the Snyk report exists, is non-empty, and parses as JSON.'
   desc  'fix', 'If absent, Snyk did not run, or ran without a token and failed open. A failed-open scanner is the worst case: no report, no finding, and a green pipeline.'
-  tag nist: ['RA-5', 'SR-3']
+  tag nist: ['RA-5 a', 'SR-3 a']
   tag ksi: ['KSI-SCR-MON']
   tag ksi_unmapped: ['sr-3']
-  tag nist_r4: ['RA-5']
+  tag nist_r4: ['RA-5 a']
   tag cci:  ['CCI-001054', 'CCI-005080']
   tag layer: 'sca'
   only_if('Snyk not expected') { input('expect_snyk') }
@@ -300,11 +301,11 @@ control 'artifact-license' do
   desc  'fix', 'If absent, the licence stage did not run or did not publish its inventory.'
   desc  "OSS license governance was performed. Source of review: "\
         "#{input('license_source')}."
-  tag nist: ['SR-3', 'SA-4']
+  tag nist: ['CM-10 a', 'SR-3 a']
   tag ksi: []
-  tag ksi_unmapped: ['sa-4', 'sr-3']
-  tag nist_r4: ['SA-4']
-  tag cci:  ['CCI-003094', 'CCI-005080']
+  tag ksi_unmapped: ['cm-10', 'sr-3']
+  tag nist_r4: ['CM-10 a']
+  tag cci:  ['CCI-001728', 'CCI-005080']
   tag layer: 'license-governance'
   # NOT `tag license_source: input('license_source')`. Tags are STATIC
   # metadata: InSpec's AST TagCollector reads the literal at parse time and
@@ -360,10 +361,10 @@ control 'artifact-inspec-deployed' do
   desc  'rationale', 'CA-2(2) and CA-7 ask for assessment of the running system, not just the build. A clean pipeline says nothing about what is actually deployed.'
   desc  'check', 'Asserts the declared deployed-resource InSpec report exists, is non-empty, and parses as JSON.'
   desc  'fix', 'If absent, the post-deployment assessment did not run or did not publish. This is the control most often missing, because pipelines tend to stop at deploy.'
-  tag nist: ['CA-2(2)', 'CA-7', 'CM-6', 'RA-5']
-  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-PIY-RIS', 'KSI-SCR-MON', 'KSI-SVC-ACM']
-  tag nist_r4: ['CA-2(2)', 'CA-7', 'CM-6', 'RA-5']
-  tag cci:  ['CCI-000256', 'CCI-000274', 'CCI-000366', 'CCI-001054']
+  tag nist: ['CA-7 c', 'CA-2 (2)']
+  tag ksi: ['KSI-MLA-EVC', 'KSI-PIY-RIS']
+  tag nist_r4: ['CA-2 (2)', 'CA-7 c']
+  tag cci:  ['CCI-000279', 'CCI-000256']
   tag layer: 'runtime-assessment'
   only_if('Deployed-resource InSpec not expected') { input('expect_inspec_deployed') }
 

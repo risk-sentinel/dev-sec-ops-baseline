@@ -243,7 +243,7 @@ control 'devsecops-coverage-sast' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
-  tag nist: ['SA-11(1)']
+  tag nist: ['SA-11 (1)']
   tag cci: ['CCI-003179']
   tag nist_r4: ['SA-11 (1)']
   tag ksi: ['KSI-SCR-MIT']
@@ -266,9 +266,9 @@ control 'devsecops-coverage-secrets' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
-  tag nist: ['IA-5(7)', 'SA-11']
-  tag cci: ['CCI-003171', 'CCI-004069']
-  tag nist_r4: ['SA-11 a']
+  tag nist: ['IA-5 (7)', 'SA-11 c']
+  tag cci: ['CCI-004069', 'CCI-003176']
+  tag nist_r4: ['SA-11 c']
   tag ksi: ['KSI-IAM-APM', 'KSI-SCR-MIT']
   tag ssdf: ['PW.1']
   tag sdlc_stage: 'code'
@@ -289,10 +289,10 @@ control 'devsecops-coverage-iac' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
-  tag nist: ['CM-2', 'CM-6', 'RA-5']
-  tag cci: ['CCI-000295', 'CCI-000366', 'CCI-001054']
-  tag nist_r4: ['CM-2', 'CM-6 b', 'RA-5 a']
-  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-CNA-DFP', 'KSI-CNA-IBP', 'KSI-MLA-EVC', 'KSI-SCR-MON', 'KSI-SVC-ACM']
+  tag nist: ['CM-6 c', 'RA-5 a']
+  tag cci: ['CCI-000367', 'CCI-001054']
+  tag nist_r4: ['CM-6 c', 'RA-5 a']
+  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag ssdf: ['PW.9']
   tag sdlc_stage: 'code'
   tag scan_type: 'iac'
@@ -312,10 +312,10 @@ control 'devsecops-coverage-sca' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
-  tag nist: ['RA-5', 'SA-11(1)', 'SR-3']
-  tag cci: ['CCI-001054', 'CCI-003179', 'CCI-005080']
-  tag nist_r4: ['RA-5 a', 'SA-11 (1)']
-  tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
+  tag nist: ['RA-5 a', 'SR-3 a']
+  tag cci: ['CCI-001054', 'CCI-005080']
+  tag nist_r4: ['RA-5 a']
+  tag ksi: ['KSI-SCR-MON']
   tag ksi_unmapped: ['sr-3']
   tag ssdf: ['RV.1', 'PW.4']
   tag sdlc_stage: 'build'
@@ -336,11 +336,11 @@ control 'devsecops-coverage-sbom' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
-  tag nist: ['SR-3', 'SR-4']
-  tag cci: ['CCI-005080', 'CCI-005096']
-  tag nist_r4_unmapped: ['SR-3', 'SR-4']
+  tag nist: ['SR-4']
+  tag cci: ['CCI-005096']
+  tag nist_r4_unmapped: ['SR-4']
   tag ksi: []
-  tag ksi_unmapped: ['sr-3', 'sr-4']
+  tag ksi_unmapped: ['sr-4']
   tag ssdf: ['PS.3', 'PW.4']
   tag sdlc_stage: 'build'
   tag scan_type: 'sbom'
@@ -360,9 +360,9 @@ control 'devsecops-coverage-container' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
-  tag nist: ['RA-5', 'CM-6', 'SR-3']
-  tag cci: ['CCI-000366', 'CCI-001054', 'CCI-005080']
-  tag nist_r4: ['CM-6 b', 'RA-5 a']
+  tag nist: ['RA-5 a', 'SR-3 a', 'CM-6 c']
+  tag cci: ['CCI-001054', 'CCI-005080', 'CCI-000367']
+  tag nist_r4: ['CM-6 c', 'RA-5 a']
   tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-SCR-MON', 'KSI-SVC-ACM']
   tag ksi_unmapped: ['sr-3']
   tag ssdf: ['RV.1']
@@ -384,11 +384,11 @@ control 'devsecops-coverage-licensing' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
-  tag nist: ['SR-3', 'SA-4']
-  tag cci: ['CCI-003094', 'CCI-005080']
-  tag nist_r4: ['SA-4 a']
+  tag nist: ['CM-10 a', 'SR-3 a']
+  tag cci: ['CCI-001728', 'CCI-005080']
+  tag nist_r4: ['CM-10 a']
   tag ksi: []
-  tag ksi_unmapped: ['sa-4', 'sr-3']
+  tag ksi_unmapped: ['cm-10', 'sr-3']
   tag ssdf: ['PW.4']
   tag sdlc_stage: 'build'
   tag scan_type: 'licensing'
@@ -408,11 +408,10 @@ control 'devsecops-coverage-dast' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
-  tag nist: ['SA-11(8)', 'RA-5', 'CA-8']
-  tag cci: ['CCI-001054', 'CCI-002093', 'CCI-003196']
-  tag nist_r4: ['CA-8', 'RA-5 a', 'SA-11 (8)']
+  tag nist: ['SA-11 (8)', 'RA-5 a']
+  tag cci: ['CCI-003196', 'CCI-001054']
+  tag nist_r4: ['RA-5 a', 'SA-11 (8)']
   tag ksi: ['KSI-SCR-MIT', 'KSI-SCR-MON']
-  tag ksi_unmapped: ['ca-8']
   tag ssdf: ['PW.8', 'RV.1']
   tag sdlc_stage: 'test'
   tag scan_type: 'dast'
@@ -432,10 +431,10 @@ control 'devsecops-coverage-runtime' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
-  tag nist: ['CA-2(2)', 'CA-7', 'CM-6', 'RA-5']
-  tag cci: ['CCI-000256', 'CCI-000274', 'CCI-000366', 'CCI-001054']
-  tag nist_r4: ['CA-2 (2)', 'CA-7', 'CM-6 b', 'RA-5 a']
-  tag ksi: ['KSI-CMT-LMC', 'KSI-CMT-RMV', 'KSI-MLA-EVC', 'KSI-PIY-RIS', 'KSI-SCR-MON', 'KSI-SVC-ACM']
+  tag nist: ['CA-7 c', 'CA-2 (2)']
+  tag cci: ['CCI-000279', 'CCI-000256']
+  tag nist_r4: ['CA-2 (2)', 'CA-7 c']
+  tag ksi: ['KSI-MLA-EVC', 'KSI-PIY-RIS']
   tag ssdf: ['RV.1', 'PW.9']
   tag sdlc_stage: 'operate'
   tag scan_type: 'runtime'
@@ -455,9 +454,9 @@ control 'devsecops-coverage-test_execution' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
-  tag nist: ['SA-11']
+  tag nist: ['SA-11 b']
   tag cci: ['CCI-003173']
-  tag nist_r4: ['SA-11']
+  tag nist_r4: ['SA-11 b']
   tag ksi: ['KSI-SCR-MIT']
   tag ssdf: ['PW.8']
   tag sdlc_stage: 'test'
@@ -478,9 +477,9 @@ control 'devsecops-coverage-iast' do
     count: a workflow file naming a scanner proves somebody wired it up, not
     that it ran.
   DESC
-  tag nist: ['SA-11(9)']
+  tag nist: ['SA-11 (9)']
   tag cci: ['CCI-004814']
-  tag nist_r4_unmapped: ['SA-11(9)']
+  tag nist_r4_unmapped: ['SA-11 (9)']
   tag ksi: ['KSI-SCR-MIT']
   tag ssdf: ['PW.8']
   tag sdlc_stage: 'test'
